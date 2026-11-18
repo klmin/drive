@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: docker.io/library/postgres:18
+    container_name: thinkfree-postgres
+    env_file: template/database/postgres/.env
+    networks:
+      - thinkfree
+    ports:
+      - 5432:5432
+    volumes:
+      # PG 18 이미지는 데이터 디렉터리가 /var/lib/postgresql/18/docker — 상위 /var/lib/postgresql 를 마운트한다
+      - ./template/database/postgres/data:/var/lib/postgresql
+      # 최초 기동(빈 데이터) 때만: docker-init 이 DB·계정만 만든다(테이블·기초 데이터는 drive 기동 시 Flyway)
+      - ./template/database/postgres/docker-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$DRIVE_DB_NAME"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  drive:
+    build:
+      context: ./template/drive
+    image: drive:1.1.0
+    container_name: thinkfree-drive
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - thinkfree
+    ports:
+      - 8080:8080
+    environment:
+      BACKEND_PORT: "8080"
+      TFO_TICKET_OPEN_TTL: "${TFO_TICKET_OPEN_TTL:-60s}"
+      TFO_STORAGE_SESSION_TTL: "${TFO_STORAGE_SESSION_TTL:-24h}"
+    volumes:
+      - ./template/logs/drive:/var/log/drive
+      # 라이선스 폴더(license.tfl + thinkfree.public.key) — 라이선스 라이브러리가 ~/weboffice/license/thinkfree.public.key 로 서명을 검증하고,
+      # 앱이 env.sh 의 DRIVE_INITIAL_LICENSE_FILE(/root/weboffice/license/license.tfl)을 첫 기동 때 등록한다(이미 있으면 유지)
+      - ./template/license:/root/weboffice/license:ro
+
+  httpd:
+    build: ./template/httpd
+    container_name: thinkfree-apache
+    ports:
+      - 80:80
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./template/httpd/vhosts.conf:/usr/local/apache2/conf/extra/httpd-vhosts.conf:ro
+      - ./template/logs/httpd:/usr/local/apache2/logs
+    depends_on:
+      - drive
+    networks:
+      - thinkfree
+
+networks:
+  thinkfree:
+

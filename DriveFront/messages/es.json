@@ -1,0 +1,2011 @@
+{
+    "header": {
+        "searchInput": "Buscar en Drive"
+    },
+    "sidebar": {
+        "home": "Inicio",
+        "search": "Resultados de búsqueda"
+    },
+    "data": {
+        "name": "Nombre",
+        "me": "Yo",
+        "sortBy": "Ordenar por",
+        "lastModified": "Última modificación",
+        "lastOpened": "Último acceso",
+        "lastActivity": "Última actividad",
+        "deleteDate": "Fecha de eliminación",
+        "deleteUser": "Eliminado por",
+        "originalLocation": "Ubicación original",
+        "location": "Ubicación",
+        "emptyTrash": "Vaciar papelera",
+        "older": "Más antiguos"
+    },
+    "filter": {
+        "clear": "Borrar filtros"
+    },
+    "fileTypeFilter": {
+        "filterType": "Tipo",
+        "folder": "Carpeta",
+        "document": "Documentos",
+        "spreadsheet": "Hojas de cálculo",
+        "presentation": "Presentaciones",
+        "pdf": "PDFs",
+        "image": "Fotos e imágenes",
+        "note": "Notas"
+    },
+    "ownerFilter": {
+        "trashFilterType": "Eliminado por",
+        "ownerUser": "Archivos de {userName}",
+        "inputBase": "Buscar usuarios"
+    },
+    "dateFilter": {
+        "filterType": "Fecha de modificación",
+        "trashFilterType": "Fecha de eliminación",
+        "custom": "Rango personalizado",
+        "clearAll": "Borrar todo",
+        "confirm": "Aplicar",
+        "requestedDateFilterType": "Fecha de solicitud de eliminación",
+        "scheduledDateFilterType": "Eliminación programada",
+        "scheduledToday": "Eliminación programada para hoy",
+        "scheduledTomorrow": "Eliminación programada para mañana",
+        "scheduledWithin7Days": "Eliminación en 7 días",
+        "scheduledWithin30Days": "Eliminación en 30 días"
+    },
+    "MyDrive": {
+        "text1": "No hay archivos",
+        "text2": "Arrastra archivos aquí o haz clic en 'Nuevo' para comenzar"
+    },
+    "Recent": {
+        "text1": "No hay archivos recientes",
+        "text2": "Los archivos que hayas añadido o editado recientemente aparecerán aquí"
+    },
+    "Starred": {
+        "text1": "No hay archivos destacados",
+        "text2": "Añade estrellas para encontrar rápidamente los archivos importantes"
+    },
+    "Shared": {
+        "text1": "No hay archivos compartidos contigo",
+        "text2": "Los archivos compartidos contigo aparecerán aquí"
+    },
+    "Trash": {
+        "text1": "La papelera está vacía",
+        "text2": "Mueve los elementos que no necesites a la papelera. Los elementos en la papelera se eliminan permanentemente al vaciarla",
+        "text": "Los elementos en la papelera se eliminan permanentemente después de 30 días."
+    },
+    "login": {
+        "inputEmail": "Correo electrónico",
+        "forgotPw": "¿Olvidaste tu contraseña?",
+        "findPassword": "Recuperar contraseña"
+    },
+    "search": {
+        "text1": "No se encontraron resultados",
+        "text2": "Verifica la ortografía o intenta con otras palabras clave"
+    },
+    "uploadDialog": {
+        "newFolder": "Nueva carpeta",
+        "fileUpload": "Subir archivo",
+        "folderUpload": "Subir carpeta",
+        "newDocs": "Nuevo documento",
+        "newPpt": "Nueva presentación",
+        "newExcel": "Nueva hoja de cálculo",
+        "folderUploadDisabled": "Este botón no está disponible en este entorno.<br/>Arrastra y suelta para subir.",
+        "newIntellect": "Nueva nota"
+    },
+    "newFolderDialog": {
+        "title": "Nueva carpeta",
+        "defaultFolderName": "Carpeta sin título"
+    },
+    "duplicateDialog": {
+        "text1": "{resourceName} ya existe en esta ubicación.",
+        "text2": "Si subes el archivo, se guardará con un nuevo nombre."
+    },
+    "duplicateFileDialog": {
+        "title": "Opciones de carga",
+        "description": "{fileName} ya existe en esta ubicación. ¿Deseas reemplazar el archivo existente con una nueva versión o conservar ambos archivos? Reemplazar el archivo no cambiará la configuración de uso compartido.",
+        "replace": "Reemplazar archivo existente",
+        "keepBoth": "Conservar ambos archivos"
+    },
+    "resourceMenuBar": {
+        "rename": "Cambiar nombre",
+        "fileDetail": "Información del archivo",
+        "folderDetail": "Información de la carpeta",
+        "copy": "Hacer una copia",
+        "removeStarred": "Quitar de destacados",
+        "version": "Historial de versiones"
+    },
+    "renameDialog": {
+        "title": "Cambiar nombre"
+    },
+    "dataDetail": {
+        "title": "Detalles",
+        "fileInfo": "Detalles del archivo",
+        "folderInfo": "Detalles de la carpeta",
+        "path": "Ruta",
+        "format": "Formato",
+        "updateDate": "Última modificación",
+        "registerDate": "Fecha de carga",
+        "permissions": "Permisos",
+        "share": "Usuarios con acceso compartido",
+        "tag": "Etiquetas",
+        "notShared": "No compartido",
+        "noTag": "Sin etiquetas",
+        "defaultTagValue": "Añadir etiqueta",
+        "unselected": "Selecciona un archivo o carpeta para ver los detalles",
+        "multiSelected": "{count} elementos seleccionados",
+        "etc": "Otros"
+    },
+    "moveDialog": {
+        "title": "Seleccionar carpeta de destino",
+        "subTitleMultiple": "Mover {count} elementos"
+    },
+    "copyDialog": {
+        "title": "Seleccionar ubicación para la copia",
+        "subTitle": "Hacer una copia",
+        "copy": "Hacer una copia"
+    },
+    "hardDeleteDialog": {
+        "text1": "¿Eliminar permanentemente?",
+        "text2": "Se eliminará permanentemente y esta acción no se puede deshacer.",
+        "text2Single": "{resourceName} se eliminará permanentemente. Esta acción no se puede deshacer.",
+        "text2Multiple": "{count} elementos se eliminarán permanentemente. Esta acción no se puede deshacer."
+    },
+    "restoreToRootDialog": {
+        "text2": "La ubicación original ya no existe. Este elemento se restaurará en 'Mi unidad'.",
+        "multiple": "La ubicación original de algunos elementos ya no existe. Se restaurarán en 'Mi unidad'."
+    },
+    "restoreBeforeViewDialog": {
+        "fileText1": "Este archivo está en la papelera.",
+        "folderText1": "Esta carpeta está en la papelera.",
+        "fileText2": "Para ver este archivo, debes restaurarlo desde la papelera.",
+        "folderText2": "Para ver esta carpeta, debes restaurarla desde la papelera."
+    },
+    "emptyTrashDialog": {
+        "text1": "¿Eliminar permanentemente?",
+        "text2": "Todos los elementos de la papelera se eliminarán permanentemente."
+    },
+    "nameValidation": {
+        "leadingOrTrailingSpaces": "El nombre no puede comenzar ni terminar con espacios.",
+        "leadingOrTrailingDot": "El nombre no puede comenzar ni terminar con un punto (.).",
+        "exceedsMaxLength": "El nombre puede tener hasta 255 caracteres.",
+        "invalidSpecialChars": "El nombre no puede contener los siguientes caracteres: \\ / : * ? \" < > |",
+        "windowsReservedName": "No se pueden usar palabras reservadas de Windows en el nombre."
+    },
+    "resourceVersionDialog": {
+        "title": "Versiones anteriores",
+        "version": "Versión",
+        "created on": "Fecha de creación",
+        "who": "Usuario",
+        "deletePreviousVersions": "Eliminar todas las versiones anteriores"
+    },
+    "deleteVersionConfirmDialog": {
+        "title": "¿Eliminar todas las versiones anteriores?",
+        "description": "Se conservará la versión actual. Todas las versiones anteriores se eliminarán. Esta acción no se puede deshacer. ¿Estás seguro de que deseas eliminar todas las versiones anteriores?"
+    },
+    "EnhancedTableToolbar": {
+        "selected": "{numSelected} seleccionados"
+    },
+    "AdminSidebar": {
+        "Home": "Inicio",
+        "Accounts": "Cuentas",
+        "Users": "Usuarios",
+        "AccountList": "Usuarios y administradores",
+        "pendingDeletion": "Por eliminar",
+        "Groups": "Grupos",
+        "UserShare": "Uso compartido de usuarios",
+        "Dashboard": "Panel de control",
+        "SystemSettings": "Configuración",
+        "General": "General",
+        "SMTP": "SMTP",
+        "License": "Licencia",
+        "Office": "Ajustes de Office",
+        "Storage": "Almacenamiento",
+        "Intellect": "Notas (Beta)",
+        "Security": "Seguridad",
+        "Authentication": "Autenticación",
+        "AccessControl": "Control de acceso",
+        "ApiKeys": "Claves API",
+        "Service": "Servicio",
+        "Branding": "Branding",
+        "Feature": "Compartir"
+    },
+    "AdminUserManage": {
+        "import": "Importar",
+        "export": "Exportar",
+        "bulkUserImport": "Importar usuarios en masa",
+        "requestedDate": "Fecha de solicitud de eliminación",
+        "scheduledDate": "Fecha de eliminación definitiva programada",
+        "deletedBy": "Eliminado por"
+    },
+    "AddUserDialog": {
+        "totalQuotaByte": "Límite de almacenamiento",
+        "userLanguage": "Idioma predeterminado",
+        "profileImage": "Imagen de perfil",
+        "roleType": "Rol",
+        "roleRequired": "Selecciona al menos un rol."
+    },
+    "deleteUserDialog": {
+        "title": "¿Eliminar cuenta?",
+        "textSingle": "La cuenta seleccionada pasará a estado de eliminación pendiente. Puedes restaurarla o eliminarla permanentemente desde el menú de Eliminación pendiente en un plazo de 30 días.",
+        "textMultiple": "Las {n} cuentas seleccionadas pasarán a estado de eliminación pendiente. Puedes restaurarlas o eliminarlas permanentemente desde el menú de Eliminación pendiente en un plazo de 30 días."
+    },
+    "editUserDialog": {
+        "title": {
+            "user": "Editar usuario",
+            "admin": "Editar administrador"
+        },
+        "totalQuota": "Almacenamiento total",
+        "useQuota": "Almacenamiento usado",
+        "totalQuotaByte": "Límite de almacenamiento",
+        "language": "Idioma predeterminado",
+        "previousLoginDate": "Inicio de sesión anterior",
+        "isActive": "Estado de activación",
+        "roleType": "Rol",
+        "profileImage": "Imagen de perfil",
+        "resetTwoFactor": "Restablecer 2FA",
+        "roleUserInUse": "No se puede quitar el rol de usuario mientras haya almacenamiento en uso. Primero elimina los archivos.",
+        "roleSelfAdmin": "No puedes quitar tu propio rol de administrador."
+    },
+    "UpdateUserStatusDialog": {
+        "title": "Cambiar estado del usuario",
+        "text1": "¿Activar este usuario?",
+        "text2": "¿Desactivar este usuario?"
+    },
+    "userInfoValidation": {
+        "validateStorageLimitNumber": "El límite de almacenamiento debe ser un número entero mayor que 0.",
+        "validateStorageLimitExceedUsage": "El límite de almacenamiento debe ser mayor que el uso actual."
+    },
+    "uploadProgressDialog": {
+        "uploading": "Subiendo...",
+        "uploadComplete": "{doneCount} de {allCount} elementos subidos",
+        "folderUpload": "{progress}/{done} completado",
+        "closeDisabledWhileUploading": "No se puede cerrar mientras se sube.",
+        "goToUploadLocation": "Ir a la ubicación de carga",
+        "uploadFailedRetry": "Error al subir. Por favor, inténtalo de nuevo.",
+        "cancel": "Cancelar carga",
+        "restart": "Reiniciar",
+        "minimize": "Minimizar",
+        "maximize": "Maximizar"
+    },
+    "user": {
+        "fileList": {
+            "tooltip": {
+                "quotaExceeded": "Límite de capacidad excedido"
+            },
+            "shareDialog": {
+                "emptyUser": "No hay usuarios agregados.",
+                "userDesc": "Los usuarios agregados pueden acceder con permisos configurados individualmente.",
+                "accessTitle": "Acceso general",
+                "folderConflictWarning": "Ya hay elementos compartidos en esta estructura de carpetas, por lo que solo se puede seleccionar el mismo tipo de uso compartido.\nPara cambiar el tipo, desactive todos los elementos compartidos y vuelva a configurarlos.",
+                "linkCopySuccess": "Copiado al portapapeles.",
+                "ownerBadge": "Externo",
+                "removePermission": "Eliminar",
+                "disabledShareTypeTooltip": "Otros tipos no están disponibles actualmente.",
+                "permissionSheetTitle": "Permisos de uso compartido"
+            },
+            "toast": {
+                "renameFailDuplicate": "Error al renombrar. El nombre ya está en uso."
+            }
+        },
+        "filePreview": {
+            "tooltip": {
+                "openDocument": "Abrir documento"
+            },
+            "toast": {
+                "openDocumentSuccess": "Documento abierto correctamente.",
+                "openDocumentFail": "Error al abrir el documento."
+            }
+        },
+        "login": {
+            "mfaSetup": {
+                "title": "Configuración de autenticación en dos pasos"
+            },
+            "mfa": {
+                "title": "Autenticación en dos pasos"
+            },
+            "errorPage": {
+                "title": "Error de inicio de sesión",
+                "body": "Su sesión de inicio de sesión ha expirado o no es válida.\nEn breve será redirigido a la página de inicio de sesión.",
+                "bodyAfter": "Será redirigido automáticamente en {count} segundo(s)."
+            },
+            "toast": {
+                "fail": "Verifique su ID o contraseña.",
+                "failWarning": "Ha fallado el inicio de sesión varias veces. Un intento más bloqueará su cuenta."
+            },
+            "accountLockedDialog": {
+                "title": "Su cuenta ha sido bloqueada.",
+                "desc": "Su cuenta ha sido bloqueada por demasiados intentos fallidos.\nPóngase en contacto con el administrador para desbloquearla."
+            },
+            "oidc": {
+                "loginBtn": "Iniciar sesión con cuenta empresarial",
+                "desc": "Inicie sesión de forma segura con su cuenta empresarial.",
+                "notRegistered": "Esta cuenta no está registrada. Póngase en contacto con el administrador de su empresa."
+            }
+        },
+        "sharePermission": {
+            "view": "Ver",
+            "edit": "Editar",
+            "download": "Descargar",
+            "upload": "Subir",
+            "share": "Compartir",
+            "viewOnly": "Solo ver",
+            "full": "Acceso total",
+            "editDownload": "Editar+Descargar",
+            "editUpload": "Editar+Subir",
+            "editUploadShare": "Editar+Subir+Compartir",
+            "editDownloadShare": "Editar+Descargar+Compartir"
+        },
+        "shareLink": {
+            "title": "Este enlace no es accesible",
+            "desc": "Es posible que no tenga permiso de acceso o que el enlace haya expirado.",
+            "goToDrive": "Ir al inicio de Drive",
+            "login": "Inicie sesión si tiene una cuenta"
+        },
+        "mcpOauth": {
+            "title": "<b>{appName}</b>",
+            "desc": "Solicitando acceso a su cuenta de {serviceName}.",
+            "allow": "Permitir",
+            "deny": "Denegar"
+        }
+    },
+    "filePreviewDialog": {
+        "noPreview": "Vista previa no disponible"
+    },
+    "AdminManage": {
+        "title": "administradores",
+        "import": "Importar",
+        "export": "Exportar",
+        "active": "Activo",
+        "updateAdmin": "Editar administrador"
+    },
+    "UserSummary": {
+        "greetingMorning": "Buenos días",
+        "greetingAfternoon": "Buenas tardes",
+        "greetingEvening": "Hola"
+    },
+    "SelectPinnedFolderDialog": {
+        "title": "Selecciona una carpeta para fijar en Inicio",
+        "selectFolder": "Carpeta seleccionada: \"{resourceName}\""
+    },
+    "UserInfo": {
+        "userEmail": "Cuenta de usuario",
+        "adminEmail": "Cuenta de administrador",
+        "startScreen": "Pantalla de inicio",
+        "language": "Idioma",
+        "home": "Pantalla de inicio (predeterminado)",
+        "remove": "Eliminar"
+    },
+    "ShareDialog": {
+        "shareType": "Tipo de uso compartido",
+        "specificUserOnly": "Solo usuarios específicos",
+        "organizationUserWithLink": "Cualquier usuario de tu organización con el enlace",
+        "shareSettings": "Compartir",
+        "organizationUserAccessDescription": "Cuando un usuario de tu organización que haya iniciado sesión abra este enlace, se aplicarán los siguientes permisos.",
+        "expirationDate": "Fecha de vencimiento",
+        "password": "Contraseña",
+        "permission": "Permisos",
+        "group": "Grupos",
+        "copyLink": "Copiar enlace",
+        "unshare": "Dejar de compartir",
+        "view": "Ver",
+        "edit": "Puede editar",
+        "userName": "Nombre de usuario"
+    },
+    "ActivityLog": {
+        "UPLOAD": {
+            "one": "{userName} subió un elemento.",
+            "other": "{userName} subió {count} elementos."
+        },
+        "EDIT": {
+            "one": "{userName} editó un elemento.",
+            "other": "{userName} editó {count} elementos."
+        },
+        "COPY": {
+            "one": "{userName} duplicó un elemento.",
+            "other": "{userName} duplicó {count} elementos."
+        },
+        "MOVE": {
+            "one": "{userName} movió un elemento a <b>{targetFolder}</b>.",
+            "other": "{userName} movió {count} elementos a <b>{targetFolder}</b>."
+        },
+        "RENAME": {
+            "one": "{userName} cambió el nombre de <b>{beforeName}</b> a <b>{afterName}</b>."
+        },
+        "SHARE": {
+            "one": "{userName} compartió un elemento.",
+            "other": "{userName} compartió {count} elementos."
+        },
+        "UNSHARE": {
+            "one": "{userName} dejó de compartir un elemento.",
+            "other": "{userName} dejó de compartir {count} elementos."
+        },
+        "DELETE": {
+            "one": "{userName} eliminó un elemento.",
+            "other": "{userName} eliminó {count} elementos."
+        },
+        "RESTORE": {
+            "one": "{userName} restauró un elemento.",
+            "other": "{userName} restauró {count} elementos."
+        }
+    },
+    "Notification": {
+        "SHARED": "<highlight>{userName}</highlight> compartió <highlight>{fileName}</highlight>.",
+        "UNSHARED": "<highlight>{userName}</highlight> dejó de compartir <highlight>{fileName}</highlight>.",
+        "PERMISSION_CHANGED": "<highlight>{userName}</highlight> cambió los permisos de <highlight>{fileName}</highlight> a \"{permission}\".",
+        "STORAGE_WARNING": "El uso de almacenamiento ha superado el {usagePercentage}%. Por favor, comprueba el espacio disponible.",
+        "FILE_UPLOAD": "<highlight>{userName}</highlight> subió <highlight>{fileName}</highlight> a la carpeta \"{folderName}\".",
+        "PERMISSION_REQUESTED": "<highlight>{userName}</highlight> solicitó acceso a <highlight>{fileName}</highlight>.",
+        "APPROVE": "Aprobar",
+        "REJECT": "Rechazar",
+        "message": "",
+        "STORAGE_EXCEEDED": "Error al subir por espacio de almacenamiento insuficiente. Por favor, libera espacio."
+    },
+    "Validation": {
+        "RequiredLoginFields": "El correo electrónico y la contraseña son obligatorios."
+    },
+    "RESOURCE": {
+        "NOT_FOUND": "No hay recursos disponibles."
+    },
+    "meta": {
+        "home": "Inicio - {tabTitle}",
+        "mydrive": "Mi unidad - {tabTitle}",
+        "recent": "Recientes - {tabTitle}",
+        "starred": "Destacados - {tabTitle}",
+        "shared": "Compartido conmigo - {tabTitle}",
+        "trash": "Papelera - {tabTitle}",
+        "search": "Resultados de búsqueda - {tabTitle}",
+        "common": "{tabTitle}",
+        "admin": "Portal de administración - {tabTitle}",
+        "superAdmin": "Portal de superadministrador - {tabTitle}"
+    },
+    "version": {
+        "delete": {
+            "single": {
+                "success": "La versión anterior ha sido eliminada.",
+                "fail": "Error al eliminar la versión anterior."
+            },
+            "all": {
+                "success": "Todas las versiones anteriores han sido eliminadas.",
+                "fail": "Error al eliminar todas las versiones anteriores."
+            }
+        }
+    },
+    "preview": {
+        "success": "Vista previa abierta correctamente.",
+        "fail": "Error al abrir la vista previa."
+    },
+    "download": {
+        "single": {
+            "success": "Descargado correctamente.",
+            "fail": "Error al descargar."
+        },
+        "multiple": {
+            "success": "Descargas múltiples completadas correctamente.",
+            "fail": "Error en las descargas múltiples."
+        }
+    },
+    "share": {
+        "register": {
+            "success": "Uso compartido activado correctamente.",
+            "fail": "Error al activar el uso compartido."
+        },
+        "delete": {
+            "success": "Uso compartido desactivado correctamente.",
+            "fail": "Error al desactivar el uso compartido."
+        },
+        "linkCopy": {
+            "success": "Enlace compartido copiado correctamente.",
+            "fail": "Error al copiar el enlace compartido."
+        },
+        "fetch": {
+            "success": "Información de uso compartido obtenida correctamente.",
+            "fail": "Error al obtener la información de uso compartido."
+        },
+        "access": {
+            "success": "Acceso al enlace compartido correcto.",
+            "fail": "Error al acceder al enlace compartido."
+        },
+        "update": {
+            "success": "Uso compartido actualizado correctamente.",
+            "fail": "Error al actualizar el uso compartido."
+        },
+        "fetchShareType": {
+            "success": "Tipos de uso compartido disponibles obtenidos correctamente.",
+            "fail": "Error al obtener los tipos de uso compartido disponibles."
+        }
+    },
+    "move": {
+        "success": "Movido correctamente.",
+        "fail": {
+            "general": "Error al mover",
+            "quotaExceeded": "Error al mover por cuota de almacenamiento superada."
+        },
+        "partial": "{success} elementos movidos correctamente, {fail} fallidos (Bloqueados: {locked}, Cuota superada: {quota})"
+    },
+    "copy": {
+        "success": "Copia creada correctamente.",
+        "fail": "Error al crear la copia."
+    },
+    "addToStarred": {
+        "success": "Añadido a destacados correctamente.",
+        "fail": "Error al añadir a destacados."
+    },
+    "moveToTrash": {
+        "success": "Movido a la papelera correctamente.",
+        "fail": "Error al mover a la papelera.",
+        "partial": "{success} elementos movidos a la papelera correctamente, {fail} fallidos (Bloqueados: {locked})"
+    },
+    "recent": {
+        "register": {
+            "success": "Añadido a recientes correctamente.",
+            "fail": "Error al añadir a recientes."
+        }
+    },
+    "restore": {
+        "success": "Restaurado correctamente.",
+        "fail": "Error al restaurar.",
+        "partial": "{success} elementos restaurados correctamente, {fail} fallidos"
+    },
+    "delete": {
+        "success": "Eliminado correctamente.",
+        "fail": "Error al eliminar."
+    },
+    "newFolderCreate": {
+        "success": "Nueva carpeta creada correctamente.",
+        "fail": "Error."
+    },
+    "newOfficeCreate": {
+        "success": "Nuevo documento de Office creado correctamente.",
+        "fail": "Error al crear el nuevo documento de Office."
+    },
+    "pinnedFolder": {
+        "add": {
+            "success": "Carpeta fijada añadida correctamente.",
+            "fail": "Error al fijar la carpeta.",
+            "already": "Esta carpeta ya está fijada."
+        },
+        "remove": {
+            "success": "Carpeta fijada eliminada correctamente.",
+            "fail": "Error al desfijar la carpeta."
+        }
+    },
+    "starred": {
+        "register": {
+            "success": "Añadido a destacados correctamente.",
+            "fail": "Error al añadir a destacados."
+        },
+        "remove": {
+            "success": "Eliminado de destacados correctamente.",
+            "fail": "Error al quitar de Destacados."
+        }
+    },
+    "passwordResetEmail": {
+        "success": "Por favor, revisa tu correo electrónico. Se ha enviado un mensaje con instrucciones para restablecer tu contraseña.",
+        "fail": "Error al enviar el correo electrónico."
+    },
+    "notifications": {
+        "title": "Notificaciones",
+        "markAllAsReadButton": "Marcar todo como leído",
+        "toggleReadStatusButton": "Mostrar solo no leídas",
+        "emptyMessage": {
+            "unread": "No hay notificaciones sin leer",
+            "read": "No hay notificaciones leídas"
+        },
+        "updateReadStatus": {
+            "fail": "Error al marcar como leído. Inténtelo de nuevo."
+        }
+    },
+    "Settings": {
+        "security": {
+            "title": "Seguridad",
+            "location": "Ubicación / IP",
+            "timestamp": "Fecha y hora",
+            "eventType": {
+                "name": "Evento"
+            }
+        }
+    },
+    "shareAddUserDialog": {
+        "search": "Introduce el correo electrónico o el nombre",
+        "invitedUsersLabel": "Usuarios añadidos",
+        "emptyMessage": "No se han añadido usuarios",
+        "sendEmail": "Notificar por correo"
+    },
+    "changePasswordDialog": {
+        "password": "Contraseña actual",
+        "newPassword": "Nueva contraseña",
+        "ConfirmPassword": "Confirmar nueva contraseña",
+        "forgotPassword": "¿Olvidaste tu contraseña?",
+        "error": {
+            "mismatch": "Las contraseñas no coinciden.",
+            "notCurrent": "La contraseña actual es incorrecta.",
+            "sameAsOld": "La nueva contraseña debe ser diferente a la contraseña actual."
+        },
+        "change": {
+            "success": "Tu contraseña ha sido cambiada.",
+            "fail": "Error al cambiar la contraseña."
+        },
+        "expiredTitle": "El enlace para restablecer la contraseña ha caducado."
+    },
+    "passwordResetDialog": {
+        "title": "Restablecer contraseña",
+        "description": "Introduce el correo electrónico que usaste para registrarte.",
+        "email": "Correo electrónico",
+        "defaultGuide": "Por favor, comprueba tu dirección de correo electrónico."
+    },
+    "resource": {
+        "fetch": {
+            "success": "Detalles del recurso obtenidos correctamente.",
+            "fail": "Error al obtener los detalles del recurso."
+        }
+    },
+    "shareClipboardPrompt": {
+        "description": "Debido a las políticas de seguridad del navegador, es posible que la copia al portapapeles esté restringida. Por favor, selecciona y copia el contenido manualmente (Ctrl+C)."
+    },
+    "logoutDialog": {
+        "description": "¿Estás seguro de que deseas cerrar sesión?"
+    },
+    "actionIconTooltip": {
+        "removeToStarred": "Quitar de Destacados"
+    },
+    "loginToast": {
+        "success": "Inicio de sesión correcto.",
+        "fail": "Error al iniciar sesión.",
+        "needLogin": "Se requiere iniciar sesión.",
+        "duplicateLocalAccount": "Esta cuenta ya está registrada. Por favor, inicia sesión con el método que usaste al registrarte."
+    },
+    "removeToStarred": {
+        "success": "Eliminado de destacados correctamente.",
+        "fail": "Error al quitar de destacados."
+    },
+    "adminServer": {
+        "serverIp": "IP del servidor",
+        "clientDomain": "Dirección de dominio",
+        "version": "Versión del producto"
+    },
+    "adminOffice": {
+        "description": "Esta configuración es exclusiva de Thinkfree Office. Introduce el dominio y la información del adaptador para editar documentos desde Drive en Thinkfree Office. ※ Los valores introducidos deben coincidir con el dominio y la información del adaptador registrados en el administrador de Office.",
+        "officeDomain": "Dominio de Office",
+        "officeAdapterName": "Nombre del adaptador de Office"
+    },
+    "accountSettingSaveConfirmDialog": {
+        "title": "Guardar configuración de cuenta",
+        "text": "¿Estás seguro de que deseas guardar la configuración de la cuenta?"
+    },
+    "account": {
+        "save": {
+            "success": "Configuración de cuenta guardada correctamente.",
+            "fail": "Error al guardar la configuración de la cuenta."
+        }
+    },
+    "adminServerSettingSaveConfirmDialog": {
+        "title": "Guardar configuración del servidor",
+        "text": "¿Estás seguro de que deseas guardar la configuración del servidor?"
+    },
+    "adminOfficeSettingSaveConfirmDialog": {
+        "title": "Guardar configuración de Office",
+        "text": "¿Estás seguro de que deseas guardar la configuración de Office?"
+    },
+    "adminLicense": {
+        "licenseFileUpload": "Subir archivo de licencia",
+        "selectFile": "Seleccionar archivo",
+        "upload": {
+            "success": "Archivo de licencia subido correctamente.",
+            "fail": "Error al subir el archivo de licencia."
+        },
+        "status": {
+            "label": "Estado de la licencia",
+            "valid": "Válida",
+            "expiring": "Por vencer",
+            "expired": "Vencida",
+            "exceeded": "Puestos excedidos"
+        },
+        "type": {
+            "label": "Tipo de licencia",
+            "value": ""
+        },
+        "period": {
+            "label": "Fecha de inicio / Fecha de fin",
+            "value": "{registerDate} ~ {ex} ({day} días restantes)"
+        },
+        "sheets": {
+            "label": "Puestos",
+            "value": "{activeUsers} / {sheets}"
+        }
+    },
+    "adminLicenseUploadConfirmDialog": {
+        "title": "Subir archivo de licencia",
+        "text": "¿Estás seguro de que deseas subir el archivo de licencia?"
+    },
+    "adminSmtp": {
+        "clientName": "Nombre del cliente",
+        "host": "Host",
+        "port": "Puerto",
+        "encryptionType": "Tipo de cifrado",
+        "authType": "Tipo de autenticación",
+        "username": "Nombre de usuario",
+        "appPassword": "Contraseña de la aplicación",
+        "oauthInfo": "Información de OAuth",
+        "fromAddress": "Dirección de envío",
+        "testReceiverAddress": "Dirección del destinatario de prueba",
+        "testemail": {
+            "btn": "Enviar correo de prueba",
+            "success": "Correo de prueba enviado correctamente.",
+            "fail": "Error al enviar el correo de prueba."
+        }
+    },
+    "adminSmtpSettingSaveConfirmDialog": {
+        "title": "Guardar configuración SMTP",
+        "text": "¿Estás seguro de que deseas guardar la configuración SMTP?"
+    },
+    "adminSmtpSettingEmailConfirmDialog": {
+        "title": "Enviar correo de prueba",
+        "text": "Se enviará un correo de prueba a la dirección del destinatario introducida."
+    },
+    "adminUsers": {
+        "activate": {
+            "success": "Usuario activado correctamente.",
+            "fail": "Error al activar el usuario."
+        },
+        "deactivate": {
+            "success": "Usuario desactivado correctamente.",
+            "fail": "Error al desactivar el usuario."
+        },
+        "empty": "Sin usuarios.",
+        "update": {
+            "success": "Información del usuario actualizada correctamente.",
+            "fail": "Error al actualizar la información del usuario."
+        },
+        "register": {
+            "success": "Usuario registrado correctamente.",
+            "fail": "Error al registrar el usuario."
+        },
+        "delete": {
+            "successSingle": "La cuenta ha pasado a estado de eliminación pendiente.",
+            "successMultiple": "{n} cuentas han pasado a estado de eliminación pendiente.",
+            "partial": "{success} cuentas pasaron a estado de eliminación pendiente y {fail} fallaron.",
+            "fail": "Error al pasar la cuenta a estado de eliminación pendiente."
+        }
+    },
+    "adminAccounts": {
+        "register": {
+            "success": "Cuenta registrada correctamente.",
+            "fail": "Error al registrar la cuenta."
+        }
+    },
+    "adminAdmins": {
+        "activate": {
+            "success": "Usuario activado correctamente.",
+            "fail": "Error al activar el usuario."
+        },
+        "deactivate": {
+            "success": "Usuario desactivado correctamente.",
+            "fail": "Error al desactivar el usuario."
+        },
+        "empty": "Sin administradores.",
+        "update": {
+            "success": "Información del administrador actualizada correctamente.",
+            "fail": "Error al actualizar la información del administrador."
+        },
+        "register": {
+            "success": "Administrador registrado correctamente.",
+            "fail": "Error al registrar el administrador."
+        },
+        "delete": {
+            "success": "Administrador eliminado correctamente.",
+            "fail": "Error al eliminar el administrador.",
+            "partial": "{success} administradores eliminados correctamente, {fail} fallidos"
+        }
+    },
+    "hardDelete": {
+        "success": "Eliminado permanentemente.",
+        "fail": "Error al eliminar permanentemente.",
+        "partial": "{success} elementos eliminados permanentemente, {fail} fallidos."
+    },
+    "tooltip": {
+        "drive": "Drive",
+        "search": "Buscar",
+        "clearSearch": "Borrar búsqueda",
+        "notifications": "Notificaciones",
+        "myAccount": "Mi cuenta",
+        "showPath": "Mostrar ruta",
+        "selectAll": "Seleccionar todo",
+        "deselect": "Deseleccionar",
+        "removeStarred": "Quitar de destacados",
+        "viewDetails": "Ver detalles",
+        "hideDetails": "Ocultar detalles",
+        "moreOptions": "Más opciones",
+        "markAsRead": "Marcar como leído",
+        "markAsUnread": "Marcar como no leído",
+        "shareInvitedUser": "Solo los usuarios especificados pueden acceder.",
+        "shareAnyOneInWorkspace": "Cualquier usuario de la organización con el enlace puede acceder.",
+        "shareSetting": "Para este tipo de uso compartido, solo el propietario puede cambiar los permisos.",
+        "versionDownload": "Descargar versión",
+        "versionRestore": "Restaurar versión",
+        "versionDelete": "Eliminar versión",
+        "settingsLink": "Ver en configuración"
+    },
+    "licenseDialog": {
+        "unregistered": {
+            "title": "Licencia no registrada",
+            "message": "No es posible iniciar sesión porque no hay una licencia registrada. Por favor, contacta con el administrador."
+        },
+        "expired": {
+            "message": "No es posible iniciar sesión porque la licencia ha vencido. Por favor, contacta con el administrador."
+        },
+        "seatExceeded": {
+            "title": "Puestos excedidos",
+            "message": "El acceso de los usuarios está restringido porque se ha superado el número de puestos de la licencia. Para continuar usando el servicio, actualiza tu licencia."
+        }
+    },
+    "deleteAdminDialog": {
+        "title": "Eliminar administrador",
+        "textSingle": "¿Está seguro de que desea eliminar al administrador ''{userName}''?",
+        "textMultiple": "¿Estás seguro de que deseas eliminar los {count} administradores?"
+    },
+    "lock": {
+        "locked": "No puedes realizar esta acción mientras otro usuario está editando el documento."
+    },
+    "upload": {
+        "success": "Carga completada correctamente.",
+        "fail": {
+            "general": "Error al subir.",
+            "quotaExceeded": "Límite de almacenamiento superado. No se pudo completar la carga."
+        }
+    },
+    "quota": {
+        "unlimitedNote": "(-1 para ilimitado)"
+    },
+    "clipboard": {
+        "copySuccess": "{count, plural, one {Elemento copiado.} other {# elementos copiados.}}",
+        "copyFail": "Error al copiar.",
+        "pasteSuccess": "{count, plural, one {Elemento pegado.} other {# elementos pegados.}}",
+        "pasteFail": "Error al pegar.",
+        "folderNotSupported": "No se pueden pegar carpetas ni varios elementos.",
+        "cannotCopySomeItems": "Algunos elementos no se pueden pegar por permisos insuficientes.",
+        "cannotPasteDeletedItems": "Los elementos eliminados no se pueden pegar."
+    },
+    "adminStorage": {
+        "storageType": "Tipo de almacenamiento",
+        "accessKey": "Clave de acceso",
+        "secretKey": "Clave secreta",
+        "bucketName": "Nombre del bucket",
+        "region": "Región",
+        "endPoint": "URL del endpoint",
+        "uploadSizeLimit": "Límite de capacidad de carga",
+        "totalQuota": "Almacenamiento total",
+        "quotaNotSet": "No configurado",
+        "description": "Puedes ver la configuración de integración de almacenamiento introducida durante la instalación. Los valores de configuración del almacenamiento conectado se muestran en modo de solo lectura. ※ Después de la instalación, el tipo de almacenamiento y la configuración de integración no se pueden modificar."
+    },
+    "bulkUserImportDialog": {
+        "title": "Importar usuarios en masa",
+        "subtitle": "Sube un archivo CSV para registrar varios usuarios a la vez.",
+        "requiredNote": "Los campos marcados con * son obligatorios.",
+        "rules": {
+            "UTF-8": "Solo se admiten archivos CSV en formato UTF-8.",
+            "email": "El ID de usuario debe tener formato de correo electrónico.",
+            "storage": "La capacidad de almacenamiento debe ser un valor entero en GB."
+        },
+        "table": {
+            "header": {
+                "userId": "ID de usuario",
+                "password": "Contraseña",
+                "displayName": "Nombre de usuario",
+                "storageGb": "Almacenamiento*",
+                "countryCode": "Código de país"
+            },
+            "exampleCaption": "Ejemplo"
+        },
+        "csv": {
+            "hint": "Descarga la plantilla CSV, rellénala y súbela aquí."
+        },
+        "uploader": {
+            "button": "Seleccionar archivo",
+            "noFile": "Ningún archivo seleccionado",
+            "selected": "Seleccionado: {filename}"
+        },
+        "options": {
+            "sendEmail": "Enviar correo electrónico"
+        },
+        "buttons": {
+            "import": "Importar"
+        },
+        "result": {
+            "success": "Importación de usuarios completada correctamente.",
+            "failed": "Error al importar usuarios.",
+            "seeCsvHint": "Descarga el archivo CSV de resultados para ver los detalles del error.",
+            "downloadResultCsv": "Descargar CSV de resultados"
+        },
+        "errors": {
+            "emptyFile": "El archivo está vacío.",
+            "downloadTemplateFailed": "Error al descargar la plantilla CSV."
+        },
+        "confirm": {
+            "title": "¿Proceder con la importación?",
+            "body": "Se van a registrar {count} usuarios."
+        }
+    },
+    "home": {
+        "quickMenu": {
+            "newDocs": "Nuevo documento",
+            "newPpt": "Nueva presentación",
+            "newExcel": "Nueva hoja de cálculo",
+            "shared": "Compartido conmigo",
+            "newIntellect": "Nueva nota"
+        }
+    },
+    "shareRemoveDialog": {
+        "text1": "Se eliminará el uso compartido. ¿Deseas mover el elemento?",
+        "text2": "Si mueves este elemento a Mi unidad, se eliminará el uso compartido y otros usuarios ya no podrán acceder."
+    },
+    "pendingDeletion": {
+        "empty": "No hay cuentas pendientes de eliminación.",
+        "description": "Las cuentas eliminadas permanecen en estado de eliminación pendiente durante 30 días. Durante este período, puedes restaurarlas o eliminarlas permanentemente.",
+        "restore": {
+            "successSingle": "La cuenta ha sido restaurada.",
+            "successMultiple": "{n} cuentas han sido restauradas.",
+            "partial": "{success} cuentas restauradas correctamente, {fail} fallidas.",
+            "fail": "Error al restaurar la cuenta."
+        },
+        "delete": {
+            "successSingle": "La cuenta ha sido eliminada permanentemente.",
+            "successMultiple": "{n} cuentas han sido eliminadas permanentemente.",
+            "fail": "Error al eliminar permanentemente la cuenta."
+        }
+    },
+    "restoreAccountDialog": {
+        "title": "¿Restaurar cuenta?",
+        "textSingle": "Al restaurar esta cuenta, su estado se establecerá como Inactivo. Puedes activarla de nuevo desde el menú de Usuarios.",
+        "textMultiple": "Las {n} cuentas seleccionadas se restaurarán con estado Inactivo. Puedes activarlas de nuevo desde el menú de Usuarios."
+    },
+    "completelyDeleteAccountDialog": {
+        "title": "¿Eliminar cuenta permanentemente?",
+        "textSingle": "La cuenta seleccionada y todos sus datos de almacenamiento se eliminarán permanentemente y no podrán recuperarse. Esta acción no se puede deshacer.",
+        "textMultiple": "Las {n} cuentas seleccionadas y todos sus datos de almacenamiento se eliminarán permanentemente y no podrán recuperarse. Esta acción no se puede deshacer."
+    },
+    "label": {
+        "beta": "(Beta)"
+    },
+    "adminIntellect": {
+        "field": "Usar Intellect Notes",
+        "fieldDesc": "Al activar, todos los usuarios podrán acceder y usar Intellect Notes.",
+        "version": "Versión de Intellect Notes",
+        "description": "Intellect Notes es un editor de documentos basado en bloques que permite crear y editar documentos directamente en Drive. Es una versión Beta con funciones de edición básicas; se mejorarán la estabilidad y las funciones en futuras versiones. Se incluye automáticamente con Drive y puede activarse o desactivarse en cualquier momento."
+    },
+    "adminIntellectSettingSaveConfirmDialog": {
+        "title": "Guardar configuración de notas",
+        "text": "¿Estás seguro de que deseas guardar la configuración de notas?"
+    },
+    "newIntellectCreate": {
+        "success": "Nueva nota creada correctamente."
+    },
+    "resetPasswordConfirmDialog": {
+        "title": "Restablecer contraseña",
+        "text": "¿Enviar un enlace para restablecer la contraseña a tu correo electrónico?"
+    },
+    "removeShareUserDialog": {
+        "title": "¿Eliminar usuario compartido?",
+        "desc": "Una vez eliminado, ya no podrá acceder a este recurso."
+    },
+    "unshareResourceDialog": {
+        "title": "¿Dejar de compartir?",
+        "desc": "Si dejas de compartir, se eliminarán todos los ajustes de uso compartido de este recurso y nadie podrá acceder a él.",
+        "confirm": "Dejar de compartir"
+    },
+    "mfaSetup": {
+        "description": "Escanea el código QR con tu aplicación de autenticación e introduce el código de 6 dígitos generado.",
+        "placeholder": "Código de 6 dígitos"
+    },
+    "mfaVerify": {
+        "description": "Introduce el código de 6 dígitos que aparece en tu aplicación de autenticación.",
+        "placeholder": "000000",
+        "invalidCode": "El código de verificación no es válido. Por favor, inténtalo de nuevo.",
+        "expiredChallenge": "La solicitud de autenticación ha caducado. Por favor, inicia sesión de nuevo."
+    },
+    "adminMfa": {
+        "title": "2FA",
+        "field": "Usar autenticación de dos factores (2FA)",
+        "fieldDesc": "Al activar, todos los usuarios (excepto los administradores) deberán iniciar sesión con 2FA."
+    },
+    "adminMfaSettingSaveConfirmDialog": {
+        "enable": {
+            "title": "¿Activar la autenticación de dos factores?",
+            "text": "Una vez activado, todos los usuarios deberán configurar 2FA en su próximo inicio de sesión."
+        },
+        "disabled": {
+            "title": "¿Desactivar la autenticación de dos factores?",
+            "text": "Al desactivar, todos los usuarios podrán iniciar sesión sin autenticación de dos factores."
+        }
+    },
+    "removeMfaSettingConfirmDialog": {
+        "title": "Eliminar 2FA",
+        "text": "¿Estás seguro de que deseas eliminar la 2FA?"
+    },
+    "userMfa": {
+        "confirm": {
+            "success": "Autenticación exitosa.",
+            "fail": "Error de autenticación."
+        },
+        "remove": {
+            "success": "La 2FA se ha eliminado con éxito.",
+            "fail": "Error al eliminar la 2FA."
+        }
+    },
+    "adminReset2faConfirmDialog": {
+        "title": "¿Estás seguro de que deseas restablecer la configuración de 2FA?",
+        "text": "La información de autenticación 2FA de este usuario será restablecida. Se requerirá reconfigurar 2FA en el próximo inicio de sesión."
+    },
+    "adminResetUser2fa": {
+        "success": "La información de 2FA se restableció con éxito.",
+        "fail": "No se pudo restablecer la información de 2FA."
+    },
+    "adminAccessRestriction": {
+        "field": "Restricción de acceso",
+        "fieldDesc": "Al activar, el acceso desde países no autorizados quedará bloqueado.",
+        "allowedCountries": "Países permitidos",
+        "allowedIps": "IPs permitidas",
+        "countryCodePlaceholder": "Introduce el código de país de 2 dígitos.",
+        "emptyAllowedCountries": "No hay países permitidos.",
+        "ipAddressPlaceholder": "Introduce las direcciones IP o subredes a las que se permitirá el acceso.",
+        "emptyAllowedIps": "No hay IPs permitidas.",
+        "validateAccessRestriction": "Introduce los códigos de país o IPs a los que se permitirá el acceso.",
+        "validateCountryCode": "Por favor, introduce un código de país válido.",
+        "validateIpAddress": "Por favor, introduce una dirección IP válida.",
+        "accessDeniedMessage": "El acceso no está permitido desde tu país o IP. Por favor, contacta con el administrador."
+    },
+    "adminAccessRestrictionSettingSaveConfirmDialog": {
+        "title": "¿Deseas guardar la configuración de restricción de acceso?"
+    },
+    "adminSetting": {
+        "save": {
+            "success": "Los cambios han sido guardados.",
+            "fail": "Error al guardar los cambios. Por favor, inténtalo de nuevo."
+        }
+    },
+    "adminSsoProvider": {
+        "disPlayName": "Nombre",
+        "protocolType": "Tipo",
+        "registerDate": "Fecha de registro",
+        "registeredBy": "Registrado por",
+        "status": "Estado",
+        "addSsoProvider": "Añadir proveedor SSO",
+        "activate": {
+            "success": "Activación correcta.",
+            "fail": "Error al activar."
+        },
+        "deactivate": {
+            "success": "Desactivación correcta.",
+            "fail": "Error al desactivar."
+        },
+        "add": {
+            "success": "Proveedor SSO añadido correctamente.",
+            "fail": "Error al añadir el proveedor SSO."
+        },
+        "update": {
+            "success": "Proveedor SSO actualizado correctamente.",
+            "fail": "Error al actualizar el proveedor SSO."
+        }
+    },
+    "UpdateSsoStatusDialog": {
+        "title": "Cambiar estado de SSO",
+        "text1": "¿Activar este proveedor SSO?",
+        "text2": "¿Desactivar este proveedor SSO?",
+        "update": "Cambiar"
+    },
+    "adminSsoProviderDialog": {
+        "addTitle": "Añadir proveedor SSO",
+        "updateTitle": "Editar proveedor SSO",
+        "tenantSelect": "Seleccionar tenant",
+        "displayName": "Nombre del proveedor",
+        "protocolType": "Tipo de proveedor",
+        "issuerUrl": "Issuer URL",
+        "clientId": "Client ID",
+        "clientSecret": "Client Secret",
+        "clientSecretHint": "(Introducir solo al cambiar)",
+        "issuer": "Issuer",
+        "audience": "Audience",
+        "keySourceType": "Tipo de clave",
+        "publicKey": "Clave pública",
+        "jwksUri": "JWKS URI",
+        "emailClaimName": "Email Claim Name",
+        "error": {
+            "displayName": "Por favor, introduce el nombre del proveedor.",
+            "issuerUrl": "Por favor, introduce la Issuer URL.",
+            "clientId": "Por favor, introduce el Client ID.",
+            "clientSecret": "Por favor, introduce el Client Secret.",
+            "issuer": "Por favor, introduce el Issuer.",
+            "publicKey": "Por favor, introduce la clave pública.",
+            "jwksUri": "Por favor, introduce la JWKS URI."
+        }
+    },
+    "ssoSignup": {
+        "invalidSession": "Acceso no válido. Por favor, inicia sesión de nuevo.",
+        "accessDeniedMessage": "Error de inicio de sesión SSO. Esta cuenta no existe."
+    },
+    "jwtLogin": {
+        "accessDeniedMessage": "Error de inicio de sesión JWT. Por favor, contacta con el administrador."
+    },
+    "adminLogin": {
+        "title": "Configuración de inicio de sesión",
+        "field": "Método de inicio de sesión",
+        "localFieldDesc": "El inicio de sesión local es el método de autenticación predeterminado con ID y contraseña.\nLos usuarios inician sesión introduciendo sus credenciales. Cambiar esta configuración puede afectar al inicio de sesión.",
+        "jwtFieldDesc": "La autenticación automática JWT es un método basado en confianza con sistemas externos.\nLos usuarios se autentican automáticamente sin pasar por la pantalla de inicio de sesión. Cambiar esta configuración puede afectar al inicio de sesión.",
+        "localAuth": "Inicio de sesión local",
+        "jwtAuth": "Autenticación automática JWT",
+        "using": "En uso actualmente",
+        "jwt": {
+            "title": "Configuración JWT",
+            "displayName": "Nombre del proveedor",
+            "issuer": "Issuer",
+            "errorRedirectUrl": "URL de la página de inicio de sesión",
+            "emailClaimName": "Email Claim Name",
+            "audience": "Audience",
+            "keySourceType": "Tipo de clave",
+            "publicKey": "Clave pública",
+            "jwksUri": "JWKS URI",
+            "errorRedirectUrlDesc": "Redirige a los usuarios que fallen en la autenticación del token o accedan directamente al dominio de Drive a la URL especificada."
+        }
+    },
+    "adminLoginSettingSaveConfirmDialog": {
+        "localTitle": "¿Cambiar a inicio de sesión local?",
+        "localDesc": "Tras el cambio, los usuarios iniciarán sesión con ID y contraseña. La autenticación externa dejará de usarse.",
+        "jwtTitle": "¿Cambiar a autenticación automática JWT?",
+        "jwtDesc": "Tras el cambio, los usuarios serán autenticados automáticamente sin pantalla de inicio de sesión. Los usuarios sin token JWT pueden ser restringidos o redirigidos."
+    },
+    "adminApiKeys": {
+        "field": "API Keys emitidas",
+        "addApiKey": "Crear API Key"
+    },
+    "adminApiKeyDialog": {
+        "addTitle": "Crear API Key",
+        "keyName": "Nombre de la clave",
+        "purpose": "Propósito",
+        "addFail": "Error al crear la API Key.",
+        "completeTitle": "API Key creada",
+        "completeNotice": "Por seguridad, la clave completa se muestra solo una vez. Una vez cerrada esta pantalla, no podrá recuperarse. Cópiala y guárdala de forma segura ahora.",
+        "apiKey": "API Key",
+        "copy": "Copiar",
+        "copySuccess": "API Key copiada al portapapeles.",
+        "confirm": "Confirmar",
+        "error": {
+            "keyName": "Por favor, introduce el nombre de la clave.",
+            "purpose": "Por favor, introduce el propósito."
+        }
+    },
+    "updateApiKeyStatusDialog": {
+        "activateTitle": "¿Activar esta API Key?",
+        "deactivateTitle": "¿Desactivar esta API Key?",
+        "activateText": "Al activar, se permitirán de nuevo las llamadas a la API.",
+        "deactivateText": "Al desactivar, se bloquearán inmediatamente todas las llamadas a la API. Puedes reactivarla si es necesario.",
+        "activate": {
+            "success": "API Key activada correctamente.",
+            "fail": "Error al activar la API Key."
+        },
+        "deactivate": {
+            "success": "API Key desactivada correctamente.",
+            "fail": "Error al desactivar la API Key."
+        }
+    },
+    "adminApiKeyTable": {
+        "keyName": "Nombre de la clave",
+        "purpose": "Propósito",
+        "status": "Estado",
+        "createdAt": "Fecha de creación",
+        "lastUsedAt": "Último uso",
+        "key": "API Key",
+        "reissue": "Reemitir",
+        "empty": "No se han emitido API Keys."
+    },
+    "reissueApiKeyDialog": {
+        "title": "¿Reemitir la API Key?",
+        "text": "Al reemitir, la clave existente quedará invalidada inmediatamente y será reemplazada por una nueva.",
+        "confirm": "Reemitir",
+        "success": "API Key reemitida correctamente.",
+        "fail": "Error al reemitir la API Key."
+    },
+    "reissueApiKeyCompleteDialog": {
+        "title": "API Key reemitida",
+        "description": "La clave existente ha sido invalidada y ya no puede usarse. Por favor, actualiza la configuración de los sistemas actualmente integrados."
+    },
+    "common": {
+        "playgroundBanner": {
+            "desc": "Está conectado al Playground. Algunas funciones están limitadas."
+        },
+        "accountSetting": {
+            "profileImage": {
+                "upload": "Subir imagen",
+                "resetToDefault": "Imagen predeterminada"
+            }
+        },
+        "saveConfirmDialog": {
+            "title": "¿Desea guardar?"
+        },
+        "button": {
+            "save": "Guardar",
+            "confirm": "Confirmar",
+            "cancel": "Cancelar",
+            "close": "Cerrar",
+            "add": "Agregar",
+            "update": "Editar",
+            "upload": "Subir",
+            "change": "Cambiar",
+            "create": "Crear",
+            "reset": "Restablecer"
+        },
+        "action": {
+            "delete": "Eliminar",
+            "hardDelete": "Eliminar permanentemente",
+            "login": "Iniciar sesión",
+            "logout": "Cerrar sesión",
+            "activate": "Activar",
+            "deactivate": "Desactivar",
+            "download": "Descargar",
+            "share": "Compartir",
+            "move": "Mover",
+            "restore": "Restaurar",
+            "edit": "Editar",
+            "modify": "Modificar",
+            "addUser": "Agregar usuario",
+            "addAdmin": "Agregar administrador",
+            "addAccount": "Agregar cuenta",
+            "addStarred": "Agregar a destacados",
+            "moveToTrash": "Mover a la papelera",
+            "previewOpen": "Vista previa/Abrir",
+            "select": "Seleccionar"
+        },
+        "label": {
+            "setting": "Configuración",
+            "admin": "Administrador",
+            "role": "Rol",
+            "superAdmin": "Superadministrador",
+            "user": "Usuario",
+            "userName": "Nombre",
+            "userId": "ID",
+            "password": "Contraseña",
+            "phone": "Teléfono",
+            "lastLogin": "Último inicio de sesión",
+            "status": "Estado",
+            "option": "Opciones",
+            "owner": "Propietario",
+            "fileSize": "Tamaño",
+            "myDrive": "Mi unidad",
+            "recent": "Recientes",
+            "starred": "Destacados",
+            "shared": "Compartidos",
+            "trash": "Papelera",
+            "storage": "Almacenamiento",
+            "licenseExpired": "Licencia vencida",
+            "email": "Correo electrónico",
+            "initialPassword": "Contraseña inicial",
+            "name": "Nombre",
+            "all": "Todos"
+        },
+        "placeholder": {
+            "email": "Ingrese el correo electrónico",
+            "initialPassword": "Ingrese la contraseña inicial",
+            "name": "Ingrese el nombre"
+        },
+        "title": {
+            "addUser": "Agregar usuario",
+            "addAdmin": "Agregar administrador",
+            "addAccount": "Agregar cuenta",
+            "changePassword": "Cambiar contraseña"
+        },
+        "status": {
+            "enabled": "Activar",
+            "disabled": "Desactivar",
+            "expired": "Vencida"
+        },
+        "shareType": {
+            "restricted": "Restringido",
+            "restrictedDesc": "Solo los usuarios designados pueden acceder.",
+            "internal": "Organización interna",
+            "internalDesc": "Todos los miembros de la organización con el enlace pueden acceder.",
+            "public": "Público",
+            "publicDesc": "Cualquiera con el enlace puede acceder independientemente del estado de inicio de sesión."
+        },
+        "validate": {
+            "password": "La contraseña debe tener al menos 8 caracteres e incluir mayúsculas, minúsculas, números y caracteres especiales.",
+            "emptyCheck": "Este campo es obligatorio.",
+            "emailPattern": "Por favor, ingrese una dirección de correo electrónico válida.",
+            "duplicateUserId": "Este ID ya está en uso.",
+            "minLengthUserName": "El nombre debe tener al menos 2 caracteres.",
+            "phoneAndCountry": "Ingrese el número de teléfono y el código de país juntos, o deje ambos vacíos.",
+            "numericOnly": "Ingrese solo números.",
+            "noEdgeSpaces": "No se permiten espacios al principio ni al final del nombre."
+        },
+        "input": {
+            "pw": "Contraseña"
+        },
+        "dialog": {
+            "closeWithoutSave": {
+                "title": "¿Cerrar sin guardar los cambios?",
+                "desc": "Todos los cambios no guardados se perderán."
+            },
+            "restore": {
+                "title": "¿Restaurar el elemento seleccionado a su ubicación original?"
+            }
+        },
+        "tempPasswordDialog": {
+            "title": "Configuración de contraseña",
+            "desc": "Se ha establecido una contraseña inicial.\nCree una nueva contraseña por seguridad.",
+            "laterBtn": "Más tarde"
+        },
+        "toast": {
+            "fail": "Error",
+            "addSuccess": "Agregado correctamente.",
+            "addFail": "Error al agregar. Inténtelo de nuevo.",
+            "saveSuccess": "Guardado correctamente.",
+            "saveFail": "Error al guardar. Inténtelo de nuevo.",
+            "editSuccess": "Actualizado correctamente.",
+            "editFail": "Error al actualizar. Inténtelo de nuevo.",
+            "deleteSuccess": "Eliminado correctamente.",
+            "deleteFail": "Error al eliminar. Inténtelo de nuevo.",
+            "changeSuccess": "Cambiado correctamente.",
+            "changeFail": "Error al cambiar. Inténtelo de nuevo."
+        },
+        "language": {
+            "ko": "Coreano",
+            "en": "Inglés",
+            "es": "Español",
+            "auto": "Automático"
+        },
+        "dateFilter": {
+            "today": "Hoy",
+            "yesterday": "Ayer",
+            "last7Days": "Últimos 7 días",
+            "last30Days": "Últimos 30 días",
+            "thisYear": "Este año",
+            "inputBefore": "Antes",
+            "inputAfter": "Después"
+        },
+        "errorPage": {
+            "title": "No se encontró la página.",
+            "desc": "La página solicitada no existe o no se puede acceder.",
+            "goBack": "Ir a la página anterior",
+            "authFail": {
+                "title": "Error de autenticación",
+                "desc": "Las credenciales no son válidas o han caducado.\nVuelva a abrir la pantalla."
+            }
+        }
+    },
+    "admin": {
+        "userManagement": {
+            "toast": {
+                "seatLimitReached": "Los usuarios activos han alcanzado el límite de la licencia. No se pueden agregar más usuarios."
+            }
+        },
+        "branding": {
+            "page": {
+                "title": "Configuración de marca"
+            },
+            "label": {
+                "title": "Etiqueta",
+                "helper": "Ingrese entre 2 y 30 caracteres."
+            },
+            "browserTitle": {
+                "title": "Título del navegador web",
+                "desc": "Se muestra en la pestaña del navegador."
+            },
+            "serviceName": {
+                "title": "Nombre del servicio",
+                "desc": "Es el nombre de marca que se muestra en todo el servicio."
+            },
+            "poweredBy": {
+                "title": "Etiqueta del proveedor Powered by",
+                "enable": "Mostrar",
+                "disable": "Ocultar"
+            },
+            "logo": {
+                "title": "Logotipo",
+                "default": "Usar valor predeterminado",
+                "custom": "Subir personalizado",
+                "defaultOptionDesc": "Utiliza los recursos predeterminados de Thinkfree proporcionados por el sistema."
+            },
+            "favicon": {
+                "title": "Favicon",
+                "desc": "Se muestra en la pestaña del navegador.",
+                "uploadFormat": "ICO, PNG • 32x32 recomendado • Máx 500KB"
+            },
+            "symbolLogo": {
+                "title": "Logotipo de símbolo",
+                "desc": "Se muestra en la pantalla de inicio de sesión.",
+                "uploadFormat": "PNG, SVG • 512x512 recomendado • Máx 1MB"
+            },
+            "basicLogo": {
+                "title": "Logotipo básico",
+                "desc": "Se muestra en la parte superior de la barra lateral izquierda.",
+                "uploadFormat": "PNG, SVG • 280x40px recomendado • Máx 2MB"
+            },
+            "emailLogo": {
+                "title": "Logotipo de correo electrónico",
+                "desc": "Se muestra en la parte superior del correo electrónico.",
+                "uploadFormat": "PNG, SVG • 280x40px recomendado • Máx 2MB"
+            },
+            "upload": {
+                "placeholder": "Por favor, suba un archivo.",
+                "action": "Subir imagen",
+                "reupload": "Volver a subir",
+                "selectAnother": "Seleccionar otra imagen",
+                "errorInvalidFormat": "Formato de archivo no compatible.",
+                "errorFileSizeExceeded": "El tamaño del archivo supera el límite permitido."
+            }
+        },
+        "share": {
+            "setting": {
+                "title": "Compartir",
+                "field": "Configuración de compartir",
+                "descEnabled": "El uso compartido está actualmente activado. Los usuarios pueden compartir archivos y carpetas con otros usuarios.",
+                "descDisabled": "El uso compartido está actualmente desactivado. Los usuarios no pueden compartir archivos y carpetas con otros usuarios."
+            },
+            "disabledInfoDialog": {
+                "title": "Aviso de uso compartido desactivado",
+                "desc": "Actualmente hay archivos y carpetas compartidos.\nDesactivar el uso compartido detendrá todos los recursos compartidos activos.",
+                "confirm": "Continuar"
+            },
+            "disabledResourceDialog": {
+                "title": "No se puede abrir el archivo o la carpeta.",
+                "desc": "El uso compartido ha sido desactivado, por lo que ''{resourceName}'' no se puede abrir."
+            },
+            "globalSetting": {
+                "infoBox": "El administrador del sistema ha aplicado una política de uso compartido global a todos los inquilinos. Póngase en contacto con el administrador del sistema si necesita cambiar la configuración."
+            },
+            "policy": {
+                "externalShare": {
+                    "title": "Permitir uso compartido externo",
+                    "desc": "Al activar, se habilitarán las invitaciones de usuarios de otras organizaciones y las opciones de uso compartido público."
+                },
+                "accessScope": {
+                    "title": "Ámbito de permisos de acceso",
+                    "minOneRequired": "Active al menos un permiso de acceso."
+                }
+            }
+        },
+        "loginSetting": {
+            "providerName": {
+                "placeholder": "Ingrese el nombre del proveedor"
+            },
+            "issuer": {
+                "placeholder": "Ingrese el Issuer"
+            },
+            "loginPageUrl": {
+                "placeholder": "Ingrese la URL de la página de inicio de sesión"
+            },
+            "audience": {
+                "placeholder": "Ingrese el Audience"
+            },
+            "emailClaimName": {
+                "placeholder": "Ingrese el Email Claim Name"
+            },
+            "publicKey": {
+                "placeholder": "Ingrese el Public Key"
+            },
+            "globalSetting": {
+                "infoBox": "Por razones de seguridad,\n la configuración no se muestra. Póngase en contacto con el administrador del sistema si necesita realizar cambios.",
+                "lockTitle": "El administrador del sistema ha aplicado un método de autenticación global."
+            },
+            "loginMethod": {
+                "oidc": "Inicio de sesión OIDC"
+            },
+            "oidcInfoBox": {
+                "desc": "El inicio de sesión OIDC es un método de autenticación a través de un IdP externo.\nLos usuarios inician sesión mediante autenticación IdP. Los cambios en esta configuración pueden afectar el inicio de sesión."
+            },
+            "oidcConfig": {
+                "title": "Configuración OIDC",
+                "desc": "Aunque se registren varios IdP, solo uno se utilizará como inicio de sesión predeterminado.",
+                "addIdpBtn": "Agregar IdP",
+                "table": {
+                    "name": "Nombre de IdP",
+                    "registeredAt": "Fecha de registro",
+                    "connectionStatus": "Estado de conexión",
+                    "connectionSetting": "Predeterminado",
+                    "connected": "Conectado",
+                    "disconnected": "No conectado",
+                    "empty": "No hay IdP registrado."
+                }
+            },
+            "idpDialog": {
+                "addTitle": "Agregar IdP",
+                "editTitle": "Editar IdP"
+            },
+            "idpName": {
+                "label": "Nombre de IdP",
+                "placeholder": "Ingrese el nombre del IdP"
+            },
+            "issuerUrl": {
+                "label": "Issuer URL",
+                "placeholder": "Ingrese el Issuer URL"
+            },
+            "clientId": {
+                "label": "Client ID",
+                "placeholder": "Ingrese el Client ID"
+            },
+            "clientSecret": {
+                "label": "Client Secret",
+                "placeholder": "Ingrese el Client Secret"
+            },
+            "oidcConfirmDialog": {
+                "title": "¿Cambiar al inicio de sesión OIDC?",
+                "desc": "Al cambiar, los usuarios deberán iniciar sesión mediante autenticación IdP externa. El método de inicio de sesión existente ya no estará disponible."
+            },
+            "deleteIdpDialog": {
+                "title": "¿Eliminar el IdP registrado?",
+                "desc": "Al eliminar, la información de inicio de sesión de los usuarios vinculados a este IdP se eliminará y será necesario volver a autenticarse mediante otro método."
+            },
+            "changeIdpDialog": {
+                "title": "¿Cambiar el IdP para OIDC?",
+                "desc": "Tras el cambio, solo los usuarios autenticados por el nuevo IdP podrán iniciar sesión.\nLos usuarios actualmente conectados permanecerán hasta que cierren sesión."
+            }
+        },
+        "adminPortal": {
+            "infoBox": {
+                "desc": "Está accediendo como superadministrador.",
+                "portalLink": "Portal de superadministrador"
+            }
+        },
+        "licenseBanner": {
+            "expiring": {
+                "title": "Su licencia vence en <b>{dDay} días</b>.",
+                "description": "Vence el {expireDate}"
+            },
+            "graceEnded": {
+                "title": "El uso de la licencia ha sido <b>suspendido</b>.",
+                "description": "Venció el {expireDate}"
+            },
+            "seatExceeded": {
+                "title": "Se ha superado el límite de asientos.",
+                "description": "<b>{usedSeats}/{totalSeats}</b> en uso"
+            },
+            "noLicense": {
+                "title": "No hay ninguna licencia registrada.",
+                "description": "Registre una licencia para usar el servicio."
+            },
+            "authFail": {
+                "title": "<b>Error</b> en la verificación de la licencia.",
+                "description": "Intente verificar su licencia nuevamente."
+            },
+            "detailBtn": "Ver detalles"
+        },
+        "noLicenseDialog": {
+            "title": "Licencia no registrada",
+            "desc": "No hay ninguna licencia registrada.\nRegistre una licencia para usar el servicio."
+        },
+        "licenseAuthFailDialog": {
+            "title": "Error de verificación de licencia",
+            "desc": "Error en la verificación de la licencia.\nIntente verificar su licencia nuevamente."
+        },
+        "licenseExpiredDialog": {
+            "title": "Licencia vencida",
+            "desc": "La licencia ha vencido y el acceso de los usuarios está restringido.\nRenueve la licencia para continuar usando el servicio."
+        },
+        "license": {
+            "lastVerifiedAt": "Última fecha de verificación",
+            "verifyBtn": "Verificar",
+            "toast": {
+                "verifySuccess": "Solicitud de verificación manual completada.",
+                "verifyFail": "Error en la solicitud de verificación manual."
+            }
+        },
+        "accountSetting": {
+            "title": "Ajustes de cuenta"
+        },
+        "protectedUser": {
+            "badge": "Protegida",
+            "tooltip": "Cuenta protegida creada junto con el inquilino. Los administradores no pueden darla de baja, eliminarla, desactivarla ni cambiar su rol o contraseña."
+        },
+        "apiKey": {
+            "createDialog": {
+                "scopeLabel": "Scope",
+                "expiryLabel": "Fecha de vencimiento"
+            },
+            "scope": {
+                "readOnly": "Solo lectura",
+                "readOnlyDesc": "Puede ver y buscar archivos y carpetas.\nNo se permite modificar ni eliminar.",
+                "fullAccess": "Acceso total",
+                "fullAccessDesc": "Puede ver, crear, editar, compartir y eliminar archivos y carpetas."
+            },
+            "table": {
+                "role": "Rol",
+                "userAccount": "Cuenta de usuario",
+                "scope": "Scope",
+                "expireDate": "Fecha de vencimiento"
+            },
+            "badge": {
+                "readOnly": "Solo lectura",
+                "fullAccess": "Acceso total",
+                "protected": "Protegida",
+                "protectedTooltip": "Clave protegida emitida por el superadministrador. Solo el superadministrador puede cambiar su fecha de vencimiento, activarla, desactivarla o volver a emitirla."
+            },
+            "menu": {
+                "updateExpiry": "Editar fecha de vencimiento",
+                "reissue": "Reemitir"
+            },
+            "updateExpiryDialog": {
+                "title": "Editar fecha de vencimiento",
+                "success": "La fecha de vencimiento se ha actualizado.",
+                "fail": "No se pudo actualizar la fecha de vencimiento."
+            }
+        },
+        "auditLog": {
+            "title": "Registro de auditoría",
+            "exportCsvBtn": "Exportar",
+            "settingBtn": "Configuración",
+            "toast": {
+                "fetchFail": "Error al cargar el registro de auditoría. Inténtelo de nuevo más tarde."
+            },
+            "filter": {
+                "userSearch": {
+                    "label": "Usuario",
+                    "placeholder": "Buscar por nombre o correo"
+                },
+                "event": {
+                    "label": "Evento",
+                    "selected": "{count} seleccionado(s)",
+                    "selectAll": "Seleccionar todo"
+                },
+                "channel": {
+                    "label": "Canal"
+                },
+                "result": {
+                    "label": "Resultado"
+                },
+                "date": {
+                    "label": "Período",
+                    "reset": "Restablecer"
+                },
+                "searchBtn": "Buscar"
+            },
+            "table": {
+                "user": "Usuario",
+                "event": "Evento",
+                "resource": "Recurso",
+                "target": "Objetivo",
+                "channel": "Canal",
+                "ip": "IP",
+                "timestamp": "Fecha y hora"
+            },
+            "datePicker": {
+                "today": "Hoy"
+            },
+            "settingDialog": {
+                "title": "Configuración de registro de auditoría",
+                "retentionLabel": "Período de retención",
+                "retentionUnit": "Días",
+                "retentionWarning": "※ Los registros de auditoría que superen el período de retención se eliminarán automáticamente y no podrán recuperarse."
+            },
+            "event": {
+                "login": "Inicio de sesión",
+                "logout": "Cierre de sesión",
+                "accountLockedStatusChange": "Cambio de estado de bloqueo de cuenta",
+                "fileCreate": "Archivo creado",
+                "fileUpload": "Archivo subido",
+                "fileDownload": "Archivo descargado",
+                "filePreview": "Vista previa de archivo",
+                "fileOpen": "Archivo abierto",
+                "fileEdit": "Archivo editado",
+                "fileDelete": "Archivo eliminado",
+                "filePermanentDelete": "Archivo eliminado permanentemente",
+                "fileRestore": "Archivo restaurado",
+                "fileRename": "Archivo renombrado",
+                "fileMove": "Archivo movido",
+                "fileCopy": "Archivo copiado",
+                "folderCreate": "Carpeta creada",
+                "folderDownload": "Carpeta descargada",
+                "folderDelete": "Carpeta eliminada",
+                "folderPermanentDelete": "Carpeta eliminada permanentemente",
+                "folderRestore": "Carpeta restaurada",
+                "folderRename": "Carpeta renombrada",
+                "shareCreate": "Compartición creada",
+                "sharePermissionChange": "Permiso de compartición modificado",
+                "shareRemove": "Compartición eliminada",
+                "userCreate": "Usuario creado",
+                "userDelete": "Usuario eliminado",
+                "userPermanentDelete": "Usuario eliminado permanentemente",
+                "userRestore": "Usuario restaurado",
+                "userInfoUpdate": "Información de usuario actualizada",
+                "userPasswordChange": "Cambio de contraseña de usuario",
+                "userTwofactorReset": "Restablecimiento de autenticación de dos factores del usuario",
+                "userStatusChange": "Estado de usuario modificado",
+                "adminCreate": "Administrador creado",
+                "adminDelete": "Administrador eliminado",
+                "adminPermanentDelete": "Administrador eliminado permanentemente",
+                "adminRestore": "Administrador restaurado",
+                "adminInfoUpdate": "Información de administrador actualizada",
+                "adminPasswordChange": "Cambio de contraseña de administrador",
+                "adminStatusChange": "Estado de administrador modificado",
+                "settingUpdate": "Cambio de configuración del sistema",
+                "settingAllowedIpChange": "Cambio de lista de IP permitidas"
+            },
+            "category": {
+                "login": "Iniciar sesión",
+                "fileFolder": "Archivo/Carpeta",
+                "share": "Compartir",
+                "userManagement": "Gestión de cuentas",
+                "setting": "Configuración"
+            },
+            "result": {
+                "success": "Éxito",
+                "failed": "Fallido"
+            },
+            "value": {
+                "active": "Activo",
+                "inactive": "Inactivo",
+                "locked": "Bloqueado",
+                "unlocked": "Desbloqueado",
+                "loginLocal": "Inicio de sesión local",
+                "loginJwt": "Autenticación automática JWT",
+                "loginOidc": "Inicio de sesión OIDC",
+                "on": "ON",
+                "off": "OFF",
+                "view": "Ver",
+                "download": "Descargar",
+                "upload": "Subir",
+                "edit": "Editar",
+                "share": "Compartir",
+                "restricted": "Restringido",
+                "orgInternal": "Organización interna",
+                "public": "Público",
+                "global": "Configuración global",
+                "tenant": "Por inquilino"
+            },
+            "field": {
+                "phone": "Teléfono",
+                "name": "Nombre",
+                "countryCode": "Código de país",
+                "storageQuota": "Almacenamiento",
+                "externalShare": "Compartición externa",
+                "permissions": "Permisos de uso compartido",
+                "scope": "Alcance de compartición",
+                "loginMethod": "Método de inicio de sesión",
+                "globalLoginPolicy": "Política de inicio de sesión global",
+                "globalSharePolicy": "Política de compartición global",
+                "added": "Agregado",
+                "removed": "Eliminado"
+            }
+        },
+        "sidebar": {
+            "systemInfo": "Info del sistema",
+            "auditLog": "Registro de auditoría"
+        },
+        "userDialog": {
+            "storageQuota": {
+                "availableDesc": "Disponible para asignar: {availableQuota}GB",
+                "validateExceedsTenant": "La asignación total de usuarios supera el almacenamiento total."
+            }
+        }
+    },
+    "superAdmin": {
+        "tenantManagement": {
+            "title": "Lista de inquilinos",
+            "addTenant": "Agregar inquilino",
+            "table": {
+                "name": "Nombre del inquilino",
+                "domain": "Ruta",
+                "licenseStatus": "Estado de licencia",
+                "createdAt": "Fecha de creación",
+                "detail": "Detalle",
+                "tenantType": "Tipo",
+                "userMode": "Modo de usuario",
+                "office": "Office"
+            },
+            "tenantType": {
+                "SELF_MANAGED": "Autogestionado",
+                "SYSTEM_MANAGED": "Gestionado por el sistema"
+            },
+            "userMode": {
+                "SINGLE": "Usuario único",
+                "MULTI": "Multiusuario"
+            },
+            "filter": {
+                "tenantType": "Tipo"
+            },
+            "badge": {
+                "valid": "Válido",
+                "noLicense": "Sin licencia",
+                "expired": "Vencido",
+                "seatExceeded": "Cupo excedido"
+            },
+            "badgeTooltip": {
+                "valid": "La licencia está actualmente vigente.",
+                "expiring": "Renueve la licencia antes de que venza.",
+                "expired": "La licencia ha vencido. Renuévela para continuar usando el servicio.",
+                "seatExceeded": "El acceso de usuarios está restringido por exceso de asientos.",
+                "noLicense": "No se ha registrado ninguna licencia. El uso del servicio no está disponible."
+            },
+            "detail": {
+                "daysLeft": "{day} días restantes",
+                "daysOver": "{day} días transcurridos",
+                "seatCount": "{used}/{total}"
+            },
+            "tooltip": {
+                "adminLink": "Portal de administración",
+                "adminLinkDisabled": "Configure un dominio base para usar el acceso directo al portal de administración."
+            },
+            "domainSettingDialog": {
+                "title": "Configuración de dominio requerida",
+                "desc": "Para agregar un inquilino, primero debe configurar un dominio base. Ingrese y guarde el dominio base en la página de configuración e inténtelo de nuevo.",
+                "confirm": "Ir a la configuración"
+            },
+            "office": {
+                "none": "Sin conexión",
+                "onPremise": "On-premise",
+                "onPremiseManaged": "On-premise · gestionada por el servicio"
+            }
+        },
+        "tenantDialog": {
+            "addTitle": "Agregar inquilino",
+            "editTitle": "Editar inquilino",
+            "tenantName": {
+                "label": "Nombre del inquilino",
+                "placeholder": "Ingrese el nombre del inquilino"
+            },
+            "tenantDomain": {
+                "label": "Ruta del inquilino",
+                "placeholder": "Ingrese la ruta"
+            },
+            "adminAccount": {
+                "title": "Cuenta de administrador",
+                "desc": "La cuenta de administrador solo se puede configurar al crear un inquilino.\nAdministre cuentas adicionales en el portal de administración del inquilino."
+            },
+            "allowedIp": {
+                "desc": "Si se deja vacío, se permitirá el acceso desde cualquier IP. Puede agregar o modificar esto en cualquier momento."
+            },
+            "totalQuota": {
+                "label": "Almacenamiento total",
+                "placeholder": "Introduzca el almacenamiento total",
+                "validateFormat": "El almacenamiento total debe ser un número entero mayor que 0.",
+                "validateInsufficient": "La capacidad de almacenamiento disponible es insuficiente.",
+                "validateInsufficientToast": "No hay suficiente capacidad de almacenamiento disponible.",
+                "validateBelowAllocated": "No puede ser menor que el almacenamiento total asignado a los usuarios.",
+                "allocatedDesc": "Almacenamiento total asignado a los usuarios: {allocatedQuota}GB",
+                "minimumDesc": "Almacenamiento total mínimo: {allocatedQuota}GB. La cuenta única administrada recibe la misma cuota."
+            },
+            "tenantType": {
+                "label": "Tipo",
+                "selfDesc": "Inquilino operado por el cliente. Solo está disponible el modo multiusuario.\nEl tipo y el modo de usuario no se pueden cambiar después de crearlo.",
+                "systemMultiDesc": "Inquilino gestionado por un sistema externo con una clave API de superadministrador. La cuenta de administrador pasa a ser una cuenta protegida con los roles USER y ADMIN y toda la cuota total. El uso compartido se desactiva, no se usan IP permitidas y los administradores no pueden cambiar la licencia, office, inicio de sesión, correo, restricción de acceso ni MFA.\nEl tipo y el modo de usuario no se pueden cambiar después de crearlo.",
+                "systemSingleDesc": "Inquilino gestionado por un sistema externo con una clave API de superadministrador. Solo se usa la cuenta de administrador (protegida, con los roles USER y ADMIN y toda la cuota total); se bloquean el registro de usuarios y la emisión o cambio de claves API desde las pantallas de administrador y usuario. El uso compartido se desactiva, no se usan IP permitidas y los administradores no pueden cambiar la licencia, office, inicio de sesión, correo, restricción de acceso ni MFA.\nEl tipo y el modo de usuario no se pueden cambiar después de crearlo.",
+                "immutable": "no se puede cambiar después de crearlo"
+            },
+            "userMode": {
+                "label": "Modo de usuario"
+            }
+        },
+        "featureSetting": {
+            "infoBox": "Como superadministrador, puede aplicar configuraciones globales a todos los inquilinos. Al aplicar globalmente, la configuración individual de cada administrador de inquilino se desactivará.",
+            "scope": {
+                "title": "Ámbito de aplicación",
+                "individual": "Por inquilino",
+                "global": "Aplicar a todos",
+                "shareDesc": "Al aplicar globalmente, se impondrá la misma política de uso compartido a todos los inquilinos.",
+                "loginDesc": "Al aplicar globalmente, se impondrá el mismo método de autenticación de inicio de sesión a todos los inquilinos."
+            },
+            "globalConfirmDialog": {
+                "title": "¿Cambiar a configuración global?",
+                "desc": "Toda la configuración individual de los inquilinos será eliminada y reemplazada por la configuración global."
+            },
+            "individualConfirmDialog": {
+                "title": "¿Cambiar a configuración individual por inquilino?",
+                "desc": "La configuración global se desactivará y cada inquilino volverá a su configuración anterior. Si no hay configuración previa, se aplicarán los valores predeterminados del sistema."
+            },
+            "shareTitle": "Compartir",
+            "loginTitle": "Inicio de sesión"
+        },
+        "sidebar": {
+            "tenantManagement": "Gestión de inquilinos",
+            "tenantList": "Lista de inquilinos",
+            "featureManagement": "Gestión de funciones del servicio",
+            "shareSetting": "Compartir",
+            "loginSetting": "Inicio de sesión",
+            "apiKeyManagement": "Claves API"
+        },
+        "setting": {
+            "baseDomain": {
+                "label": "Dominio base",
+                "placeholder": "p. ej. drive.example.com, https://drive.example.com:8443, 192.168.0.10:8080"
+            }
+        },
+        "apiKey": {
+            "title": "Claves API",
+            "filter": {
+                "tenant": "Inquilino"
+            },
+            "createDialog": {
+                "title": "Crear clave API",
+                "tenant": "Inquilino",
+                "tenantPlaceholder": "Seleccione un inquilino",
+                "targetUser": "Cuenta de destino",
+                "targetUserPlaceholder": "Buscar por nombre o correo",
+                "noUser": "Sin resultados",
+                "rolePlaceholder": "Seleccione primero una cuenta de destino",
+                "protected": "Emitir como clave protegida",
+                "protectedDesc": "Una clave protegida no se puede cambiar de fecha de caducidad, activar, desactivar ni volver a emitir desde las pantallas de administrador y usuario; solo un superadministrador puede hacerlo. Puedes cambiarlo después con \"Proteger / Quitar protección\" en el menú de la fila.",
+                "singleTenantDesc": "En un inquilino de un solo usuario, las claves no se pueden emitir ni cambiar desde las pantallas de administrador y usuario, por lo que solo un superadministrador las gestiona, estén protegidas o no."
+            },
+            "menu": {
+                "protect": "Proteger",
+                "unprotect": "Quitar protección"
+            },
+            "protectionDialog": {
+                "protectTitle": "¿Establecer esta clave API como clave protegida?",
+                "protectText": "Una clave protegida no se puede cambiar de fecha de caducidad, activar, desactivar ni volver a emitir desde las pantallas de administrador y usuario; solo un superadministrador puede hacerlo.",
+                "unprotectTitle": "¿Quitar la protección de esta clave API?",
+                "unprotectText": "Al quitar la protección, la fecha de vencimiento, la activación, la desactivación y la reemisión de esta clave también se podrán cambiar desde las pantallas de administrador y usuario.",
+                "protectSuccess": "La clave ahora está protegida.",
+                "unprotectSuccess": "Se quitó la protección.",
+                "fail": "No se pudo cambiar la protección."
+            }
+        },
+        "tenantMenu": {
+            "license": "Registrar licencia",
+            "officeRegister": "Registrar Office",
+            "officeModify": "Editar Office",
+            "licenseRenew": "Renovar licencia"
+        },
+        "tenantLicenseDialog": {
+            "title": "Registrar licencia",
+            "desc": "Registra un archivo de licencia para el inquilino {tenantName}.",
+            "noFile": "Ningún archivo seleccionado",
+            "note": "Funciona igual que el registro de licencia en la pantalla de administrador. El número de puestos es el límite de cuentas activas del inquilino.",
+            "titleRenew": "Renovar licencia",
+            "descRenew": "Sube un nuevo archivo de licencia para reemplazar la licencia actual del inquilino {tenantName}. Si subes el mismo archivo, no cambia nada.",
+            "current": "Licencia actual",
+            "status": "Estado",
+            "expiresOn": "Vence el",
+            "seat": "Usuarios"
+        },
+        "tenantOfficeDialog": {
+            "desc": "Configura la conexión de Office del inquilino {tenantName}. Hay una por inquilino y al guardar se sobrescribe la configuración existente.",
+            "managedNote": "Al guardar, la conexión de Office de este inquilino se marca como gestionada por el servicio y no se puede cambiar desde la pantalla de administrador del inquilino.",
+            "selfManagedWarning": "Este es un inquilino autogestionado (SELF_MANAGED). Al guardar, la conexión de Office se marca como gestionada por el servicio, el administrador del cliente ya no podrá cambiar la configuración de Office y no se puede deshacer.",
+            "titleRegister": "Registrar Office",
+            "titleModify": "Editar Office"
+        },
+        "tenantDeleteDialog": {
+            "title": "Eliminar inquilino",
+            "desc": "Elimina el inquilino {tenantName} y todos sus usuarios, archivos y configuraciones. No se puede deshacer.",
+            "success": "Inquilino eliminado.",
+            "fail": "No se pudo eliminar el inquilino."
+        }
+    },
+    "officeIntegration": {
+        "serviceManaged": "Developers administra la conexión de Office de esta organización. No puede cambiar la dirección ni las credenciales de Office en esta página.",
+        "description": "Seleccione la conexión de Office de esta organización y guarde la configuración.",
+        "mode": "Modo de apertura",
+        "recommended": "Recomendado",
+        "deprecated": "Obsoleto",
+        "ticketHelp": "Drive solicita un ticket de un solo uso a TFO y devuelve la URL del documento. Se requiere un token de servicio.",
+        "legacyHelp": "Drive crea la URL del documento con el método Legacy. TFO también debe permitir la autenticación Legacy. Al guardar este modo, Drive elimina el token de servicio Ticket. El acceso y guardado de archivos siguen utilizando la clave de firma HTTP Storage.",
+        "address": "Dirección de TFO",
+        "addressHelp": "Introduzca una dirección de TFO accesible desde el navegador del usuario y desde el servidor de Drive. Ejemplo: https://office.example.com",
+        "token": "Token del servicio de tickets",
+        "tokenHelp": "Solicite al operador del servidor TFO el valor TFO_DOCUMENT_OPEN_TICKET_ISSUE_SERVICE_TOKEN e introdúzcalo aquí. La autenticación Ticket también debe estar habilitada en TFO.",
+        "adapter": "Nombre del adaptador HTTP Storage",
+        "adapterHelp": "Introduzca el mismo nombre que el adaptador HTTP Storage de TFO. Use letras, números, guiones o guiones bajos. Los nombres distintos impiden abrir o guardar documentos.",
+        "signingKey": "Clave de firma de HTTP Storage",
+        "signingKeyHelp": "En TFO, genere un secreto seguro y cópielo aquí. Para un adaptador existente, utilice su secreto actual. Recomendamos al menos 32 letras o dígitos ASCII. TFO no permite cambiar el secreto de un adaptador registrado.",
+        "showSecret": "Mostrar {field}",
+        "hideSecret": "Ocultar {field}",
+        "loadFailed": "No se pudo cargar la configuración. Actualice la página.",
+        "connectionType": "Conexión con Office",
+        "onPremise": "Conectar con TFO local",
+        "comingSoon": "Próximamente",
+        "none": "No conectar Office",
+        "noneHelp": "Al guardar, Drive oculta las acciones de abrir, editar y crear documentos de Office. Los usuarios pueden consultar la información y descargar estos documentos como los demás archivos. Drive conserva la configuración de conexión. Los documentos ya abiertos pueden guardarse mientras sus sesiones y permisos sigan vigentes.",
+        "onPremiseChoice": "Abra y edite documentos en el servidor TFO de su organización.",
+        "cloudChoice": "La conexión mediante API Key estará disponible próximamente.",
+        "noneChoice": "Gestione los documentos de Office como los demás archivos.",
+        "detailsTitle": "Configuración de la conexión con TFO local",
+        "detailsHelp": "Configure cómo el servidor TFO local abre documentos y se conecta con Drive.",
+        "serverSection": "1. Conexión con el servidor TFO",
+        "storageSection": "2. Configuración de almacenamiento compartida por TFO y Drive",
+        "adapterInstructions": "Inicie sesión en la administración de TFO. Abra Integración externa → Añadir adaptador y seleccione HTTP Storage. Configure en TFO el mismo nombre de adaptador y la misma clave de firma que se indican a continuación.",
+        "endpointTitle": "¿Qué dirección debe introducir en Provider Base URL de TFO?",
+        "endpointHelp": "Introduzca la dirección del backend del tenant de Drive seguida de /api/v1. Para un tenant en https://drive.example.com/t/acme, Provider Base URL es https://drive.example.com/t/acme/api/v1. Mantenga /t/acme: identifica al tenant que recibe la solicitud. TFO añade /tfo-http-storage/v1 y la ruta de la operación automáticamente; no los añada aquí. Si la instalación no utiliza rutas de tenant, introduzca https://drive.example.com/api/v1. El servidor TFO debe poder acceder a esta dirección.",
+        "applyTitle": "3. Guardar la configuración y comprobar la conexión",
+        "applySave": "El administrador de Drive pulsa Guardar en esta página. Drive guarda los valores, pero no registra el adaptador en TFO automáticamente.",
+        "applyTest": "El administrador de TFO ejecuta la prueba de conexión en Añadir adaptador. Drive no devuelve archivos en esta prueba inicial sin una sesión de documento. Si TFO indica que no se admite listar archivos, revise y acepte el aviso para registrar el adaptador.",
+        "applyOpen": "El administrador de TFO comprueba que el adaptador esté en ejecución. Después, un usuario de Drive abre un documento para verificar la conexión. Drive proporciona los datos del usuario y de la sesión; no es necesario introducirlos en los parámetros adicionales de TFO.",
+        "managedAdapterHelp": "Developers utiliza el Storage ID como nombre del adaptador y administra este valor. No puede cambiarlo aquí.",
+        "adapterChangeWarning": "El nombre cambia al guardar. Guarde y cierre los documentos antes de cambiar el nombre en Drive y TFO. Los documentos con el nombre anterior pueden fallar al guardar."
+    }
+}

@@ -1,0 +1,52 @@
+# Grafana 데이터소스 3개 — 서로 링크해서 메트릭 ↔ 트레이스 ↔ 로그를 오간다.
+#   Prometheus 그래프의 점(exemplar) → Tempo 트레이스
+#   Loki 로그의 trace_id → Tempo 트레이스
+#   Tempo 트레이스 → 같은 trace_id 의 Loki 로그
+# ($$ = 프로비저닝 환경변수 치환을 막는 이스케이프)
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      httpMethod: POST
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      derivedFields:
+        - name: TraceID
+          matcherType: label
+          matcherRegex: trace_id
+          datasourceUid: tempo
+          url: "$${__value.raw}"
+          urlDisplayLabel: Tempo 에서 트레이스 보기
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+        customQuery: true
+        query: '{service_name="drive-api"} | trace_id="$${__trace.traceId}"'
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      lokiSearch:
+        datasourceUid: loki

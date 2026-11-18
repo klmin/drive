@@ -1,0 +1,8 @@
+UserID,Password,Name,StorageLimit(GB),CountryCode,PhoneNumber
+1,2,33333333333333333333,,11111,111111111111111111111
+1,2,33333333333333333333,sdsd,11111,111111111111111111111
+jweber@gmail.com,Passw0rd!1,James Weber,5,+82,1012345678,aaa
+jweber@gmail.com,Passw0rd!1,James Weber,5,+82,1012345678
+jweber@gmail.com,Passw0rd!1,James Weber,5,+82
+1,2,3,4,5,6,aa
+

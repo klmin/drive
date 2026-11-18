@@ -1,0 +1,715 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.16</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+    <groupId>com.thinkfree.TFD</groupId>
+    <artifactId>Thinkfree-Drive</artifactId>
+    <name>Thinkfree-Drive</name>
+    <version>${app.version}</version>
+    <description>Thinkfree-Drive</description>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>1.1.8</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- Governance SDK는 Maven Central에 배포되지 않아 전달본(zip)을 푼 파일 기반 저장소를 쓴다. -->
+    <repositories>
+        <repository>
+            <id>governance-sdk-file</id>
+            <url>file://${project.basedir}/governance-sdk/repository</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- MCP Server (Streamable HTTP) -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- TOTP (Google Authenticator) -->
+        <dependency>
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>1.7.1</version>
+        </dependency>
+	    
+	    <dependency>
+    <groupId>com.ibm.icu</groupId>
+    <artifactId>icu4j</artifactId>
+    <version>78.3</version>
+    <scope>compile</scope>
+</dependency>
+
+        <!-- Spring Boot Starter for JDBC -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jdbc</artifactId>
+        </dependency>
+        <!-- Spring Data JPA(Hibernate) — 2단계 쓰기 리포 위임용. JdbcClient 와 공존(JpaTransactionManager 하나에 JdbcClient·JPA 가 같이 참여) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <!-- jOOQ — 엔티티를 고치지 않는 SQL(조회·upsert·배치·벌크)용. 버전은 Boot 관리(3.19.x, 소스 레벨 17). 생성 코드는 src/main/jooq(커밋), 재생성은 -Pjooq-codegen -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jooq</artifactId>
+        </dependency>
+        <!-- Flyway — 기동 시 스키마·기초 데이터 마이그레이션(src/main/resources/db/migration). 버전은 Boot 관리, Flyway 10+ 는 PG 지원이 별도 모듈 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+        <!-- p6spy — DataSource 래핑 SQL 로그(JPA·JdbcClient 전부, 실행시간·바인딩 값 포함). 1.12.x = Boot 3.5 계열(2.x 는 Boot 4). 켜는 건 local 프로필만 -->
+        <dependency>
+            <groupId>com.github.gavlyukovskiy</groupId>
+            <artifactId>p6spy-spring-boot-starter</artifactId>
+            <version>1.12.1</version>
+        </dependency>
+        <!-- Spring Boot Starter for Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- 관측성(observability/) — Actuator: /actuator/health·prometheus 노출(관리 포트 management.server.port), Micrometer 는 함께 들어옴.
+             registry-prometheus: 메트릭을 Prometheus 형식으로(Alloy 가 가져감). tracing-bridge-otel + exporter-otlp: 트레이스를 OTLP 로 Alloy 에 보냄.
+             버전은 모두 Boot 관리 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+        <!-- SQL 실행을 트레이스 구간(span)으로 — DataSource 를 datasource-proxy 로 감싼다(JdbcObservationConfig). 1.1.x = Boot 3.4+ 계열(1.2.x 는 Boot 4).
+             -spring-boot 모듈은 p6spy 데코레이터와 빈 이름(dataSourceNameResolver)이 겹쳐 기동 실패 — 코어만 쓰고 감싸기는 직접 한다 -->
+        <dependency>
+            <groupId>net.ttddyy.observation</groupId>
+            <artifactId>datasource-micrometer</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+        <!-- datasource-proxy 를 넣으면 p6spy 데코레이터(1.12.1)도 자기 datasource-proxy 연동을 켜는데, 그쪽은 1.11 의 LoggingFilter 를 쓴다
+             (datasource-micrometer 기본 1.10.1 이면 decorator.datasource.enabled=true 인 로컬에서 기동 실패) — 1.11.0 으로 맞춘다 -->
+        <dependency>
+            <groupId>net.ttddyy</groupId>
+            <artifactId>datasource-proxy</artifactId>
+            <version>1.11.0</version>
+        </dependency>
+        <!-- PostgreSQL JDBC Driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Spring Security -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <!-- OIDC ID Token 검증 (NimbusJwtDecoder) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-jose</artifactId>
+        </dependency>
+        <!-- MCP OAuth 인가 서버 (Spring Authorization Server) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-authorization-server</artifactId>
+        </dependency>
+        <!-- AS 세션(로그인~코드발급 구간)의 멀티 WAS 공유 — SPRING_SESSION 테이블 (MCP_OAUTH_BRIDGE_FLOW.md) -->
+        <dependency>
+            <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Swagger -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.8.17</version>
+        </dependency>
+        <!-- JWT -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.5</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.5</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.5</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.hancom.cloud_office</groupId>
+            <artifactId>common-encryptor</artifactId>
+            <version>0.0.3-SNAPSHOT</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/resources/lib/common-encryptor.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+        </dependency>
+        <!-- Amazon S3-->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.30.26</version>
+        </dependency>
+        <!-- Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>1.5.5.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <version>1.5.5.Final</version>
+        </dependency>
+        <!--Redis-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>it.ozimov</groupId>
+            <artifactId>embedded-redis</artifactId>
+            <version>0.7.2</version>
+	        <scope>test</scope>
+        </dependency>
+        <!-- Testcontainers PostgreSQL: 테스트 DB(jdbc:tc: URL, Docker 필요) -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+            <version>2.0.11</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-log4j2</artifactId>
+        </dependency>
+        <!--GeoLite2-Country-->
+        <dependency>
+            <groupId>com.maxmind.geoip2</groupId>
+            <artifactId>geoip2</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+        <!--SMTP-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+        <!--Scheduler-->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>6.9.2</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>6.9.2</version>
+        </dependency>
+	    <dependency>
+		    <groupId>org.apache.commons</groupId>
+		    <artifactId>commons-csv</artifactId>
+		    <version>1.14.1</version>
+		</dependency>
+		
+		<dependency>
+		    <groupId>commons-io</groupId>
+		    <artifactId>commons-io</artifactId>
+		    <version>2.20.0</version>
+		</dependency>
+	    <dependency>
+		    <groupId>org.apache.httpcomponents.client5</groupId>
+		    <artifactId>httpclient5</artifactId>
+		    <version>5.5</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+		<!-- MCP drive_read_file 오피스/PDF 본문 추출 (OOXML·구형 바이너리·ODF·PDF·RTF) -->
+		<dependency>
+			<groupId>org.apache.tika</groupId>
+			<artifactId>tika-core</artifactId>
+			<version>3.2.3</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.tika</groupId>
+			<artifactId>tika-parsers-standard-package</artifactId>
+			<version>3.2.3</version>
+		</dependency>
+		<!-- MCP drive_read_file 평문 인코딩 감지 (다국어 텍스트 — UTF-8 검증 실패분의 2차 추측, 신뢰도 문턱)
+		     번들 juniversalchardet은 신뢰도 점수가 없어 문턱 검사 불가 — ICU 채택 -->
+		<dependency>
+			<groupId>com.ibm.icu</groupId>
+			<artifactId>icu4j</artifactId>
+			<version>77.1</version>
+		</dependency>
+	    <!-- 감사 로그 → Governance 서버 전송 SDK (TFDRIVE-1612). Jackson codec + 기본 JDK HTTP transport(core 전이). -->
+	    <dependency>
+			<groupId>com.thinkfree.governance</groupId>
+			<artifactId>governance-sdk-json-jackson</artifactId>
+			<version>0.8.0</version>
+		</dependency>
+    </dependencies>
+
+    <properties>
+        <java.version>21</java.version>
+        <!-- Boot 3.5.16 기본 관리 버전에 남은 CVE 대응 상향 (trivy 2026-07-21)
+             jackson CVE-2026-54515 / commons-lang3 CVE-2025-48924 / log4j CVE-2025-68161 외 3건 -->
+        <jackson-bom.version>2.21.5</jackson-bom.version>
+        <commons-lang3.version>3.20.0</commons-lang3.version>
+        <log4j2.version>2.26.1</log4j2.version>
+        <!-- Flyway: Boot 3.5.16 관리 11.7.2 는 PostgreSQL 18 미검증(기동마다 "upgrade recommended" 경고) — PG 18 지원 버전으로 상향.
+             앱(flyway-core·flyway-database-postgresql)과 jooq-codegen 프로필의 flyway-maven-plugin 이 같이 쓴다 -->
+        <flyway.version>11.20.3</flyway.version>
+        <frontend.skip>false</frontend.skip>
+        <app.version>2.0.0</app.version>
+        <!--suppress UnresolvedMavenProperty -->
+        <finalName>${project.artifactId}-${app.version}_${currentTime}</finalName>
+        <maven.build.timestamp.format>yyyyMMddHHmm</maven.build.timestamp.format>
+
+        <!-- jOOQ 코드 생성(-Pjooq-codegen). 생성 코드 위치는 평소 빌드의 소스 루트(build-helper add-source)로도 쓴다 -->
+        <jooq-codegen.directory>${project.basedir}/src/main/jooq</jooq-codegen.directory>
+        <jooq-codegen.package>com.thinkfree.drive.jooq</jooq-codegen.package>
+        <!-- 생성용 임시 PG 이미지 태그·DB 이름 — application-test.yml 의 jdbc:tc URL 과 맞춘다. 스키마는 Flyway 마이그레이션 전체(db/migration) -->
+        <jooq-codegen.pg-version>18</jooq-codegen.pg-version>
+        <jooq-codegen.db-name>t_drive</jooq-codegen.db-name>
+        <jooq-codegen.migration-dir>${project.basedir}/src/main/resources/db/migration</jooq-codegen.migration-dir>
+    </properties>
+
+    <build>
+        <!--suppress UnresolvedMavenProperty -->
+        <finalName>${finalName}</finalName>
+        <testResources>
+            <!-- 테스트 DB(Testcontainers) 스키마는 앱과 같은 Flyway 마이그레이션(main 클래스패스 db/migration)으로 만든다 -->
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+        </testResources>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <includeSystemScope>true</includeSystemScope>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                        <configuration>
+                            <additionalProperties>
+                                <!--suppress UnresolvedMavenProperty -->
+                                <currentTime>${currentTime}</currentTime>
+                                <finalName>${finalName}</finalName>
+                            </additionalProperties>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>module-timestamp-property</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>timestamp-property</goal>
+                        </goals>
+                        <configuration>
+                            <name>currentTime</name>
+                            <pattern>${maven.build.timestamp.format}</pattern>
+                            <locale>ko_KR</locale>
+                            <timeZone>Asia/Seoul</timeZone>
+                        </configuration>
+                    </execution>
+                    <!-- jOOQ 생성 코드(커밋된 정적 소스)를 평소 빌드에서 컴파일 — 생성 자체는 -Pjooq-codegen 일 때만 -->
+                    <execution>
+                        <id>add-jooq-generated-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${jooq-codegen.directory}</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <delete file="${project.build.directory}/${project.build.finalName}.jar.original"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>1.12.1</version>
+                <configuration>
+                    <nodeVersion>v22.12.0</nodeVersion>
+                    <workingDirectory>../DriveFront</workingDirectory>
+                    <skip>${frontend.skip}</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>install node and npm</id>
+                        <goals>
+                            <goal>install-node-and-npm</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>npm install and build</id>
+	                    <phase>generate-resources</phase>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>run build</arguments>
+                        </configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>3.3.1</version>
+				<executions>
+					<execution>
+						<id>copy-frontend</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+							<resources>
+								<resource>
+									<directory>../DriveFront/out</directory>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>license-maven-plugin</artifactId>
+				<version>2.6.0</version>
+				<executions>
+					<execution>
+						<id>generate-third-party-list</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>add-third-party</goal>
+						</goals>
+						<configuration>
+							<includeTransitiveDependencies>false</includeTransitiveDependencies>
+							<includedScopes>compile,runtime</includedScopes>
+							<excludedScopes>test,provided</excludedScopes>
+							<outputDirectory>${project.build.directory}/generated-licenses</outputDirectory>
+							<thirdPartyFilename>THIRD-PARTY.txt</thirdPartyFilename>
+						</configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+            jOOQ 코드 재생성 — 스키마(db/migration)를 바꿨을 때만 실행하고 결과(src/main/jooq)를 같은 커밋으로 올린다.
+              mvn -Pjooq-codegen -Dfrontend.skip=true generate-sources   (리포에 .mvn/wrapper 가 없어 mvnw 는 못 쓴다 — IntelliJ 번들 mvn 등)
+            순서(앱과 같은 Flyway 경로라 V1·V2·… 전체가 반영된 스키마로 생성한다):
+              initialize       : docker-maven-plugin 이 임시 PG 18 컨테이너(jooq-codegen-pg) 기동 — 호스트 포트는 비어 있는 번호를 골라 jooq-codegen.pg-port 에 넣음
+              generate-sources : flyway-maven-plugin 이 db/migration 전체 적용 → jooq-codegen-maven 이 카탈로그를 읽어 생성 → 컨테이너 정지·삭제
+                                 (같은 phase 는 플러그인 선언 순서대로 실행 — 그래서 docker-maven-plugin 을 맨 아래에 둔다)
+            생성 중 실패해 컨테이너가 남아도 다음 실행이 기동 전에 이름(jooq-codegen-pg)으로 찾아 지운다. 바로 치우려면 docker rm -f jooq-codegen-pg
+            Docker 필요. 평소 빌드(로컬·Jenkins)는 이 프로필을 켜지 않으므로 Docker 없이 커밋된 생성 코드를 컴파일만 한다.
+            생성 코드는 손으로 고치지 않는다 — 생성 대상·타입 매핑(includes/excludes/forcedTypes)은 jooq-codegen.xml 에서 바꾼다.
+            ⚠️ 생성은 JDK 17 로 — 21 이상이면 모든 테이블 클래스에 @SuppressWarnings "this-escape" 가 붙어 커밋된 코드와 diff 가 생긴다.
+        -->
+        <profile>
+            <id>jooq-codegen</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.flywaydb</groupId>
+                        <artifactId>flyway-maven-plugin</artifactId>
+                        <version>${flyway.version}</version>
+                        <executions>
+                            <execution>
+                                <id>jooq-codegen-migrate</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>migrate</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.flywaydb</groupId>
+                                <artifactId>flyway-database-postgresql</artifactId>
+                                <version>${flyway.version}</version>
+                            </dependency>
+                            <dependency>
+                                <groupId>org.postgresql</groupId>
+                                <artifactId>postgresql</artifactId>
+                                <version>${postgresql.version}</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <url>jdbc:postgresql://localhost:${jooq-codegen.pg-port}/${jooq-codegen.db-name}</url>
+                            <user>test</user>
+                            <password>test</password>
+                            <locations>
+                                <location>filesystem:${jooq-codegen.migration-dir}</location>
+                            </locations>
+                            <!-- application.yml spring.flyway 와 같게 — 이메일 템플릿의 ${...} 를 치환하지 않는다 -->
+                            <placeholderReplacement>false</placeholderReplacement>
+                            <cleanDisabled>true</cleanDisabled>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.jooq</groupId>
+                        <artifactId>jooq-codegen-maven</artifactId>
+                        <executions>
+                            <execution>
+                                <id>jooq-codegen</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>generate</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.postgresql</groupId>
+                                <artifactId>postgresql</artifactId>
+                                <version>${postgresql.version}</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <jdbc>
+                                <driver>org.postgresql.Driver</driver>
+                                <url>jdbc:postgresql://localhost:${jooq-codegen.pg-port}/${jooq-codegen.db-name}</url>
+                                <user>test</user>
+                                <password>test</password>
+                            </jdbc>
+                            <generator>
+                                <!-- <database>(생성 대상·타입 매핑)·<generate> 는 jooq-codegen.xml -->
+                                <target>
+                                    <packageName>${jooq-codegen.package}</packageName>
+                                    <directory>${jooq-codegen.directory}</directory>
+                                    <clean>true</clean>
+                                </target>
+                            </generator>
+                            <configurationFile>${project.basedir}/jooq-codegen.xml</configurationFile>
+                        </configuration>
+                    </plugin>
+                    <!-- 생성용 임시 PG — start 는 initialize, stop 은 generate-sources 의 마지막(위 Flyway·jOOQ 다음)이 되도록 맨 아래에 선언 -->
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <version>0.45.1</version>
+                        <configuration>
+                            <containerNamePattern>%a</containerNamePattern>
+                            <images>
+                                <image>
+                                    <alias>jooq-codegen-pg</alias>
+                                    <name>postgres:${jooq-codegen.pg-version}</name>
+                                    <run>
+                                        <env>
+                                            <POSTGRES_DB>${jooq-codegen.db-name}</POSTGRES_DB>
+                                            <POSTGRES_USER>test</POSTGRES_USER>
+                                            <POSTGRES_PASSWORD>test</POSTGRES_PASSWORD>
+                                        </env>
+                                        <ports>
+                                            <!-- 빈 호스트 포트를 골라 Maven 속성 jooq-codegen.pg-port 에 넣는다(위 Flyway·jOOQ 가 읽음) -->
+                                            <port>jooq-codegen.pg-port:5432</port>
+                                        </ports>
+                                        <wait>
+                                            <!-- 공식 이미지는 초기화용 임시 서버를 한 번 띄웠다 내린 뒤 본 서버를 띄운다 — 본 서버 준비까지 기다린다 -->
+                                            <log>(?s)init process complete.*ready to accept connections</log>
+                                            <time>120000</time>
+                                        </wait>
+                                    </run>
+                                </image>
+                            </images>
+                        </configuration>
+                        <executions>
+                            <!-- 지난 실행이 Flyway·jOOQ 단계에서 실패하면 stop 이 돌지 않아 컨테이너가 남는다 — 기동 전에 이름이 jooq-codegen-pg 인 컨테이너만 지운다 -->
+                            <execution>
+                                <id>jooq-codegen-pg-cleanup</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>stop</goal>
+                                </goals>
+                                <configuration>
+                                    <!-- 이 플러그인 라벨이 없는 컨테이너도 대상으로 하되, 이름 패턴이 걸러서 다른 postgres:18 컨테이너(예: drive-flyway-local)는 건드리지 않는다 -->
+                                    <allContainers>true</allContainers>
+                                    <stopNamePattern>jooq-codegen-pg</stopNamePattern>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>jooq-codegen-pg-start</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>start</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>jooq-codegen-pg-stop</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>stop</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!--
+            OpenAPI 문서 내보내기 — 리포 루트 docs/openapi/ 에 drive-api.json(전체)·drive-public-api.json(외부 공개, 플레이그라운드용)을 쓴다.
+              mvn -f DriveAPI/pom.xml -Popenapi-export test
+            OpenApiExportTest 하나만 돌리고(openapi.export=true 를 넘겨 켠다), 프런트 빌드는 건너뛴다.
+            웹 계층(@WebMvcTest)만 띄워 컨트롤러를 스캔한다 — DB·Redis 에 붙지 않고, 서비스 의존성은 mock 으로 채운다.
+            컴파일된 컨트롤러가 필요하므로 test 단계까지 간다(-Dmaven.test.skip 불가). 8080 이 떠 있으면 target/classes 재컴파일에 주의.
+        -->
+        <profile>
+            <id>openapi-export</id>
+            <properties>
+                <frontend.skip>true</frontend.skip>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <test>OpenApiExportTest</test>
+                            <systemPropertyVariables>
+                                <openapi.export>true</openapi.export>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>

@@ -1,0 +1,246 @@
+-- =====================================================================================
+-- TFDRIVE-1904 SYSTEM_MANAGED 테넌트 — 이미 PostgreSQL 로 운영 중인 DB 업데이트 (t_drive DB 에 t_drive_user 로 실행)
+--   psql -h 127.0.0.1 -U t_drive_user -d t_drive -v ON_ERROR_STOP=1 -f TFDRIVE-1904_system_managed_tenant.sql
+-- 자동으로 실행되지 않는다 — Flyway 도입(2026-11) 전 DB 를 V1 상태로 맞추는 수동 스크립트. 실행 뒤 앱 첫 기동은 DRIVE_FLYWAY_BASELINE_ON_MIGRATE=true(../README.md).
+-- 1) tb_tenant.tenant_type: ORGANIZATION → SELF_MANAGED(값 변환 + 기본값), SYSTEM_MANAGED 는 새 값(변환 대상 없음)
+-- 2) tb_tenant.user_mode 추가: SINGLE | MULTI, 기존 테넌트는 MULTI
+-- 3) tb_user.is_protected 추가: 기존 계정은 'N', 설치 시드 계정(superadmin·admin·anonymous)만 'Y'(나중에 보호 표시하는 API 없음 — 그 외 보호 계정은 테넌트 생성 때만 생긴다)
+-- 4) tb_api_key.is_protected 추가: 기존 키는 'N'
+-- 5) 컬럼 위치 맞춤: ADD COLUMN 은 맨 뒤에 붙으므로 세 테이블을 initialize.sql 과 같은 순서로 다시 만든다
+--    (user_mode = tenant_type 뒤, is_protected = status 뒤). PG 는 컬럼 순서 변경을 지원하지 않아 새 테이블로 복사 후 교체.
+--    인덱스·제약·이 테이블을 참조하는 FK·주석·권한·IDENTITY 현재 값은 카탈로그에서 읽어 그대로 복원한다.
+--    권한은 테이블·컬럼·IDENTITY 시퀀스 ACL 을 위임 옵션까지 그대로 맞추고, 새 테이블이 기본 권한으로 받은 권한은 회수한다.
+--    테이블을 통째로 복사하므로 ACCESS EXCLUSIVE 잠금 — 애플리케이션을 내린 상태에서 실행.
+-- 새로 설치하는 DB 는 initialize.sql 이 같은 정의로 만든다.
+-- 여러 번 실행해도 안전하다(IF NOT EXISTS, 변환은 ORGANIZATION 인 행만, 이미 순서가 맞는 테이블은 건너뜀).
+-- =====================================================================================
+BEGIN;
+
+ALTER TABLE tb_tenant ALTER COLUMN tenant_type SET DEFAULT 'SELF_MANAGED';
+UPDATE tb_tenant SET tenant_type = 'SELF_MANAGED' WHERE tenant_type = 'ORGANIZATION';
+COMMENT ON COLUMN tb_tenant.tenant_type IS '테넌트 유형. SELF_MANAGED=관리자가 직접 운영 | SYSTEM_MANAGED=외부 시스템이 슈퍼관리자 API 로 프로비저닝. 생성 후 변경 불가';
+
+ALTER TABLE tb_tenant ADD COLUMN IF NOT EXISTS user_mode varchar(20) NOT NULL DEFAULT 'MULTI';
+COMMENT ON COLUMN tb_tenant.user_mode IS '사용자 모드. SINGLE=보호 계정 하나 | MULTI=여러 계정. SELF_MANAGED 는 MULTI 고정, 생성 후 변경 불가';
+
+ALTER TABLE tb_user ADD COLUMN IF NOT EXISTS is_protected char(1) NOT NULL DEFAULT 'N';
+COMMENT ON COLUMN tb_user.is_protected IS 'Y=보호 계정(테넌트 생성 시 만든 관리자). 탈퇴·삭제·비활성·역할·관리자 비밀번호 변경 거부는 유형 무관, 본인 비밀번호 변경 거부는 SYSTEM_MANAGED 테넌트에서만';
+-- 설치 시드 계정(initialize.sql 과 같은 값) — 슈퍼관리자·기본 테넌트 관리자·익명 사용자
+UPDATE tb_user SET is_protected = 'Y'
+ WHERE is_protected = 'N'
+   AND ((user_id = 'superadmin' AND tenant_seq IS NULL)
+     OR (user_id = 'admin'      AND tenant_seq = 1)
+     OR (user_id = 'anonymous'  AND tenant_seq IS NULL));
+
+ALTER TABLE tb_api_key ADD COLUMN IF NOT EXISTS is_protected char(1) NOT NULL DEFAULT 'N';
+COMMENT ON COLUMN tb_api_key.is_protected IS 'Y=보호 키(슈퍼관리자 발급). 만료일·상태·재발급은 슈퍼관리자 경로에서만';
+
+-- -------------------------------------------------------------------------------------
+-- 5) 컬럼 위치 맞춤 — p_order 는 바꾼 뒤의 전체 컬럼 순서. 현재 컬럼 집합과 하나라도 다르면 중단(롤백)한다
+-- -------------------------------------------------------------------------------------
+CREATE FUNCTION pg_temp.reorder_columns(p_table text, p_order text[]) RETURNS void
+LANGUAGE plpgsql AS $fn$
+DECLARE
+  v_rel       oid  := to_regclass(p_table);
+  v_tmp       text := p_table || '_reorder';
+  v_cur       text[];
+  v_cols      text;
+  v_defs      text;
+  v_reloption text;
+  v_old_cnt   bigint;
+  v_new_cnt   bigint;
+  v_ddl       text[] := '{}';   -- 교체 후 실행할 DDL(제약 → 인덱스 → 참조 FK → 주석)
+  v_grants    text[] := '{}';   -- 교체 직후 실행할 GRANT(참조 FK 를 다시 걸려면 소유자 REFERENCES 가 먼저 있어야 한다)
+  v_new_owner oid;
+  v_seq       record;
+  r           record;
+BEGIN
+  IF v_rel IS NULL THEN
+    RAISE EXCEPTION '테이블 % 없음', p_table;
+  END IF;
+
+  SELECT array_agg(attname::text ORDER BY attnum) INTO v_cur
+    FROM pg_attribute WHERE attrelid = v_rel AND attnum > 0 AND NOT attisdropped;
+
+  IF (SELECT array_agg(c ORDER BY c) FROM unnest(v_cur) c) IS DISTINCT FROM (SELECT array_agg(c ORDER BY c) FROM unnest(p_order) c) THEN
+    RAISE EXCEPTION '% 컬럼 집합이 다름 — 현재 %, 지정 %', p_table, v_cur, p_order;
+  END IF;
+  IF v_cur = p_order THEN
+    RAISE NOTICE '% 이미 순서가 맞음 — 건너뜀', p_table;
+    RETURN;
+  END IF;
+
+  -- 복원할 수 없는 의존 객체가 있으면 중단(뷰 등은 DROP TABLE 에서 오류로 중단된다)
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = v_rel AND NOT tgisinternal)
+     OR EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = v_rel)
+     OR EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = v_rel AND attnum > 0 AND attgenerated <> '')
+     OR EXISTS (SELECT 1 FROM pg_inherits WHERE inhrelid = v_rel OR inhparent = v_rel) THEN
+    RAISE EXCEPTION '% 에 트리거·정책·생성 컬럼·상속이 있어 자동 재생성 불가', p_table;
+  END IF;
+
+  EXECUTE format('LOCK TABLE %I IN ACCESS EXCLUSIVE MODE', p_table);
+
+  -- 1. 새 테이블: 지정 순서로 타입·콜레이션·기본값·IDENTITY·NOT NULL 그대로
+  SELECT string_agg(
+           format('%I %s', a.attname, format_type(a.atttypid, a.atttypmod))
+           || CASE WHEN a.attcollation <> 0 AND a.attcollation <> t.typcollation
+                   THEN ' COLLATE ' || a.attcollation::regcollation::text ELSE '' END
+           || CASE WHEN d.adbin IS NOT NULL THEN ' DEFAULT ' || pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+           || CASE a.attidentity WHEN 'd' THEN ' GENERATED BY DEFAULT AS IDENTITY'
+                                 WHEN 'a' THEN ' GENERATED ALWAYS AS IDENTITY' ELSE '' END
+           || CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END,
+           ', ' ORDER BY array_position(p_order, a.attname::text)),
+         string_agg(format('%I', a.attname), ', ' ORDER BY array_position(p_order, a.attname::text))
+    INTO v_defs, v_cols
+    FROM pg_attribute a
+    JOIN pg_type t ON t.oid = a.atttypid
+    LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+   WHERE a.attrelid = v_rel AND a.attnum > 0 AND NOT a.attisdropped;
+
+  SELECT CASE WHEN reloptions IS NOT NULL THEN ' WITH (' || array_to_string(reloptions, ', ') || ')' ELSE '' END
+    INTO v_reloption FROM pg_class WHERE oid = v_rel;
+
+  EXECUTE format('CREATE TABLE %I (%s)%s', v_tmp, v_defs, v_reloption);
+
+  -- 2. 교체 후 복원할 DDL 수집 — 자기 제약(PK·UNIQUE·CHECK·FK·EXCLUDE, NOT NULL 은 컬럼 정의에 포함)
+  FOR r IN SELECT conname, pg_get_constraintdef(oid) AS def
+             FROM pg_constraint WHERE conrelid = v_rel AND contype IN ('p', 'u', 'c', 'f', 'x')
+            ORDER BY CASE contype WHEN 'p' THEN 0 ELSE 1 END, conname LOOP
+    v_ddl := v_ddl || format('ALTER TABLE %I ADD CONSTRAINT %I %s', p_table, r.conname, r.def);
+  END LOOP;
+  -- 제약에 딸리지 않은 인덱스(이름·정의 그대로 — 정의 안의 테이블 이름은 교체 후 같은 이름)
+  FOR r IN SELECT pg_get_indexdef(i.indexrelid) AS def
+             FROM pg_index i
+            WHERE i.indrelid = v_rel
+              AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conrelid = v_rel AND c.conindid = i.indexrelid)
+            ORDER BY i.indexrelid LOOP
+    v_ddl := v_ddl || r.def;
+  END LOOP;
+  -- 다른 테이블이 이 테이블을 참조하는 FK — 먼저 끊고 교체 후 다시 건다
+  FOR r IN SELECT conrelid::regclass::text AS tbl, conname, pg_get_constraintdef(oid) AS def
+             FROM pg_constraint WHERE confrelid = v_rel AND conrelid <> v_rel AND contype = 'f' LOOP
+    EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
+    v_ddl := v_ddl || format('ALTER TABLE %s ADD CONSTRAINT %I %s', r.tbl, r.conname, r.def);
+  END LOOP;
+  -- 주석
+  IF obj_description(v_rel, 'pg_class') IS NOT NULL THEN
+    v_ddl := v_ddl || format('COMMENT ON TABLE %I IS %L', p_table, obj_description(v_rel, 'pg_class'));
+  END IF;
+  FOR r IN SELECT attname, col_description(v_rel, attnum) AS cmt
+             FROM pg_attribute WHERE attrelid = v_rel AND attnum > 0 AND NOT attisdropped
+              AND col_description(v_rel, attnum) IS NOT NULL ORDER BY attnum LOOP
+    v_ddl := v_ddl || format('COMMENT ON COLUMN %I.%I IS %L', p_table, r.attname, r.cmt);
+  END LOOP;
+  -- 권한 — 테이블 ACL(NULL 이면 소유자 기본 권한)과 컬럼 ACL 을 위임 옵션(WITH GRANT OPTION)까지 그대로.
+  --   원래 소유자 항목은 새 테이블 소유자(실행 계정)에게 준다. 부여자(grantor)는 실행 계정으로 바뀐다.
+  --   새 테이블이 기본 권한(ALTER DEFAULT PRIVILEGES)으로 받은 권한은 교체 직후 모두 회수하고 이 GRANT 만 다시 준다(4 단계).
+  SELECT relowner INTO v_new_owner FROM pg_class WHERE oid = to_regclass(v_tmp);
+  FOR r IN SELECT NULL::text AS col, a.privilege_type, a.grantee, a.is_grantable, c.relowner
+             FROM pg_class c, aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+            WHERE c.oid = v_rel
+           UNION ALL
+           SELECT at.attname::text, a.privilege_type, a.grantee, a.is_grantable, c.relowner
+             FROM pg_class c
+             JOIN pg_attribute at ON at.attrelid = c.oid AND at.attnum > 0 AND NOT at.attisdropped
+                  AND at.attacl IS NOT NULL,
+                  aclexplode(at.attacl) a
+            WHERE c.oid = v_rel LOOP
+    v_grants := v_grants || format('GRANT %s%s ON %I TO %s%s',
+                             r.privilege_type,
+                             CASE WHEN r.col IS NULL THEN '' ELSE format(' (%I)', r.col) END,
+                             p_table,
+                             CASE WHEN r.grantee = 0 THEN 'PUBLIC'
+                                  WHEN r.grantee = r.relowner THEN v_new_owner::regrole::text
+                                  ELSE r.grantee::regrole::text END,   -- regrole::text 는 이미 인용된 식별자
+                             CASE WHEN r.is_grantable THEN ' WITH GRANT OPTION' ELSE '' END);
+  END LOOP;
+
+  -- 3. 데이터 복사(IDENTITY 값 포함) 후 건수 비교
+  EXECUTE format('INSERT INTO %I (%s) OVERRIDING SYSTEM VALUE SELECT %s FROM %I', v_tmp, v_cols, v_cols, p_table);
+  EXECUTE format('SELECT count(*) FROM %I', p_table) INTO v_old_cnt;
+  EXECUTE format('SELECT count(*) FROM %I', v_tmp) INTO v_new_cnt;
+  IF v_old_cnt <> v_new_cnt THEN
+    RAISE EXCEPTION '% 복사 건수 불일치 % → %', p_table, v_old_cnt, v_new_cnt;
+  END IF;
+
+  -- 4. IDENTITY 시퀀스 현재 값·권한(원래 이름) 기억 → 교체
+  CREATE TEMP TABLE IF NOT EXISTS reorder_seq (col text, seq_name text, last_value bigint, is_called boolean,
+                                               seq_acl aclitem[], seq_owner oid) ON COMMIT DROP;
+  TRUNCATE reorder_seq;
+  FOR r IN SELECT attname FROM pg_attribute WHERE attrelid = v_rel AND attidentity <> '' LOOP
+    EXECUTE format('INSERT INTO reorder_seq SELECT %L, %L, s.last_value, s.is_called, c.relacl, c.relowner'
+                   ' FROM %s s, pg_class c WHERE c.oid = %L::regclass',
+                   r.attname, pg_get_serial_sequence(p_table, r.attname), pg_get_serial_sequence(p_table, r.attname),
+                   pg_get_serial_sequence(p_table, r.attname));
+  END LOOP;
+
+  EXECUTE format('DROP TABLE %I', p_table);
+  EXECUTE format('ALTER TABLE %I RENAME TO %I', v_tmp, p_table);
+
+  -- PG18+ 는 NOT NULL 도 이름 있는 제약(<테이블>_<컬럼>_not_null) — 임시 테이블 이름으로 붙은 것을 원래 이름으로
+  FOR r IN SELECT conname FROM pg_constraint
+            WHERE conrelid = to_regclass(p_table) AND contype = 'n' AND conname LIKE v_tmp || '\_%' LOOP
+    EXECUTE format('ALTER TABLE %I RENAME CONSTRAINT %I TO %I', p_table, r.conname,
+                   p_table || substr(r.conname, length(v_tmp) + 1));
+  END LOOP;
+
+  -- 새 테이블이 기본 권한으로 받은 ACL 을 비우고(소유자 포함) 원래 ACL 만 다시 준다
+  FOR r IN SELECT DISTINCT a.grantee
+             FROM pg_class c, aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+            WHERE c.oid = to_regclass(p_table) LOOP
+    EXECUTE format('REVOKE ALL ON %I FROM %s CASCADE', p_table,
+                   CASE WHEN r.grantee = 0 THEN 'PUBLIC' ELSE r.grantee::regrole::text END);
+  END LOOP;
+  FOREACH v_defs IN ARRAY v_grants LOOP
+    EXECUTE v_defs;
+  END LOOP;
+
+  FOR v_seq IN SELECT * FROM reorder_seq LOOP
+    EXECUTE format('ALTER SEQUENCE %s RENAME TO %s', pg_get_serial_sequence(p_table, v_seq.col),
+                   quote_ident(split_part(v_seq.seq_name, '.', 2)));
+    PERFORM setval(v_seq.seq_name::regclass, v_seq.last_value, v_seq.is_called);
+    -- 시퀀스 권한도 원래 ACL 과 같게 — 기본 권한으로 받은 것은 회수, 원래 항목은 위임 옵션까지 그대로
+    FOR r IN SELECT DISTINCT a.grantee
+               FROM pg_class c, aclexplode(coalesce(c.relacl, acldefault('s', c.relowner))) a
+              WHERE c.oid = v_seq.seq_name::regclass LOOP
+      EXECUTE format('REVOKE ALL ON SEQUENCE %s FROM %s CASCADE', v_seq.seq_name,
+                     CASE WHEN r.grantee = 0 THEN 'PUBLIC' ELSE r.grantee::regrole::text END);
+    END LOOP;
+    FOR r IN SELECT a.privilege_type, a.grantee, a.is_grantable
+               FROM aclexplode(coalesce(v_seq.seq_acl, acldefault('s', v_seq.seq_owner))) a LOOP
+      EXECUTE format('GRANT %s ON SEQUENCE %s TO %s%s', r.privilege_type, v_seq.seq_name,
+                     CASE WHEN r.grantee = 0 THEN 'PUBLIC'
+                          WHEN r.grantee = v_seq.seq_owner THEN v_new_owner::regrole::text
+                          ELSE r.grantee::regrole::text END,
+                     CASE WHEN r.is_grantable THEN ' WITH GRANT OPTION' ELSE '' END);
+    END LOOP;
+  END LOOP;
+
+  -- 5. 제약·인덱스·참조 FK·주석 복원
+  FOREACH v_defs IN ARRAY v_ddl LOOP
+    EXECUTE v_defs;
+  END LOOP;
+
+  EXECUTE format('ANALYZE %I', p_table);
+  RAISE NOTICE '% 컬럼 순서 변경 완료 — % 건', p_table, v_new_cnt;
+END
+$fn$;
+
+SELECT pg_temp.reorder_columns('tb_tenant', ARRAY[
+  'tenant_seq', 'tenant_name', 'tenant_type', 'user_mode', 'status', 'login_type', 'domain', 'subdomain',
+  'base_domain_seq', 'register_user_seq', 'register_date', 'update_user_seq', 'update_date']);
+
+SELECT pg_temp.reorder_columns('tb_user', ARRAY[
+  'user_seq', 'tenant_seq', 'user_id', 'enc_pwd', 'signup_type', 'user_name', 'status', 'is_protected',
+  'total_quota_byte', 'use_quota_byte', 'mfa_status', 'mfa_method', 'mfa_secret_key', 'mfa_setup_date',
+  'mfa_confirm_date', 'register_user_seq', 'register_date', 'update_user_seq', 'update_date',
+  'login_failure_count', 'pending_delete_date', 'delete_schedule_time', 'delete_date', 'is_delete',
+  'country_code', 'phone_number', 'user_language', 'profile_image_key', 'pinned_folder_list',
+  'default_landing_page']);
+
+SELECT pg_temp.reorder_columns('tb_api_key', ARRAY[
+  'api_key_seq', 'tenant_seq', 'key_name', 'key_purpose', 'api_key', 'status', 'is_protected',
+  'last_used_date', 'register_user_seq', 'register_date', 'update_user_seq', 'update_date', 'user_seq',
+  'role_type', 'scope', 'expire_date']);
+
+COMMIT;

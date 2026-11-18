@@ -1,0 +1,46 @@
+# 로컬 개발 인프라 — PostgreSQL + RustFS(S3 호환 스토리지). 공용 dev 서버 대신 이 PC 에 띄운다.
+#
+# 띄우기:  cd DriveAPI && docker compose -f docker-compose.local.yml up -d
+# 끄기:    docker compose -f docker-compose.local.yml down        (데이터 유지, 지우려면 -v)
+#
+# 접속 값은 .env.example 의 DB·스토리지 블록과 같다. 버킷은 앱 기동 시 S3BucketInitializer 가 만든다.
+# RustFS 콘솔: http://localhost:9001 (drive_local / drive_local_secret)
+name: drive-local
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_DB: drive
+      POSTGRES_USER: drive
+      POSTGRES_PASSWORD: drive_local_pw
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql   # PG 18 이미지는 이 경로(하위 18/docker 에 데이터)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U drive -d drive"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  rustfs:
+    image: rustfs/rustfs:1.0.0
+    environment:
+      RUSTFS_ACCESS_KEY: drive_local
+      RUSTFS_SECRET_KEY: drive_local_secret
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # 콘솔
+    volumes:
+      - rustfs-data:/data
+    restart: unless-stopped
+
+volumes:
+  pg-data:
+  rustfs-data:

@@ -1,0 +1,304 @@
+[
+  {
+    "notificationSeq": 115,
+    "actionType": "STORAGE_WARNING",
+    "registerUserSeq": 215,
+    "registerResourceSeq": null,
+    "registerDate": "2025-07-15T11:20:00",
+    "isRead": false,
+    "description": {
+      "usagePercentage": "99%"
+    }
+  },
+  {
+    "notificationSeq": 114,
+    "actionType": "UNSHARED",
+    "registerUserSeq": 214,
+    "registerResourceSeq": 1014,
+    "registerDate": "2025-07-13T17:45:00",
+    "isRead": false,
+    "description": {
+      "userName": "박철민",
+      "fileName": "중단계획.pdf"
+    }
+  },
+  {
+    "notificationSeq": 113,
+    "actionType": "SHARED",
+    "registerUserSeq": 213,
+    "registerResourceSeq": 1013,
+    "registerDate": "2025-07-12T09:00:00",
+    "isRead": false,
+    "description": {
+      "userName": "이영희",
+      "fileName": "업무분장.xlsx"
+    }
+  },
+  {
+    "notificationSeq": 112,
+    "actionType": "PERMISSION_REQUESTED",
+    "registerUserSeq": 212,
+    "registerResourceSeq": 1012,
+    "registerDate": "2025-07-10T13:14:00",
+    "isRead": false,
+    "description": {
+      "userName": "user456",
+      "fileName": "내부기록.pdf"
+    }
+  },
+  {
+    "notificationSeq": 111,
+    "actionType": "FILE_UPLOAD",
+    "registerUserSeq": 211,
+    "registerResourceSeq": 1011,
+    "registerDate": "2025-07-08T10:12:00",
+    "isRead": true,
+    "description": {
+      "userName": "유재석",
+      "fileName": "중간보고.pdf",
+      "folderName": "기획/보고서"
+    }
+  },
+  {
+    "notificationSeq": 110,
+    "actionType": "STORAGE_WARNING",
+    "registerUserSeq": 210,
+    "registerResourceSeq": null,
+    "registerDate": "2025-07-05T09:50:00",
+    "isRead": true,
+    "description": {
+      "usagePercentage": "97%"
+    }
+  },
+  {
+    "notificationSeq": 109,
+    "actionType": "PERMISSION_CHANGED",
+    "registerUserSeq": 209,
+    "registerResourceSeq": 1009,
+    "registerDate": "2025-06-30T15:05:00",
+    "isRead": true,
+    "description": {
+      "userName": "강하늘",
+      "fileName": "제안서.docx",
+      "permission": "편집"
+    }
+  },
+  {
+    "notificationSeq": 108,
+    "actionType": "UNSHARED",
+    "registerUserSeq": 208,
+    "registerResourceSeq": 1008,
+    "registerDate": "2025-06-28T16:00:00",
+    "isRead": true,
+    "description": {
+      "userName": "정우성",
+      "fileName": "비공개자료.hwp"
+    }
+  },
+  {
+    "notificationSeq": 107,
+    "actionType": "SHARED",
+    "registerUserSeq": 207,
+    "registerResourceSeq": 1007,
+    "registerDate": "2025-06-27T11:10:00",
+    "isRead": true,
+    "description": {
+      "userName": "이수민",
+      "fileName": "회의안내.pdf"
+    }
+  },
+  {
+    "notificationSeq": 106,
+    "actionType": "PERMISSION_REQUESTED",
+    "registerUserSeq": 206,
+    "registerResourceSeq": 1006,
+    "registerDate": "2025-06-25T08:30:00",
+    "isRead": true,
+    "description": {
+      "userName": "user123",
+      "fileName": "기밀문서.pdf"
+    }
+  },
+  {
+    "notificationSeq": 105,
+    "actionType": "FILE_UPLOAD",
+    "registerUserSeq": 205,
+    "registerResourceSeq": 1005,
+    "registerDate": "2025-06-23T14:10:00",
+    "isRead": true,
+    "description": {
+      "userName": "서지수",
+      "fileName": "업무계획.xlsx",
+      "folderName": "공유 문서"
+    }
+  },
+  {
+    "notificationSeq": 104,
+    "actionType": "STORAGE_WARNING",
+    "registerUserSeq": 204,
+    "registerResourceSeq": null,
+    "registerDate": "2025-06-21T09:20:00",
+    "isRead": true,
+    "description": {
+      "usagePercentage": "95%"
+    }
+  },
+  {
+    "notificationSeq": 103,
+    "actionType": "PERMISSION_CHANGED",
+    "registerUserSeq": 203,
+    "registerResourceSeq": 1003,
+    "registerDate": "2025-06-18T10:10:00",
+    "isRead": true,
+    "description": {
+      "userName": "이민정",
+      "fileName": "프로젝트개요.docx",
+      "permission": "읽기"
+    }
+  },
+  {
+    "notificationSeq": 102,
+    "actionType": "UNSHARED",
+    "registerUserSeq": 202,
+    "registerResourceSeq": 1002,
+    "registerDate": "2025-06-17T11:15:00",
+    "isRead": true,
+    "description": {
+      "userName": "김철수",
+      "fileName": "기획서.pdf"
+    }
+  },
+  {
+    "notificationSeq": 101,
+    "actionType": "SHARED",
+    "registerUserSeq": 201,
+    "registerResourceSeq": 1001,
+    "registerDate": "2025-06-15T10:00:00",
+    "isRead": true,
+    "description": {
+      "userName": "홍길동",
+      "fileName": "회의록.docx"
+    }
+  },
+  {
+    "notificationSeq": 100,
+    "actionType": "FILE_UPLOAD",
+    "registerUserSeq": 225,
+    "registerResourceSeq": 1025,
+    "registerDate": "2025-05-30T09:10:00",
+    "isRead": true,
+    "description": {
+      "userName": "정지훈",
+      "fileName": "최종보고서.pdf",
+      "folderName": "업무/결과"
+    }
+  },
+  {
+    "notificationSeq": 99,
+    "actionType": "PERMISSION_REQUESTED",
+    "registerUserSeq": 224,
+    "registerResourceSeq": 1024,
+    "registerDate": "2025-05-20T11:30:00",
+    "isRead": true,
+    "description": {
+      "userName": "user789",
+      "fileName": "예산계획서.xlsx"
+    }
+  },
+  {
+    "notificationSeq": 98,
+    "actionType": "SHARED",
+    "registerUserSeq": 223,
+    "registerResourceSeq": 1023,
+    "registerDate": "2025-05-10T14:00:00",
+    "isRead": true,
+    "description": {
+      "userName": "이지은",
+      "fileName": "운영계획.docx"
+    }
+  },
+  {
+    "notificationSeq": 97,
+    "actionType": "UNSHARED",
+    "registerUserSeq": 222,
+    "registerResourceSeq": 1022,
+    "registerDate": "2025-04-25T08:45:00",
+    "isRead": true,
+    "description": {
+      "userName": "김영수",
+      "fileName": "보안문서.hwp"
+    }
+  },
+  {
+    "notificationSeq": 96,
+    "actionType": "STORAGE_WARNING",
+    "registerUserSeq": 221,
+    "registerResourceSeq": null,
+    "registerDate": "2025-04-15T10:20:00",
+    "isRead": true,
+    "description": {
+      "usagePercentage": "92%"
+    }
+  },
+  {
+    "notificationSeq": 95,
+    "actionType": "PERMISSION_CHANGED",
+    "registerUserSeq": 220,
+    "registerResourceSeq": 1020,
+    "registerDate": "2024-07-10T15:00:00",
+    "isRead": true,
+    "description": {
+      "userName": "윤태호",
+      "fileName": "관리규정.docx",
+      "permission": "읽기"
+    }
+  },
+  {
+    "notificationSeq": 94,
+    "actionType": "FILE_UPLOAD",
+    "registerUserSeq": 219,
+    "registerResourceSeq": 1019,
+    "registerDate": "2024-06-20T13:10:00",
+    "isRead": true,
+    "description": {
+      "userName": "최수정",
+      "fileName": "계약서.pdf",
+      "folderName": "계약자료"
+    }
+  },
+  {
+    "notificationSeq": 93,
+    "actionType": "STORAGE_WARNING",
+    "registerUserSeq": 218,
+    "registerResourceSeq": null,
+    "registerDate": "2024-06-01T11:25:00",
+    "isRead": true,
+    "description": {
+      "usagePercentage": "85%"
+    }
+  },
+  {
+    "notificationSeq": 92,
+    "actionType": "PERMISSION_REQUESTED",
+    "registerUserSeq": 217,
+    "registerResourceSeq": 1017,
+    "registerDate": "2024-05-15T09:00:00",
+    "isRead": true,
+    "description": {
+      "userName": "user999",
+      "fileName": "이력서.docx"
+    }
+  },
+  {
+    "notificationSeq": 91,
+    "actionType": "SHARED",
+    "registerUserSeq": 216,
+    "registerResourceSeq": 1016,
+    "registerDate": "2024-05-01T10:10:00",
+    "isRead": true,
+    "description": {
+      "userName": "배수지",
+      "fileName": "공유자료.zip"
+    }
+  }
+]

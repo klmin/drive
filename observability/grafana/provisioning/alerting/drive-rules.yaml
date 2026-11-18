@@ -1,0 +1,189 @@
+# Grafana 알림 규칙 — 파일로 관리(화면에서는 수정 불가, 고치려면 이 파일을 고치고 Grafana 재시작).
+# 받는 곳(contact point)은 기본값(이메일, SMTP 미설정)이라 아직 아무 데도 안 간다 —
+#   Grafana › Alerting › Contact points 에서 Slack·메일 등을 만들고 Notification policies 의 기본 정책에 연결한다.
+# 각 규칙: A = Prometheus 쿼리(현재 값), C = 임계값 비교. for = 그 상태가 이만큼 계속돼야 발생.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: drive-availability
+    folder: Drive
+    interval: 1m
+    rules:
+      - uid: drive-scrape-down
+        title: Drive 메트릭 수집 끊김
+        condition: C
+        for: 2m
+        noDataState: Alerting       # 대상 자체가 사라져도 알림
+        execErrState: Error
+        labels: { severity: critical }
+        annotations:
+          summary: "Drive {{ $labels.instance }} 의 /actuator/prometheus 를 2분 넘게 못 가져옴 — 앱 다운 또는 관리 포트 차단"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model: { refId: A, instant: true, expr: 'up{job="drive-api"}' }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: lt, params: [1] } }]
+
+      - uid: drive-postgres-down
+        title: PostgreSQL 접속 불가
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Error
+        labels: { severity: critical }
+        annotations:
+          summary: "Alloy 가 PostgreSQL 에 접속하지 못함(pg_up=0)"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model: { refId: A, instant: true, expr: 'pg_up{job="postgres"}' }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: lt, params: [1] } }]
+
+  - orgId: 1
+    name: drive-performance
+    folder: Drive
+    interval: 1m
+    rules:
+      - uid: drive-5xx-ratio
+        title: Drive 5xx 비율 5% 초과
+        condition: C
+        for: 5m
+        noDataState: OK             # 요청이 없으면 정상
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "최근 5분 5xx 비율 {{ humanizePercentage $values.A.Value }} — Grafana 개요 대시보드 하단 ERROR 로그·트레이스 확인"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                sum(rate(http_server_requests_seconds_count{job="drive-api", status=~"5.."}[5m]))
+                / sum(rate(http_server_requests_seconds_count{job="drive-api"}[5m]))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: gt, params: [0.05] } }]
+
+      - uid: drive-p95-latency
+        title: Drive 응답 시간 p95 3초 초과
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "최근 5분 응답 시간 p95 {{ humanize $values.A.Value }}초 — 개요 대시보드 p95 그래프의 점에서 느린 트레이스 확인"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: 'histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job="drive-api"}[5m])))'
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: gt, params: [3] } }]
+
+      - uid: drive-db-pool-pending
+        title: DB 커넥션 대기 발생
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }} 에서 커넥션을 기다리는 요청이 5분째 있음 — 풀 크기(maximum-pool-size 50)·느린 쿼리 확인"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model: { refId: A, instant: true, expr: 'sum by (instance) (hikaricp_connections_pending{job="drive-api"})' }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: gt, params: [0] } }]
+
+  - orgId: 1
+    name: drive-resources
+    folder: Drive
+    interval: 1m
+    rules:
+      - uid: drive-heap-pressure
+        title: JVM 힙 부족(GC 후 90% 초과)
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }} GC 후 남은 객체가 최대 힙의 {{ humanizePercentage $values.A.Value }} — OOM 전조"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: 'jvm_gc_live_data_size_bytes{job="drive-api"} / jvm_gc_max_data_size_bytes{job="drive-api"}'
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: gt, params: [0.9] } }]
+
+      - uid: drive-host-memory
+        title: 호스트 메모리 90% 초과
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }} 메모리 사용률 {{ humanizePercentage $values.A.Value }}"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: '1 - node_memory_MemAvailable_bytes{job="node"} / node_memory_MemTotal_bytes{job="node"}'
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: gt, params: [0.9] } }]

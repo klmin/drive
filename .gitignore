@@ -1,0 +1,12 @@
+.mvn
+.idea
+# personal repo excludes
+.claude/
+_local-notes/
+pg-migration-check/
+DriveInstaller/thinkfree/TFD/template/ceph/data/admin.rgw.key
+DriveInstaller/thinkfree/TFD/template/database/mysql/.env
+DriveInstaller/thinkfree/TFD/template/database/postgres/.env
+*.bak
+.env.*
+!.env.example

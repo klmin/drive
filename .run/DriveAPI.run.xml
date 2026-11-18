@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="DriveAPI" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="Thinkfree-Drive" />
+    <shortenClasspath name="ARGS_FILE" />
+    <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.thinkfree.drive.ThinkfreeDriveApplication" />
+    <option name="VM_PARAMETERS" value="-Dspring.config.import=optional:file:.env[.properties]" />
+    <option name="WORKING_DIRECTORY" value="$MODULE_WORKING_DIR$" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

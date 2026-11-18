@@ -1,0 +1,42 @@
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+.mvn/
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+*.mvn
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+application-secret.yml
+
+# TFO adapter test logs when the external logging property is unset
+/weboffice.log.path_IS_UNDEFINED/
+
+# 로컬 개인 설정(.env.example 은 커밋)
+.env

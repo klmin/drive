@@ -1,0 +1,9 @@
+# 테스트 클래스패스 전용 — main 의 application.yml 위에 덧붙는다(classpath:/config/ 는 Spring 기본 위치, jar 에는 안 들어감).
+# 프로필 없는 @SpringBootTest(AbstractMvcTest 계열, 공용 dev DB)가 로컬 DriveAPI/.env 값을 받도록 import 한다.
+# 앱 실행은 yml 이 아니라 실행 구성(.run/DriveAPI.run.xml)의 VM 옵션이 .env 를 읽는다. test 프로필 테스트는 개인 .env 에 흔들리지 않게 읽지 않는다.
+# 경로는 작업 디렉터리 기준 — IntelliJ JUnit·maven surefire 모두 기본 DriveAPI.
+spring:
+  config:
+    activate:
+      on-profile: "!test"
+    import: optional:file:.env[.properties]

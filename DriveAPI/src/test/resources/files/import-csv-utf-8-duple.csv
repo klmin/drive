@@ -1,0 +1,15 @@
+UserID,Password,Name,StorageLimit(GB),CountryCode,PhoneNumber
+jweber@gmail.com,Passw0rd!1,James Weber,5,+82,1012345678
+kjones@gmail.com,Passw0rd!2,Katie Jones,10,+82,10-1234-5679
+test@gmail.com,aaaaaaa@A2,test,1,+1,202550132
+kjones@gmail.com,Passw0rd!3,Katie Jones,10,+82,10-1234-5778
+testuser1@gmail.com,Passw0rd!3,테스트유저2,10,+82,10-3234-6678,82
+testuser1@gmail.com,Passw0rd!3,테스트유저3,10,+82,10-3234-7678
+testuser1@gmail.com,Passw0rd!3,테스트유저4,10,+82,10-3234-8678
+testuser1@gmail.com,Passw0rd!3,테스트유저4,a,+82,10-3234-9678
+kjones@gmail.com,Passw0rd!2,Katie Jones1,10,+82,10-1234-0679
+kjones22@gmail.com,Passw0rd!2,Katie Jones1,10,+82,10-1234-5679
+kjones2222@gmail.com,Passw0rd!2,Katie Jones1,10,+82,10-1234-5679
+kjones2222@gmail.com,Passw0rd!2,Katie Jones1,10,+82,10-1234-5679
+kjones2232@gmail.com,Passw0rd!2,Katie Jones1,10,+82,10-1234-5679
+

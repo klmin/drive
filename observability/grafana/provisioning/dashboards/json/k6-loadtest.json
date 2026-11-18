@@ -1,0 +1,140 @@
+{
+  "uid": "drive-k6-loadtest",
+  "title": "k6 부하 테스트",
+  "tags": ["drive", "k6"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "testid",
+        "label": "테스트",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(k6_vus, testid)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    { "id": 100, "type": "row", "title": "k6 (부하를 주는 쪽이 본 결과)", "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "collapsed": false, "panels": [] },
+    {
+      "id": 1, "type": "timeseries", "title": "가상 사용자(VU) 수",
+      "gridPos": { "x": 0, "y": 1, "w": 6, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum(k6_vus{testid=~\"$testid\"})", "legendFormat": "VU" } ]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "요청 수 (초당, API별)",
+      "gridPos": { "x": 6, "y": 1, "w": 9, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "min": 0 }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum by (api) (rate(k6_http_reqs_total{testid=~\"$testid\"}[$__rate_interval]))", "legendFormat": "{{api}}" } ]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "응답 시간 p95 (API별, k6 측정)",
+      "gridPos": { "x": 15, "y": 1, "w": 9, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0 }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "max by (api) (k6_http_req_duration_p95{testid=~\"$testid\"})", "legendFormat": "{{api}}" } ]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "실패율 · 체크 통과율",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "max(k6_http_req_failed_rate{testid=~\"$testid\"})", "legendFormat": "HTTP 실패율" },
+        { "refId": "B", "expr": "min(k6_checks_rate{testid=~\"$testid\"})", "legendFormat": "체크 통과율" }
+      ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "응답 상태 코드 (초당)",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "min": 0 }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum by (status) (rate(k6_http_reqs_total{testid=~\"$testid\"}[$__rate_interval]))", "legendFormat": "{{status}}" } ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "반복 1회 시간 p95 (생각 시간 포함)",
+      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0 }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "max(k6_iteration_duration_p95{testid=~\"$testid\"})", "legendFormat": "p95" } ]
+    },
+    { "id": 101, "type": "row", "title": "서버 (WAS·DB·호스트) — 같은 시간대", "gridPos": { "x": 0, "y": 15, "w": 24, "h": 1 }, "collapsed": false, "panels": [] },
+    {
+      "id": 7, "type": "timeseries", "title": "WAS 처리량·응답 시간 p95 (서버 측정) — 점을 누르면 트레이스",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "min": 0 },
+        "overrides": [ { "matcher": { "id": "byName", "options": "초당 요청" }, "properties": [ { "id": "unit", "value": "reqps" }, { "id": "custom.axisPlacement", "value": "right" } ] } ]
+      },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"drive-api\"}[$__rate_interval])))", "legendFormat": "p95", "exemplar": true },
+        { "refId": "B", "expr": "sum(rate(http_server_requests_seconds_count{job=\"drive-api\"}[$__rate_interval]))", "legendFormat": "초당 요청" }
+      ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "DB 커넥션 풀 (Hikari)",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum(hikaricp_connections_active{job=\"drive-api\"})", "legendFormat": "사용 중" },
+        { "refId": "B", "expr": "sum(hikaricp_connections_pending{job=\"drive-api\"})", "legendFormat": "대기" },
+        { "refId": "C", "expr": "sum(hikaricp_connections_max{job=\"drive-api\"})", "legendFormat": "최대" }
+      ]
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "부하 테스트 DB — 세션(상태별) · 초당 트랜잭션",
+      "gridPos": { "x": 0, "y": 24, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0 },
+        "overrides": [ { "matcher": { "id": "byName", "options": "초당 커밋" }, "properties": [ { "id": "custom.axisPlacement", "value": "right" } ] } ]
+      },
+      "targets": [
+        { "refId": "A", "expr": "sum by (state) (pg_stat_activity_count{job=\"postgres-loadtest\", state=~\"active|idle in transaction\"})", "legendFormat": "{{state}}" },
+        { "refId": "B", "expr": "sum(rate(pg_stat_database_xact_commit{job=\"postgres-loadtest\", datname=\"drive_load\"}[$__rate_interval]))", "legendFormat": "초당 커밋" }
+      ]
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "CPU (WAS 프로세스 / 호스트)",
+      "gridPos": { "x": 8, "y": 24, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "max(process_cpu_usage{job=\"drive-api\"})", "legendFormat": "WAS 프로세스" },
+        { "refId": "B", "expr": "max(system_cpu_usage{job=\"drive-api\"})", "legendFormat": "호스트(WAS 가 본 값)" }
+      ]
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "JVM 힙 · GC 멈춤",
+      "gridPos": { "x": 16, "y": 24, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "min": 0 },
+        "overrides": [ { "matcher": { "id": "byName", "options": "GC 멈춤(초/초)" }, "properties": [ { "id": "unit", "value": "s" }, { "id": "custom.axisPlacement", "value": "right" } ] } ]
+      },
+      "targets": [
+        { "refId": "A", "expr": "sum(jvm_memory_used_bytes{job=\"drive-api\", area=\"heap\"})", "legendFormat": "힙 사용" },
+        { "refId": "B", "expr": "sum(rate(jvm_gc_pause_seconds_sum{job=\"drive-api\"}[$__rate_interval]))", "legendFormat": "GC 멈춤(초/초)" }
+      ]
+    },
+    {
+      "id": 12, "type": "logs", "title": "부하 중 WARN·ERROR 로그",
+      "gridPos": { "x": 0, "y": 32, "w": 24, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true },
+      "targets": [ { "refId": "A", "expr": "{service_name=\"drive-api\", level=~\"WARN|ERROR\"}" } ]
+    }
+  ]
+}

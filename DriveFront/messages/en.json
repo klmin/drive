@@ -1,0 +1,2011 @@
+{
+    "header": {
+        "searchInput": "Search in Drive"
+    },
+    "sidebar": {
+        "home": "Home",
+        "search": "Search results"
+    },
+    "data": {
+        "name": "Name",
+        "me": "Me",
+        "sortBy": "Sort by",
+        "lastModified": "Last modified",
+        "lastOpened": "Last opened",
+        "lastActivity": "Last activity",
+        "deleteDate": "Date deleted",
+        "deleteUser": "Deleted by",
+        "originalLocation": "Original location",
+        "location": "Location",
+        "emptyTrash": "Empty Trash",
+        "older": "Older"
+    },
+    "filter": {
+        "clear": "Clear filters"
+    },
+    "fileTypeFilter": {
+        "filterType": "Type",
+        "folder": "Folder",
+        "document": "Documents",
+        "spreadsheet": "Spreadsheets",
+        "presentation": "Presentations",
+        "pdf": "PDFs",
+        "image": "Photos & images",
+        "note": "Note"
+    },
+    "ownerFilter": {
+        "trashFilterType": "Deleted by",
+        "ownerUser": "Files owned by {userName}",
+        "inputBase": "Search users"
+    },
+    "dateFilter": {
+        "filterType": "Last modified",
+        "trashFilterType": "Date deleted",
+        "custom": "Custom range",
+        "clearAll": "Clear all",
+        "confirm": "Apply",
+        "requestedDateFilterType": "Requested",
+        "scheduledDateFilterType": "Scheduled",
+        "scheduledToday": "Today",
+        "scheduledTomorrow": "Tomorrow",
+        "scheduledWithin7Days": "Within 7 days",
+        "scheduledWithin30Days": "Within 30 days"
+    },
+    "MyDrive": {
+        "text1": "No files",
+        "text2": "Drag files here or click 'New' to get started"
+    },
+    "Recent": {
+        "text1": "No recent files",
+        "text2": "Files you've recently added or edited will appear here"
+    },
+    "Starred": {
+        "text1": "No starred files",
+        "text2": "Add stars to quickly find important files"
+    },
+    "Shared": {
+        "text1": "No files shared with you",
+        "text2": "Files shared with you will appear here"
+    },
+    "Trash": {
+        "text1": "No items in Trash",
+        "text2": "Move items you don't need to Trash. Items in Trash are permanently deleted when removed",
+        "text": "Items in Trash are permanently deleted after 30 days."
+    },
+    "login": {
+        "inputEmail": "Email address",
+        "forgotPw": "Forgot password?",
+        "findPassword": "Find password"
+    },
+    "search": {
+        "text1": "No results found",
+        "text2": "Check your spelling or try different keywords"
+    },
+    "uploadDialog": {
+        "newFolder": "New folder",
+        "fileUpload": "File upload",
+        "folderUpload": "Folder upload",
+        "newDocs": "New Document",
+        "newPpt": "New Presentation",
+        "newExcel": "New Spreadsheet",
+        "folderUploadDisabled": "This button isn't available in this environment.<br/>Drag & drop to upload.",
+        "newIntellect": "New Note"
+    },
+    "newFolderDialog": {
+        "title": "New folder",
+        "defaultFolderName": "Untitled folder"
+    },
+    "duplicateDialog": {
+        "text1": "{resourceName} already exists in this location.",
+        "text2": "If you upload, the file will be saved with a new name."
+    },
+    "duplicateFileDialog": {
+        "title": "Upload options",
+        "description": "{fileName} already exists in this location. Do you want to replace the existing file with a new version or keep both files? Replacing the file won't change sharing settings.",
+        "replace": "Replace existing file",
+        "keepBoth": "Keep both files"
+    },
+    "resourceMenuBar": {
+        "rename": "Rename",
+        "fileDetail": "File info",
+        "folderDetail": "Folder info",
+        "copy": "Make a copy",
+        "removeStarred": "Remove from Starred",
+        "version": "Version history"
+    },
+    "renameDialog": {
+        "title": "Rename"
+    },
+    "dataDetail": {
+        "title": "Details",
+        "fileInfo": "File details",
+        "folderInfo": "Folder details",
+        "path": "Path",
+        "format": "Format",
+        "updateDate": "Last modified",
+        "registerDate": "Uploaded",
+        "permissions": "Permissions",
+        "share": "Share",
+        "tag": "Tags",
+        "notShared": "Not shared",
+        "noTag": "No tags",
+        "defaultTagValue": "New Tag",
+        "unselected": "Select a file or folder to view details",
+        "multiSelected": "{count} items selected",
+        "etc": "Etc."
+    },
+    "moveDialog": {
+        "title": "Select destination folder",
+        "subTitleMultiple": "Move {count} items"
+    },
+    "copyDialog": {
+        "title": "Select destination folder",
+        "subTitle": "Make a copy of",
+        "copy": "Create a copy"
+    },
+    "hardDeleteDialog": {
+        "text1": "Permanently delete?",
+        "text2": "This will be permanently deleted and can't be undone.",
+        "text2Single": "{resourceName} will be permanently deleted. This action can't be undone.",
+        "text2Multiple": "{count} items will be permanently deleted. This action can't be undone."
+    },
+    "restoreToRootDialog": {
+        "text2": "The original location no longer exists. This item will be restored to 'My Drive'.",
+        "multiple": "Some items' original locations no longer exist. They will be restored to 'My Drive'."
+    },
+    "restoreBeforeViewDialog": {
+        "fileText1": "This file is in the trash.",
+        "folderText1": "This folder is in the trash.",
+        "fileText2": "To view this file, you need to restore it from the trash.",
+        "folderText2": "To view this folder, you need to restore it from the trash."
+    },
+    "emptyTrashDialog": {
+        "text1": "Delete all items permanently?",
+        "text2": "All items in the trash will be permanently deleted."
+    },
+    "nameValidation": {
+        "leadingOrTrailingSpaces": "Leading and trailing spaces are not allowed in the name.",
+        "leadingOrTrailingDot": "The name cannot start or end with a period (.).",
+        "exceedsMaxLength": "The name can be up to 255 characters long.",
+        "invalidSpecialChars": "The name cannot contain the following characters: \\ / : * ? \" < > |",
+        "windowsReservedName": "Windows reserved words cannot be used in the name."
+    },
+    "resourceVersionDialog": {
+        "title": "Previous Versions",
+        "version": "Version",
+        "created on": "Created on",
+        "who": "Who",
+        "deletePreviousVersions": "Delete previous versions"
+    },
+    "deleteVersionConfirmDialog": {
+        "title": "Delete all previous versions?",
+        "description": "The current version will be kept. All previous versions will be deleted. This action can't be undone. Are you sure you want to delete all previous versions?"
+    },
+    "EnhancedTableToolbar": {
+        "selected": "{numSelected} selected"
+    },
+    "AdminSidebar": {
+        "Home": "Home",
+        "Accounts": "Accounts",
+        "Users": "Users",
+        "AccountList": "Users & Admins",
+        "pendingDeletion": "Pending Deletion",
+        "Groups": "Groups",
+        "UserShare": "User Sharing",
+        "Dashboard": "Dashboard",
+        "SystemSettings": "System Settings",
+        "General": "General",
+        "SMTP": "SMTP",
+        "License": "License",
+        "Office": "Office",
+        "Storage": "Storage",
+        "Intellect": "Note (Beta)",
+        "Security": "Security & Auth",
+        "Authentication": "Authentication",
+        "AccessControl": "Access Control",
+        "ApiKeys": "API Keys",
+        "Service": "Service",
+        "Branding": "Branding",
+        "Feature": "Sharing"
+    },
+    "AdminUserManage": {
+        "import": "Import",
+        "export": "Export",
+        "bulkUserImport": "Import users",
+        "requestedDate": "Deletion Requested At",
+        "scheduledDate": "Scheduled Deletion Date",
+        "deletedBy": "Deleted By"
+    },
+    "AddUserDialog": {
+        "totalQuotaByte": "Storage quota limit",
+        "userLanguage": "Default language",
+        "profileImage": "Profile image",
+        "roleType": "Role",
+        "roleRequired": "Select at least one role."
+    },
+    "deleteUserDialog": {
+        "title": "Delete account?",
+        "textSingle": "The selected account will be moved to pending deletion. You can restore or permanently delete it from the Pending Deletion menu within 30 days.",
+        "textMultiple": "The selected {n} accounts will be moved to pending deletion. You can restore or permanently delete them from the Pending Deletion menu within 30 days."
+    },
+    "editUserDialog": {
+        "title": {
+            "user": "Update User",
+            "admin": "Update Admin"
+        },
+        "totalQuota": "Total quota",
+        "useQuota": "Used quota",
+        "totalQuotaByte": "Storage quota limit",
+        "language": "Default language",
+        "previousLoginDate": "Previous login date",
+        "isActive": "Active",
+        "roleType": "Role",
+        "profileImage": "Profile image",
+        "resetTwoFactor": "Reset 2FA",
+        "roleUserInUse": "The user role can't be removed while storage is in use. Clean up the files first.",
+        "roleSelfAdmin": "You can't remove your own admin role."
+    },
+    "UpdateUserStatusDialog": {
+        "title": "Change User Status",
+        "text1": "Activate this user?",
+        "text2": "Deactivate this user?"
+    },
+    "userInfoValidation": {
+        "validateStorageLimitNumber": "Storage limit must be a whole number greater than 0.",
+        "validateStorageLimitExceedUsage": "Storage limit must be greater than the current usage."
+    },
+    "uploadProgressDialog": {
+        "uploading": "Uploading...",
+        "uploadComplete": "Uploaded {doneCount} of {allCount} items",
+        "folderUpload": "{progress}/{done} completed",
+        "closeDisabledWhileUploading": "Cannot close while uploading.",
+        "goToUploadLocation": "Go to upload location",
+        "uploadFailedRetry": "Upload failed. Please try again.",
+        "cancel": "Cancel upload",
+        "restart": "Restart",
+        "minimize": "Minimize",
+        "maximize": "Maximize"
+    },
+    "user": {
+        "fileList": {
+            "tooltip": {
+                "quotaExceeded": "Capacity limit exceeded"
+            },
+            "shareDialog": {
+                "emptyUser": "No users added.",
+                "userDesc": "Added users can access with individually set permissions.",
+                "accessTitle": "General Access",
+                "folderConflictWarning": "There are already shared items in this folder structure, so only the same share type can be selected.\nTo change the share type, please unshare all items and set again.",
+                "linkCopySuccess": "Copied to clipboard.",
+                "ownerBadge": "External",
+                "removePermission": "Remove",
+                "disabledShareTypeTooltip": "Other types are currently unavailable.",
+                "permissionSheetTitle": "Share Permissions"
+            },
+            "toast": {
+                "renameFailDuplicate": "Rename failed. This name is already in use."
+            }
+        },
+        "filePreview": {
+            "tooltip": {
+                "openDocument": "Open Document"
+            },
+            "toast": {
+                "openDocumentSuccess": "Document opened successfully.",
+                "openDocumentFail": "Failed to open document."
+            }
+        },
+        "login": {
+            "mfaSetup": {
+                "title": "Two-Factor Authentication Setup"
+            },
+            "mfa": {
+                "title": "Two-Factor Authentication"
+            },
+            "errorPage": {
+                "title": "Login Failed",
+                "body": "Your login session has expired or is invalid.\nYou will be redirected to the login page shortly.",
+                "bodyAfter": "Redirecting automatically in {count} second(s)."
+            },
+            "toast": {
+                "fail": "Please check your ID or password.",
+                "failWarning": "Login has failed multiple times. One more failure will lock your account."
+            },
+            "accountLockedDialog": {
+                "title": "Your account has been locked.",
+                "desc": "Your account has been locked due to too many failed login attempts.\nPlease contact your administrator to unlock it."
+            },
+            "oidc": {
+                "loginBtn": "Login with Company Account",
+                "desc": "Log in securely with your company account.",
+                "notRegistered": "This account is not registered. Please contact your company administrator."
+            }
+        },
+        "sharePermission": {
+            "view": "View",
+            "edit": "Edit",
+            "download": "Download",
+            "upload": "Upload",
+            "share": "Share",
+            "viewOnly": "View Only",
+            "full": "Full Access",
+            "editDownload": "Edit+Download",
+            "editUpload": "Edit+Upload",
+            "editUploadShare": "Edit+Upload+Share",
+            "editDownloadShare": "Edit+Download+Share"
+        },
+        "shareLink": {
+            "title": "This link is not accessible",
+            "desc": "You may not have access permission or the link may have expired.",
+            "goToDrive": "Go to Drive Home",
+            "login": "Log in if you have an account"
+        },
+        "mcpOauth": {
+            "title": "<b>{appName}</b>",
+            "desc": "Requesting access to your {serviceName} account.",
+            "allow": "Allow",
+            "deny": "Deny"
+        }
+    },
+    "filePreviewDialog": {
+        "noPreview": "No preview available"
+    },
+    "AdminManage": {
+        "title": "Admins",
+        "import": "Import",
+        "export": "Export",
+        "active": "Active",
+        "updateAdmin": "Update Admin"
+    },
+    "UserSummary": {
+        "greetingMorning": "Good morning",
+        "greetingAfternoon": "Good afternoon",
+        "greetingEvening": "Hello"
+    },
+    "SelectPinnedFolderDialog": {
+        "title": "Select a folder to pin to Home",
+        "selectFolder": "Selected folder \"{resourceName}\""
+    },
+    "UserInfo": {
+        "userEmail": "Email",
+        "adminEmail": "Email",
+        "startScreen": "Start screen",
+        "language": "Language",
+        "home": "Home (default)",
+        "remove": "Remove"
+    },
+    "ShareDialog": {
+        "shareType": "Share type",
+        "specificUserOnly": "Specific users only",
+        "organizationUserWithLink": "Anyone in your organization with the link",
+        "shareSettings": "Sharing",
+        "organizationUserAccessDescription": "When a signed-in user in your organization opens this link, the following permissions apply.",
+        "expirationDate": "Expiration date",
+        "password": "Password",
+        "permission": "Permissions",
+        "group": "Group",
+        "copyLink": "Copy link",
+        "unshare": "Stop sharing",
+        "view": "View",
+        "edit": "Can edit",
+        "userName": "Username"
+    },
+    "ActivityLog": {
+        "UPLOAD": {
+            "one": "{userName} uploaded an item.",
+            "other": "{userName} uploaded {count} items."
+        },
+        "EDIT": {
+            "one": "{userName} edited an item.",
+            "other": "{userName} edited {count} items."
+        },
+        "COPY": {
+            "one": "{userName} duplicated an item.",
+            "other": "{userName} duplicated {count} items."
+        },
+        "MOVE": {
+            "one": "{userName} moved an item to <b>{targetFolder}</b>.",
+            "other": "{userName} moved {count} items to <b>{targetFolder}</b>."
+        },
+        "RENAME": {
+            "one": "{userName} renamed <b>{beforeName}</b> to <b>{afterName}</b>."
+        },
+        "SHARE": {
+            "one": "{userName} shared an item.",
+            "other": "{userName} shared {count} items."
+        },
+        "UNSHARE": {
+            "one": "{userName} unshared an item.",
+            "other": "{userName} unshared {count} items."
+        },
+        "DELETE": {
+            "one": "{userName} deleted an item.",
+            "other": "{userName} deleted {count} items."
+        },
+        "RESTORE": {
+            "one": "{userName} restored an item.",
+            "other": "{userName} restored {count} items."
+        }
+    },
+    "Notification": {
+        "SHARED": "<highlight>{userName}</highlight> shared <highlight>{fileName}</highlight>.",
+        "UNSHARED": "<highlight>{userName}</highlight> stopped sharing <highlight>{fileName}</highlight>.",
+        "PERMISSION_CHANGED": "<highlight>{userName}</highlight> changed permissions for <highlight>{fileName}</highlight> to \"{permission}\".",
+        "STORAGE_WARNING": "Storage usage has exceeded {usagePercentage}%. Please check your available space.",
+        "FILE_UPLOAD": "<highlight>{userName}</highlight> uploaded <highlight>{fileName}</highlight> to the \"{folderName}\" folder.",
+        "PERMISSION_REQUESTED": "<highlight>{userName}</highlight> requested access to <highlight>{fileName}</highlight>.",
+        "APPROVE": "Approve",
+        "REJECT": "Reject",
+        "message": "Please refer to the <guidelines>guidelines</guidelines>, {user}.",
+        "STORAGE_EXCEEDED": "Upload failed due to insufficient storage space. Please free up some space."
+    },
+    "Validation": {
+        "RequiredLoginFields": "Email and password are required."
+    },
+    "RESOURCE": {
+        "NOT_FOUND": "No resources available."
+    },
+    "meta": {
+        "home": "Home - {tabTitle}",
+        "mydrive": "My Drive - {tabTitle}",
+        "recent": "Recent - {tabTitle}",
+        "starred": "Starred - {tabTitle}",
+        "shared": "Shared with me - {tabTitle}",
+        "trash": "Trash - {tabTitle}",
+        "search": "Search results - {tabTitle}",
+        "common": "{tabTitle}",
+        "admin": "Admin Portal - {tabTitle}",
+        "superAdmin": "Super Admin Portal - {tabTitle}"
+    },
+    "version": {
+        "delete": {
+            "single": {
+                "success": "The previous version has been deleted.",
+                "fail": "Failed to delete the previous version."
+            },
+            "all": {
+                "success": "All previous versions have been deleted.",
+                "fail": "Failed to delete all previous versions."
+            }
+        }
+    },
+    "preview": {
+        "success": "Preview opened successfully.",
+        "fail": "Preview failed."
+    },
+    "download": {
+        "single": {
+            "success": "Downloaded successfully.",
+            "fail": "Download failed."
+        },
+        "multiple": {
+            "success": "Multiple downloads completed successfully.",
+            "fail": "Multiple downloads failed."
+        }
+    },
+    "share": {
+        "register": {
+            "success": "Sharing enabled successfully.",
+            "fail": "Failed to enable sharing."
+        },
+        "delete": {
+            "success": "Sharing disabled successfully.",
+            "fail": "Failed to disable sharing."
+        },
+        "linkCopy": {
+            "success": "Share link copied successfully.",
+            "fail": "Failed to copy share link."
+        },
+        "fetch": {
+            "success": "Sharing information retrieved successfully.",
+            "fail": "Failed to retrieve sharing information."
+        },
+        "access": {
+            "success": "Share link accessed successfully.",
+            "fail": "Failed to access share link."
+        },
+        "update": {
+            "success": "Sharing updated successfully.",
+            "fail": "Failed to update sharing."
+        },
+        "fetchShareType": {
+            "success": "Successfully retrieved available share types.",
+            "fail": "Failed to retrieve available share types."
+        }
+    },
+    "move": {
+        "success": "Moved successfully.",
+        "fail": {
+            "general": "Move failed",
+            "quotaExceeded": "Move failed due to exceeded storage quota."
+        },
+        "partial": "{success} items moved successfully, {fail} failed (Locked {locked}, Quota exceeded {quota})"
+    },
+    "copy": {
+        "success": "Copied successfully.",
+        "fail": "Copy failed."
+    },
+    "addToStarred": {
+        "success": "Added to Starred successfully.",
+        "fail": "Failed to add to Starred."
+    },
+    "moveToTrash": {
+        "success": "Moved to Trash successfully.",
+        "fail": "Failed to move to Trash.",
+        "partial": "{success} items moved to Trash successfully, {fail} failed (Locked {locked})"
+    },
+    "recent": {
+        "register": {
+            "success": "Added to Recent successfully.",
+            "fail": "Failed to add to Recent."
+        }
+    },
+    "restore": {
+        "success": "Restored successfully.",
+        "fail": "Restore failed.",
+        "partial": "{success} items restored successfully, {fail} failed"
+    },
+    "delete": {
+        "success": "Deleted successfully.",
+        "fail": "Delete failed."
+    },
+    "newFolderCreate": {
+        "success": "New folder created successfully.",
+        "fail": "Failed to create a new folder."
+    },
+    "newOfficeCreate": {
+        "success": "New Office document created successfully.",
+        "fail": "Failed to create a new Office document."
+    },
+    "pinnedFolder": {
+        "add": {
+            "success": "Pinned folder added successfully.",
+            "fail": "Failed to add pinned folder.",
+            "already": "This folder is already pinned."
+        },
+        "remove": {
+            "success": "Pinned folder removed successfully.",
+            "fail": "Failed to remove pinned folder."
+        }
+    },
+    "starred": {
+        "register": {
+            "success": "Added to Starred successfully.",
+            "fail": "Failed to add to Starred."
+        },
+        "remove": {
+            "success": "Removed from Starred successfully.",
+            "fail": "Failed to remove from Starred."
+        }
+    },
+    "passwordResetEmail": {
+        "success": "Please check your email. A password reset guide has been sent to you.",
+        "fail": "Failed to send email."
+    },
+    "notifications": {
+        "title": "Notifications",
+        "markAllAsReadButton": "Mark all as read",
+        "toggleReadStatusButton": "Show unread only",
+        "emptyMessage": {
+            "unread": "No unread notifications",
+            "read": "No read notifications"
+        },
+        "updateReadStatus": {
+            "fail": "Failed to mark as read. Please try again."
+        }
+    },
+    "Settings": {
+        "security": {
+            "title": "Security",
+            "location": "Location / IP",
+            "timestamp": "Timestamp",
+            "eventType": {
+                "name": "Event"
+            }
+        }
+    },
+    "shareAddUserDialog": {
+        "search": "Enter email address or name",
+        "invitedUsersLabel": "Added Users",
+        "emptyMessage": "No users have been added",
+        "sendEmail": "Send Email Notification"
+    },
+    "changePasswordDialog": {
+        "password": "Current password",
+        "newPassword": "New password",
+        "ConfirmPassword": "Confirm new password",
+        "forgotPassword": "Forgot your password?",
+        "error": {
+            "mismatch": "The passwords do not match.",
+            "notCurrent": "Current password is incorrect.",
+            "sameAsOld": "New password must be different from your current password."
+        },
+        "change": {
+            "success": "Your password has been changed.",
+            "fail": "Failed to change your password."
+        },
+        "expiredTitle": "The password reset link has expired."
+    },
+    "passwordResetDialog": {
+        "title": "Reset your password",
+        "description": "Enter the email address you used to register.",
+        "email": "Email",
+        "defaultGuide": "Please check your email address."
+    },
+    "resource": {
+        "fetch": {
+            "success": "Resource details retrieved successfully.",
+            "fail": "Failed to retrieve resource details."
+        }
+    },
+    "shareClipboardPrompt": {
+        "description": "Due to browser security policies, copying to the clipboard may be restricted. Please select and copy the content below manually (Ctrl+C)."
+    },
+    "logoutDialog": {
+        "description": "Are you sure you want to log out?"
+    },
+    "actionIconTooltip": {
+        "removeToStarred": "Remove from Starred"
+    },
+    "loginToast": {
+        "success": "Logged in successfully.",
+        "fail": "Login failed.",
+        "needLogin": "Login required.",
+        "duplicateLocalAccount": "This account is already registered. Please log in using the method you signed up with."
+    },
+    "removeToStarred": {
+        "success": "Removed from Starred successfully.",
+        "fail": "Failed to remove from Starred."
+    },
+    "adminServer": {
+        "serverIp": "Server IP",
+        "clientDomain": "Client Domain",
+        "version": "Product version"
+    },
+    "adminOffice": {
+        "description": "This setting is for Thinkfree Office. Enter the domain and adapter information to edit documents from Drive in Thinkfree Office. ※ The entered values must match the domain and adapter information registered in the Office administrator.",
+        "officeDomain": "Office Domain",
+        "officeAdapterName": "Office Adapter Name"
+    },
+    "accountSettingSaveConfirmDialog": {
+        "title": "Save Account Settings",
+        "text": "Are you sure you want to save the account settings?"
+    },
+    "account": {
+        "save": {
+            "success": "Account settings saved successfully.",
+            "fail": "Failed to save account settings."
+        }
+    },
+    "adminServerSettingSaveConfirmDialog": {
+        "title": "Save Server Settings",
+        "text": "Are you sure you want to save the server settings?"
+    },
+    "adminOfficeSettingSaveConfirmDialog": {
+        "title": "Save Office Settings",
+        "text": "Are you sure you want to save the Office settings?"
+    },
+    "adminLicense": {
+        "licenseFileUpload": "Upload License File",
+        "selectFile": "Select File",
+        "upload": {
+            "success": "License file uploaded successfully.",
+            "fail": "Failed to upload license file."
+        },
+        "status": {
+            "label": "License Status",
+            "valid": "Valid",
+            "expiring": "Expiring Soon",
+            "expired": "Expired",
+            "exceeded": "Seats Exceeded"
+        },
+        "type": {
+            "label": "License Type",
+            "value": ""
+        },
+        "period": {
+            "label": "Start Date / End Date",
+            "value": "{registerDate} ~ {ex} ({day} days remaining)"
+        },
+        "sheets": {
+            "label": "Seats",
+            "value": "{activeUsers} / {sheets}"
+        }
+    },
+    "adminLicenseUploadConfirmDialog": {
+        "title": "Upload License File",
+        "text": "Are you sure you want to upload the license file?"
+    },
+    "adminSmtp": {
+        "clientName": "Client Name",
+        "host": "Host",
+        "port": "Port",
+        "encryptionType": "Encryption Type",
+        "authType": "Authentication Type",
+        "username": "Username",
+        "appPassword": "App Password",
+        "oauthInfo": "OAuth Information",
+        "fromAddress": "From Address",
+        "testReceiverAddress": "Test Recipient Address",
+        "testemail": {
+            "btn": "Send Test Email",
+            "success": "Test email sent successfully.",
+            "fail": "Failed to send test email."
+        }
+    },
+    "adminSmtpSettingSaveConfirmDialog": {
+        "title": "Save SMTP Settings",
+        "text": "Are you sure you want to save the SMTP settings?"
+    },
+    "adminSmtpSettingEmailConfirmDialog": {
+        "title": "Send Test Email",
+        "text": "A test email will be sent to the recipient address you entered."
+    },
+    "adminUsers": {
+        "activate": {
+            "success": "User activated successfully.",
+            "fail": "Failed to activate user."
+        },
+        "deactivate": {
+            "success": "User deactivated successfully.",
+            "fail": "Failed to deactivate user."
+        },
+        "empty": "No users.",
+        "update": {
+            "success": "User information updated successfully.",
+            "fail": "Failed to update user information."
+        },
+        "register": {
+            "success": "User registered successfully.",
+            "fail": "Failed to register user."
+        },
+        "delete": {
+            "successSingle": "The account has been moved to pending deletion.",
+            "successMultiple": "{n} accounts have been moved to pending deletion.",
+            "partial": "{success} accounts were moved to pending deletion, and {fail} failed to move.",
+            "fail": "Failed to move the account to pending deletion."
+        }
+    },
+    "adminAccounts": {
+        "register": {
+            "success": "Account registered successfully.",
+            "fail": "Failed to register account."
+        }
+    },
+    "adminAdmins": {
+        "activate": {
+            "success": "Activation successful.",
+            "fail": "Activation failed."
+        },
+        "deactivate": {
+            "success": "Deactivation successful.",
+            "fail": "Deactivation failed."
+        },
+        "empty": "No admins.",
+        "update": {
+            "success": "Admin information updated successfully.",
+            "fail": "Failed to update admin information."
+        },
+        "register": {
+            "success": "Admin registered successfully.",
+            "fail": "Failed to register admin."
+        },
+        "delete": {
+            "success": "Admin deleted successfully.",
+            "fail": "Failed to delete admin.",
+            "partial": "{success} admins deleted successfully, {fail} failed"
+        }
+    },
+    "hardDelete": {
+        "success": "Deleted permanently.",
+        "fail": "Failed to permanently delete.",
+        "partial": "{success} items permanently deleted successfully, {fail} failed."
+    },
+    "tooltip": {
+        "drive": "Drive",
+        "search": "Search",
+        "clearSearch": "Clear search",
+        "notifications": "Notifications",
+        "myAccount": "My Account",
+        "showPath": "Show path",
+        "selectAll": "Select all",
+        "deselect": "Deselect",
+        "removeStarred": "Remove from Starred",
+        "viewDetails": "View details",
+        "hideDetails": "Hide details",
+        "moreOptions": "More options",
+        "markAsRead": "Mark as read",
+        "markAsUnread": "Mark as unread",
+        "shareInvitedUser": "Only specified users can access.",
+        "shareAnyOneInWorkspace": "Anyone in the workspace with the link can access.",
+        "shareSetting": "For this share type, only the owner can change sharing permissions.",
+        "versionDownload": "Download version",
+        "versionRestore": "Restore version",
+        "versionDelete": "Delete version",
+        "settingsLink": "View in Settings"
+    },
+    "licenseDialog": {
+        "unregistered": {
+            "title": "Unregistered License",
+            "message": "Login is not available because no license is registered. Please contact your administrator."
+        },
+        "expired": {
+            "message": "Login is not available because the license has expired. Please contact your administrator."
+        },
+        "seatExceeded": {
+            "title": "License Seat Exceeded",
+            "message": "User access is restricted because the number of license seats has been exceeded. To continue using the service, please upgrade your license."
+        }
+    },
+    "deleteAdminDialog": {
+        "title": "Delete Administrator",
+        "textSingle": "Are you sure you want to delete administrator ''{userName}'' ?",
+        "textMultiple": "Are you sure you want to delete all {count} administrators?"
+    },
+    "lock": {
+        "locked": "You can't perform this action while another user is editing this document."
+    },
+    "upload": {
+        "success": "Upload completed successfully.",
+        "fail": {
+            "general": "Upload failed.",
+            "quotaExceeded": "Storage limit exceeded. Upload could not be completed."
+        }
+    },
+    "quota": {
+        "unlimitedNote": "(-1 for unlimited)"
+    },
+    "clipboard": {
+        "copySuccess": "{count, plural, one {Item copied.} other {# items copied.}}",
+        "copyFail": "Failed to copy.",
+        "pasteSuccess": "{count, plural, one {Item pasted.} other {# items pasted.}}",
+        "pasteFail": "Failed to paste.",
+        "folderNotSupported": "Folders or multiple items cannot be pasted.",
+        "cannotCopySomeItems": "Some items cannot be pasted due to insufficient permissions.",
+        "cannotPasteDeletedItems": "Deleted items cannot be pasted."
+    },
+    "adminStorage": {
+        "storageType": "Storage Type",
+        "accessKey": "Access Key",
+        "secretKey": "Secret Key",
+        "bucketName": "Bucket Name",
+        "region": "Region",
+        "endPoint": "Endpoint URL",
+        "uploadSizeLimit": "Upload Capacity Limit",
+        "totalQuota": "Total Storage",
+        "quotaNotSet": "Not set",
+        "description": "You can view the storage integration settings entered during installation. The configuration values of the connected storage are displayed in read-only mode. ※ After installation, the storage type and integration settings cannot be changed."
+    },
+    "bulkUserImportDialog": {
+        "title": "Import users",
+        "subtitle": "Upload a CSV file to register multiple users at once.",
+        "requiredNote": "Fields marked with * are required.",
+        "rules": {
+            "UTF-8": "Only CSV files in UTF-8 format are supported.",
+            "email": "User ID must be in email format.",
+            "storage": "Storage capacity must be an integer value in GB."
+        },
+        "table": {
+            "header": {
+                "userId": "User ID*",
+                "password": "Password*",
+                "displayName": "Username*",
+                "storageGb": "Storage*",
+                "countryCode": "Country code"
+            },
+            "exampleCaption": "Example"
+        },
+        "csv": {
+            "hint": "Download the CSV template, fill it out, and upload it here."
+        },
+        "uploader": {
+            "button": "Select a file",
+            "noFile": "No file selected",
+            "selected": "Selected: {filename}"
+        },
+        "options": {
+            "sendEmail": "Send email"
+        },
+        "buttons": {
+            "import": "Import"
+        },
+        "result": {
+            "success": "User import completed successfully.",
+            "failed": "User import failed.",
+            "seeCsvHint": "Download the result CSV file to check the error details.",
+            "downloadResultCsv": "Download result CSV"
+        },
+        "errors": {
+            "emptyFile": "The file is empty.",
+            "downloadTemplateFailed": "Failed to download the CSV template."
+        },
+        "confirm": {
+            "title": "Proceed with import?",
+            "body": "You are about to register {count} users."
+        }
+    },
+    "home": {
+        "quickMenu": {
+            "newDocs": "New Document",
+            "newPpt": "New Presentation",
+            "newExcel": "New Spreadsheet",
+            "shared": "Shared With Me",
+            "newIntellect": "New Note"
+        }
+    },
+    "shareRemoveDialog": {
+        "text1": "Sharing will be removed. Do you want to move?",
+        "text2": "If you move this item to My Drive, sharing will be removed and other users will no longer have access."
+    },
+    "pendingDeletion": {
+        "empty": "No accounts pending deletion.",
+        "description": "Deleted accounts remain in pending deletion status for 30 days. During this period, you can restore or permanently delete them.",
+        "restore": {
+            "successSingle": "Account has been restored.",
+            "successMultiple": "{n} accounts have been restored.",
+            "partial": "{success} accounts were restored successfully, but {fail} failed to restore.",
+            "fail": "Failed to restore the account."
+        },
+        "delete": {
+            "successSingle": "The account has been permanently deleted.",
+            "successMultiple": "{n} accounts have been permanently deleted.",
+            "fail": "Failed to permanently delete the account."
+        }
+    },
+    "restoreAccountDialog": {
+        "title": "Restore account?",
+        "textSingle": "Restoring this account will set its status to Inactive. You can activate it again later from the Users menu.",
+        "textMultiple": "The selected {n} accounts will be restored, and each will be set to Inactive. You can activate it again later from the Users menu."
+    },
+    "completelyDeleteAccountDialog": {
+        "title": "Permanently delete account?",
+        "textSingle": "The selected {n} accounts and all associated storage data will be permanently deleted and cannot be restored. This action cannot be undone.",
+        "textMultiple": ""
+    },
+    "label": {
+        "beta": "(Beta)"
+    },
+    "adminIntellect": {
+        "field": "Enable Intellect Notes",
+        "fieldDesc": "When enabled, all users can access and use Intellect Notes.",
+        "version": "Intellect Notes Version",
+        "description": "Intellect Notes is a block-based living document editor that allows you to create and edit documents directly within Drive. This is a Beta version and currently provides basic editing capabilities, with stability improvements and additional features planned for future releases. Intellect Notes is included automatically with Drive and can be enabled or disabled at any time."
+    },
+    "adminIntellectSettingSaveConfirmDialog": {
+        "title": "Save Note Settings",
+        "text": "Are you sure you want to save the Note settings?"
+    },
+    "newIntellectCreate": {
+        "success": "New Note created successfully."
+    },
+    "resetPasswordConfirmDialog": {
+        "title": "Reset Password",
+        "text": "Send a password reset link to your email?"
+    },
+    "removeShareUserDialog": {
+        "title": "Remove shared user?",
+        "desc": "Once removed, they will no longer be able to access this resource."
+    },
+    "unshareResourceDialog": {
+        "title": "Stop sharing?",
+        "desc": "If you stop sharing, all share settings for this resource will be deleted, and no one will be able to access it anymore.",
+        "confirm": "Unshare"
+    },
+    "mfaSetup": {
+        "description": "Scan the QR code with your authenticator app and enter the 6-digit code.",
+        "placeholder": "6-digit code"
+    },
+    "mfaVerify": {
+        "description": "Enter the 6-digit code displayed in your authenticator app.",
+        "placeholder": "000000",
+        "invalidCode": "The verification code is invalid. Please try again.",
+        "expiredChallenge": "The authentication request has expired. Please log in again."
+    },
+    "adminMfa": {
+        "title": "2FA",
+        "field": "Use Two-Factor Authentication (2FA)",
+        "fieldDesc": "Once enabled, all users (except administrators) will be required to sign in using 2FA."
+    },
+    "adminMfaSettingSaveConfirmDialog": {
+        "enable": {
+            "title": "Enable Two-Factor Authentication?",
+            "text": "Once enabled, all users will be required to set up 2FA on their next login."
+        },
+        "disabled": {
+            "title": "Disable Two-Factor Authentication?",
+            "text": "Disabling this will allow all users to sign in without two-factor authentication."
+        }
+    },
+    "removeMfaSettingConfirmDialog": {
+        "title": "Remove 2FA",
+        "text": "Are you sure you want to remove 2FA?"
+    },
+    "userMfa": {
+        "confirm": {
+            "success": "Authentication successful.",
+            "fail": "Authentication failed."
+        },
+        "remove": {
+            "success": "2FA has been removed successfully.",
+            "fail": "Failed to remove 2FA."
+        }
+    },
+    "adminReset2faConfirmDialog": {
+        "title": "Are you sure you want to reset 2FA settings?",
+        "text": "This user's 2FA authentication information will be reset. 2FA setup will be required on their next login."
+    },
+    "adminResetUser2fa": {
+        "success": "2FA authentication data reset successfully.",
+        "fail": "Failed to reset 2FA authentication data."
+    },
+    "adminAccessRestriction": {
+        "field": "Access Restriction",
+        "fieldDesc": "When enabled, access from unauthorized countries will be blocked.",
+        "allowedCountries": "Allowed Countries",
+        "allowedIps": "Allowed IPs",
+        "countryCodePlaceholder": "Enter the 2-digit country code.",
+        "emptyAllowedCountries": "No allowed countries found.",
+        "ipAddressPlaceholder": "Enter the IP addresses or subnets to allow access.",
+        "emptyAllowedIps": "No allowed IPs found.",
+        "validateAccessRestriction": "Enter the country codes or IPs to allow access.",
+        "validateCountryCode": "Please enter a valid country code.",
+        "validateIpAddress": "Please enter a valid IP address.",
+        "accessDeniedMessage": "Access is not allowed from your country or IP. Please contact your administrator."
+    },
+    "adminAccessRestrictionSettingSaveConfirmDialog": {
+        "title": "Do you want to save the access restriction settings?"
+    },
+    "adminSetting": {
+        "save": {
+            "success": "Your changes have been saved.",
+            "fail": "Failed to save changes. Please try again."
+        }
+    },
+    "adminSsoProvider": {
+        "disPlayName": "Name",
+        "protocolType": "Type",
+        "registerDate": "Registration Date",
+        "registeredBy": "Registered by",
+        "status": "Status",
+        "addSsoProvider": "Add SSO Provider",
+        "activate": {
+            "success": "Activation successful.",
+            "fail": "Activation failed."
+        },
+        "deactivate": {
+            "success": "Deactivation successful.",
+            "fail": "Deactivation failed."
+        },
+        "add": {
+            "success": "SSO provider added successfully.",
+            "fail": "Failed to add SSO provider."
+        },
+        "update": {
+            "success": "SSO provider updated successfully.",
+            "fail": "Failed to update SSO provider."
+        }
+    },
+    "UpdateSsoStatusDialog": {
+        "title": "Change SSO Status",
+        "text1": "Activate this SSO provider?",
+        "text2": "Deactivate this SSO provider?",
+        "update": "Change"
+    },
+    "adminSsoProviderDialog": {
+        "addTitle": "Add SSO Provider",
+        "updateTitle": "Edit SSO Provider",
+        "tenantSelect": "Select Tenant",
+        "displayName": "Provider Name",
+        "protocolType": "Provider Type",
+        "issuerUrl": "Issuer URL",
+        "clientId": "Client ID",
+        "clientSecret": "Client Secret",
+        "clientSecretHint": "(Enter only when changing)",
+        "issuer": "Issuer",
+        "audience": "Audience",
+        "keySourceType": "Key Type",
+        "publicKey": "Public Key",
+        "jwksUri": "JWKS URI",
+        "emailClaimName": "Email Claim Name",
+        "error": {
+            "displayName": "Please enter the provider name.",
+            "issuerUrl": "Please enter the Issuer URL.",
+            "clientId": "Please enter the Client ID.",
+            "clientSecret": "Please enter the Client Secret.",
+            "issuer": "Please enter the Issuer.",
+            "publicKey": "Please enter the Public Key.",
+            "jwksUri": "Please enter the JWKS URI."
+        }
+    },
+    "ssoSignup": {
+        "invalidSession": "Invalid access. Please log in again.",
+        "accessDeniedMessage": "SSO login failed. This account does not exist."
+    },
+    "jwtLogin": {
+        "accessDeniedMessage": "JWT login failed. Please contact your administrator."
+    },
+    "adminLogin": {
+        "title": "Login Settings",
+        "field": "Login Method",
+        "localFieldDesc": "Local login is the default authentication method using ID and password.\nUsers log in by entering their credentials on the login screen. Changing this setting may affect login.",
+        "jwtFieldDesc": "JWT auto-authentication is a trust-based authentication method with external systems.\nUsers are authenticated automatically without going through the login screen. Changing this setting may affect login.",
+        "localAuth": "Local Login",
+        "jwtAuth": "JWT Auto Authentication",
+        "using": "Currently in use",
+        "jwt": {
+            "title": "JWT Settings",
+            "displayName": "Provider Name",
+            "issuer": "Issuer",
+            "errorRedirectUrl": "Login Page URL",
+            "emailClaimName": "Email Claim Name",
+            "audience": "Audience",
+            "keySourceType": "Key Type",
+            "publicKey": "Public Key",
+            "jwksUri": "JWKS URI",
+            "errorRedirectUrlDesc": "Redirects users who fail token authentication or access the Drive domain directly to the specified URL."
+        }
+    },
+    "adminLoginSettingSaveConfirmDialog": {
+        "localTitle": "Switch to Local Login?",
+        "localDesc": "After changing, users will log in with ID and password. External authentication will no longer be used.",
+        "jwtTitle": "Switch to JWT Auto Authentication?",
+        "jwtDesc": "After changing, regular users will be authenticated automatically without the login screen. Users without a JWT token may be restricted or redirected."
+    },
+    "adminApiKeys": {
+        "field": "Issued API Keys",
+        "addApiKey": "Create API Key"
+    },
+    "adminApiKeyDialog": {
+        "addTitle": "Create API Key",
+        "keyName": "Key Name",
+        "purpose": "Purpose",
+        "addFail": "Failed to create API Key.",
+        "completeTitle": "API Key Created",
+        "completeNotice": "For security, the full key is displayed only once. Once you close this screen, it cannot be retrieved again. Please copy and store it safely now.",
+        "apiKey": "API Key",
+        "copy": "Copy",
+        "copySuccess": "API Key copied to clipboard.",
+        "confirm": "Confirm",
+        "error": {
+            "keyName": "Please enter the key name.",
+            "purpose": "Please enter the purpose."
+        }
+    },
+    "updateApiKeyStatusDialog": {
+        "activateTitle": "Activate this API Key?",
+        "deactivateTitle": "Deactivate this API Key?",
+        "activateText": "Activating will allow API calls again.",
+        "deactivateText": "Deactivating will immediately block all API calls. You can reactivate it if needed.",
+        "activate": {
+            "success": "API Key activated successfully.",
+            "fail": "Failed to activate API Key."
+        },
+        "deactivate": {
+            "success": "API Key deactivated successfully.",
+            "fail": "Failed to deactivate API Key."
+        }
+    },
+    "adminApiKeyTable": {
+        "keyName": "Key Name",
+        "purpose": "Purpose",
+        "status": "Status",
+        "createdAt": "Created At",
+        "lastUsedAt": "Last Used At",
+        "key": "API Key",
+        "reissue": "Reissue",
+        "empty": "No API Keys have been issued."
+    },
+    "reissueApiKeyDialog": {
+        "title": "Reissue API Key?",
+        "text": "Upon reissuance, the existing key will be immediately invalidated and replaced with a new one.",
+        "confirm": "Reissue",
+        "success": "API Key reissued successfully.",
+        "fail": "Failed to reissue API Key."
+    },
+    "reissueApiKeyCompleteDialog": {
+        "title": "API Key Reissued",
+        "description": "The existing key has been invalidated and can no longer be used. Please update the settings of any systems currently integrated."
+    },
+    "common": {
+        "playgroundBanner": {
+            "desc": "You are connected to the Playground. Some features are limited."
+        },
+        "accountSetting": {
+            "profileImage": {
+                "upload": "Upload Image",
+                "resetToDefault": "Reset to Default"
+            }
+        },
+        "saveConfirmDialog": {
+            "title": "Do you want to save?"
+        },
+        "button": {
+            "save": "Save",
+            "confirm": "Confirm",
+            "cancel": "Cancel",
+            "close": "Close",
+            "add": "Add",
+            "update": "Edit",
+            "upload": "Upload",
+            "change": "Change",
+            "create": "Create",
+            "reset": "Reset"
+        },
+        "action": {
+            "delete": "Delete",
+            "hardDelete": "Permanently Delete",
+            "login": "Login",
+            "logout": "Logout",
+            "activate": "Enable",
+            "deactivate": "Disable",
+            "download": "Download",
+            "share": "Share",
+            "move": "Move",
+            "restore": "Restore",
+            "edit": "Edit",
+            "modify": "Modify",
+            "addUser": "Add User",
+            "addAdmin": "Add Admin",
+            "addAccount": "Add Account",
+            "addStarred": "Add to Starred",
+            "moveToTrash": "Move to Trash",
+            "previewOpen": "Preview/Open",
+            "select": "Select"
+        },
+        "label": {
+            "setting": "Settings",
+            "admin": "Admin",
+            "role": "Role",
+            "superAdmin": "Super Admin",
+            "user": "User",
+            "userName": "Name",
+            "userId": "ID",
+            "password": "Password",
+            "phone": "Phone",
+            "lastLogin": "Last Login",
+            "status": "Status",
+            "option": "Options",
+            "owner": "Owner",
+            "fileSize": "Size",
+            "myDrive": "My Drive",
+            "recent": "Recent",
+            "starred": "Starred",
+            "shared": "Shared",
+            "trash": "Trash",
+            "storage": "Storage",
+            "licenseExpired": "License Expired",
+            "email": "Email",
+            "initialPassword": "Initial Password",
+            "name": "Name",
+            "all": "All"
+        },
+        "placeholder": {
+            "email": "Enter email",
+            "initialPassword": "Enter initial password",
+            "name": "Enter Name"
+        },
+        "title": {
+            "addUser": "Add User",
+            "addAdmin": "Add Admin",
+            "addAccount": "Add Account",
+            "changePassword": "Change Password"
+        },
+        "status": {
+            "enabled": "Enable",
+            "disabled": "Disable",
+            "expired": "Expired"
+        },
+        "shareType": {
+            "restricted": "Restricted",
+            "restrictedDesc": "Only designated users can access.",
+            "internal": "Internal Organization",
+            "internalDesc": "All members within the organization with the link can access.",
+            "public": "Public",
+            "publicDesc": "Anyone with the link can access regardless of login status."
+        },
+        "validate": {
+            "password": "Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters.",
+            "emptyCheck": "This field is required.",
+            "emailPattern": "Please enter a valid email address.",
+            "duplicateUserId": "This ID is already in use.",
+            "minLengthUserName": "Name must be at least 2 characters.",
+            "phoneAndCountry": "Please enter both the phone number and country code, or leave both empty.",
+            "numericOnly": "Please enter numbers only.",
+            "noEdgeSpaces": "Spaces are not allowed at the beginning or end of the name."
+        },
+        "input": {
+            "pw": "Password"
+        },
+        "dialog": {
+            "closeWithoutSave": {
+                "title": "Close without saving changes?",
+                "desc": "All unsaved changes will be lost."
+            },
+            "restore": {
+                "title": "Restore the selected item to its original location?"
+            }
+        },
+        "tempPasswordDialog": {
+            "title": "Password Setup",
+            "desc": "An initial password is currently set.\nPlease create a new password for security.",
+            "laterBtn": "Later"
+        },
+        "toast": {
+            "fail": "Failed",
+            "addSuccess": "Added successfully.",
+            "addFail": "Failed to add. Please try again.",
+            "saveSuccess": "Saved successfully.",
+            "saveFail": "Failed to save. Please try again.",
+            "editSuccess": "Updated successfully.",
+            "editFail": "Failed to update. Please try again.",
+            "deleteSuccess": "Deleted successfully.",
+            "deleteFail": "Failed to delete. Please try again.",
+            "changeSuccess": "Changed successfully.",
+            "changeFail": "Failed to change. Please try again."
+        },
+        "language": {
+            "ko": "Korean",
+            "en": "English",
+            "es": "Spanish",
+            "auto": "Auto"
+        },
+        "dateFilter": {
+            "today": "Today",
+            "yesterday": "Yesterday",
+            "last7Days": "Last 7 days",
+            "last30Days": "Last 30 days",
+            "thisYear": "This year",
+            "inputBefore": "Before",
+            "inputAfter": "After"
+        },
+        "errorPage": {
+            "title": "Page not found.",
+            "desc": "The page you requested does not exist or cannot be accessed.",
+            "goBack": "Go to Previous Page",
+            "authFail": {
+                "title": "Authentication failed",
+                "desc": "Your credentials are invalid or have expired.\nPlease reopen the screen."
+            }
+        }
+    },
+    "admin": {
+        "userManagement": {
+            "toast": {
+                "seatLimitReached": "Active users have reached the license limit. No more users can be added."
+            }
+        },
+        "branding": {
+            "page": {
+                "title": "Branding Settings"
+            },
+            "label": {
+                "title": "Label",
+                "helper": "Enter between 2 and 30 characters."
+            },
+            "browserTitle": {
+                "title": "Web Browser Title",
+                "desc": "Displayed in the browser tab."
+            },
+            "serviceName": {
+                "title": "Service Name",
+                "desc": "This is the brand name displayed throughout the service."
+            },
+            "poweredBy": {
+                "title": "Powered by Provider Label",
+                "enable": "Show",
+                "disable": "Hide"
+            },
+            "logo": {
+                "title": "Logo",
+                "default": "Use Default",
+                "custom": "Custom Upload",
+                "defaultOptionDesc": "Uses the default Thinkfree assets provided by the system."
+            },
+            "favicon": {
+                "title": "Favicon",
+                "desc": "Displayed in the browser tab.",
+                "uploadFormat": "ICO, PNG • 32x32 recommended • Max 500KB"
+            },
+            "symbolLogo": {
+                "title": "Symbol Logo",
+                "desc": "Displayed on the login screen.",
+                "uploadFormat": "PNG, SVG • 512x512 recommended • Max 1MB"
+            },
+            "basicLogo": {
+                "title": "Basic Logo",
+                "desc": "Displayed at the top of the left sidebar.",
+                "uploadFormat": "PNG, SVG • 280x40px recommended • Max 2MB"
+            },
+            "emailLogo": {
+                "title": "Email Logo",
+                "desc": "Displayed at the top of the email.",
+                "uploadFormat": "PNG, SVG • 280x40px recommended • Max 2MB"
+            },
+            "upload": {
+                "placeholder": "Please upload a file.",
+                "action": "Upload Image",
+                "reupload": "Re-upload",
+                "selectAnother": "Select Another Image",
+                "errorInvalidFormat": "Unsupported file format.",
+                "errorFileSizeExceeded": "The file size exceeds the limit."
+            }
+        },
+        "share": {
+            "setting": {
+                "title": "Sharing",
+                "field": "Sharing Settings",
+                "descEnabled": "Sharing is currently enabled. Users can share files and folders with other users.",
+                "descDisabled": "Sharing is currently disabled. Users cannot share files and folders with other users."
+            },
+            "disabledInfoDialog": {
+                "title": "Sharing Disabled Notice",
+                "desc": "There are currently shared files and folders.\nDisabling sharing will stop all active shares.",
+                "confirm": "Continue"
+            },
+            "disabledResourceDialog": {
+                "title": "Unable to open the file or folder.",
+                "desc": "Sharing has been disabled, so ''{resourceName}'' cannot be opened."
+            },
+            "globalSetting": {
+                "infoBox": "The system administrator has applied a global sharing policy to all tenants. Please contact your system administrator if you need to change the settings."
+            },
+            "policy": {
+                "externalShare": {
+                    "title": "Allow External Sharing",
+                    "desc": "When enabled, user invitations from other organizations and public sharing options will be activated."
+                },
+                "accessScope": {
+                    "title": "Access Permission Scope",
+                    "minOneRequired": "Please enable at least one access permission."
+                }
+            }
+        },
+        "loginSetting": {
+            "providerName": {
+                "placeholder": "Enter provider name"
+            },
+            "issuer": {
+                "placeholder": "Enter Issuer"
+            },
+            "loginPageUrl": {
+                "placeholder": "Enter login page URL"
+            },
+            "audience": {
+                "placeholder": "Enter Audience"
+            },
+            "emailClaimName": {
+                "placeholder": "Enter Email Claim Name"
+            },
+            "publicKey": {
+                "placeholder": "Enter Public Key"
+            },
+            "globalSetting": {
+                "infoBox": "For security reasons,\n settings are not displayed. Please contact your system administrator if changes are needed.",
+                "lockTitle": "The system administrator has applied a global authentication method."
+            },
+            "loginMethod": {
+                "oidc": "OIDC Login"
+            },
+            "oidcInfoBox": {
+                "desc": "OIDC login is an authentication method through an external IdP.\nUsers log in via IdP authentication on the login screen. Changes to this setting may affect login."
+            },
+            "oidcConfig": {
+                "title": "OIDC Settings",
+                "desc": "Even if multiple IdPs are registered, only one will be used as the default login.",
+                "addIdpBtn": "Add IdP",
+                "table": {
+                    "name": "IdP Name",
+                    "registeredAt": "Registered Date",
+                    "connectionStatus": "Connection Status",
+                    "connectionSetting": "Default",
+                    "connected": "Connected",
+                    "disconnected": "Not Connected",
+                    "empty": "No IdP registered."
+                }
+            },
+            "idpDialog": {
+                "addTitle": "Add IdP",
+                "editTitle": "Edit IdP"
+            },
+            "idpName": {
+                "label": "IdP Name",
+                "placeholder": "Enter IdP name"
+            },
+            "issuerUrl": {
+                "label": "Issuer URL",
+                "placeholder": "Enter Issuer URL"
+            },
+            "clientId": {
+                "label": "Client ID",
+                "placeholder": "Enter Client ID"
+            },
+            "clientSecret": {
+                "label": "Client Secret",
+                "placeholder": "Enter Client Secret"
+            },
+            "oidcConfirmDialog": {
+                "title": "Switch to OIDC Login?",
+                "desc": "Upon change, users must log in through external IdP authentication on the login screen. The existing login method will no longer be available."
+            },
+            "deleteIdpDialog": {
+                "title": "Delete the registered IdP?",
+                "desc": "Upon deletion, the login information of users connected to this IdP will be removed, and re-authentication through another method will be required."
+            },
+            "changeIdpDialog": {
+                "title": "Change the IdP for OIDC?",
+                "desc": "After the change, only users authenticated by the new IdP will be able to log in.\nUsers currently logged in will remain until they log out."
+            }
+        },
+        "adminPortal": {
+            "infoBox": {
+                "desc": "You are currently accessing as a super admin.",
+                "portalLink": "Super Admin Portal"
+            }
+        },
+        "licenseBanner": {
+            "expiring": {
+                "title": "Your license expires in <b>{dDay} days</b>.",
+                "description": "Expires {expireDate}"
+            },
+            "graceEnded": {
+                "title": "License usage has been <b>suspended</b>.",
+                "description": "Expired {expireDate}"
+            },
+            "seatExceeded": {
+                "title": "Seat limit exceeded.",
+                "description": "<b>{usedSeats}/{totalSeats}</b> in use"
+            },
+            "noLicense": {
+                "title": "No license is registered.",
+                "description": "Please register a license to use the service."
+            },
+            "authFail": {
+                "title": "License verification <b>failed</b>.",
+                "description": "Please try verifying your license again."
+            },
+            "detailBtn": "View Details"
+        },
+        "noLicenseDialog": {
+            "title": "License Not Registered",
+            "desc": "No license is registered.\nPlease register a license to use the service."
+        },
+        "licenseAuthFailDialog": {
+            "title": "License Verification Failed",
+            "desc": "License verification failed.\nPlease try verifying your license again."
+        },
+        "licenseExpiredDialog": {
+            "title": "License Expired",
+            "desc": "The license has expired and user access is restricted.\nPlease renew the license to continue using the service."
+        },
+        "license": {
+            "lastVerifiedAt": "Last Verified Date",
+            "verifyBtn": "Verify",
+            "toast": {
+                "verifySuccess": "Manual verification request completed.",
+                "verifyFail": "Manual verification request failed."
+            }
+        },
+        "accountSetting": {
+            "title": "Account Settings"
+        },
+        "protectedUser": {
+            "badge": "Protected",
+            "tooltip": "Protected account created with the tenant. Administrators cannot withdraw, delete, or deactivate it, or change its role or password."
+        },
+        "apiKey": {
+            "createDialog": {
+                "scopeLabel": "Scope",
+                "expiryLabel": "Expiry Date"
+            },
+            "scope": {
+                "readOnly": "Read Only",
+                "readOnlyDesc": "You can view and search files and folders.\nModifying or deleting is not allowed.",
+                "fullAccess": "Full Access",
+                "fullAccessDesc": "You can view, create, edit, share, and delete files and folders."
+            },
+            "table": {
+                "role": "Role",
+                "userAccount": "User Account",
+                "scope": "Scope",
+                "expireDate": "Expiry Date"
+            },
+            "badge": {
+                "readOnly": "Read Only",
+                "fullAccess": "Full Access",
+                "protected": "Protected",
+                "protectedTooltip": "Protected key issued by the super admin. Only the super admin can change its expiration date, activate, deactivate, or reissue it."
+            },
+            "menu": {
+                "updateExpiry": "Edit Expiry Date",
+                "reissue": "Reissue"
+            },
+            "updateExpiryDialog": {
+                "title": "Edit Expiry Date",
+                "success": "The expiry date has been updated.",
+                "fail": "Failed to update the expiry date."
+            }
+        },
+        "auditLog": {
+            "title": "Audit Log",
+            "exportCsvBtn": "Export",
+            "settingBtn": "Settings",
+            "toast": {
+                "fetchFail": "Failed to load audit log. Please try again later."
+            },
+            "filter": {
+                "userSearch": {
+                    "label": "User",
+                    "placeholder": "Search by name or email"
+                },
+                "event": {
+                    "label": "Event",
+                    "selected": "{count} selected",
+                    "selectAll": "Select All"
+                },
+                "channel": {
+                    "label": "Channel"
+                },
+                "result": {
+                    "label": "Result"
+                },
+                "date": {
+                    "label": "Period",
+                    "reset": "Reset"
+                },
+                "searchBtn": "Search"
+            },
+            "table": {
+                "user": "User",
+                "event": "Event",
+                "resource": "Resource",
+                "target": "Target",
+                "channel": "Channel",
+                "ip": "IP",
+                "timestamp": "Timestamp"
+            },
+            "datePicker": {
+                "today": "Today"
+            },
+            "settingDialog": {
+                "title": "Audit Log Settings",
+                "retentionLabel": "Retention Period",
+                "retentionUnit": "Days",
+                "retentionWarning": "※ Audit logs that exceed the retention period will be automatically deleted and cannot be recovered."
+            },
+            "event": {
+                "login": "Login",
+                "logout": "Logout",
+                "accountLockedStatusChange": "Account Lock Status Changed",
+                "fileCreate": "File Created",
+                "fileUpload": "File Uploaded",
+                "fileDownload": "File Downloaded",
+                "filePreview": "File Previewed",
+                "fileOpen": "File Opened",
+                "fileEdit": "File Edited",
+                "fileDelete": "File Deleted",
+                "filePermanentDelete": "File Permanently Deleted",
+                "fileRestore": "File Restored",
+                "fileRename": "File Renamed",
+                "fileMove": "File Moved",
+                "fileCopy": "File Copied",
+                "folderCreate": "Folder Created",
+                "folderDownload": "Folder Downloaded",
+                "folderDelete": "Folder Deleted",
+                "folderPermanentDelete": "Folder Permanently Deleted",
+                "folderRestore": "Folder Restored",
+                "folderRename": "Folder Renamed",
+                "shareCreate": "Share Created",
+                "sharePermissionChange": "Share Permission Changed",
+                "shareRemove": "Share Removed",
+                "userCreate": "User Created",
+                "userDelete": "User Deleted",
+                "userPermanentDelete": "User Permanently Deleted",
+                "userRestore": "User Restored",
+                "userInfoUpdate": "User Info Updated",
+                "userPasswordChange": "User Password Changed",
+                "userTwofactorReset": "User Two-Factor Authentication Reset",
+                "userStatusChange": "User Status Changed",
+                "adminCreate": "Admin Created",
+                "adminDelete": "Admin Deleted",
+                "adminPermanentDelete": "Admin Permanently Deleted",
+                "adminRestore": "Admin Restored",
+                "adminInfoUpdate": "Admin Info Updated",
+                "adminPasswordChange": "Admin Password Changed",
+                "adminStatusChange": "Admin Status Changed",
+                "settingUpdate": "Security Setting Changed",
+                "settingAllowedIpChange": "Allowed IP List Changed"
+            },
+            "category": {
+                "login": "Login",
+                "fileFolder": "File/Folder",
+                "share": "Share",
+                "userManagement": "Account Management",
+                "setting": "Setting"
+            },
+            "result": {
+                "success": "Success",
+                "failed": "Failed"
+            },
+            "value": {
+                "active": "Active",
+                "inactive": "Inactive",
+                "locked": "Locked",
+                "unlocked": "Unlocked",
+                "loginLocal": "Local Login",
+                "loginJwt": "JWT Auto Authentication",
+                "loginOidc": "OIDC Login",
+                "on": "ON",
+                "off": "OFF",
+                "view": "View",
+                "download": "Download",
+                "upload": "Upload",
+                "edit": "Edit",
+                "share": "Share",
+                "restricted": "Restricted",
+                "orgInternal": "Internal Organization",
+                "public": "Public",
+                "global": "Global Setting",
+                "tenant": "Individual Tenant"
+            },
+            "field": {
+                "phone": "Phone",
+                "name": "Name",
+                "countryCode": "Country Code",
+                "storageQuota": "Storage",
+                "externalShare": "External Sharing",
+                "permissions": "Share Permissions",
+                "scope": "Share Scope",
+                "loginMethod": "Login Method",
+                "globalLoginPolicy": "Global Login Policy",
+                "globalSharePolicy": "Global Share Policy",
+                "added": "Added",
+                "removed": "Removed"
+            }
+        },
+        "sidebar": {
+            "systemInfo": "System Info",
+            "auditLog": "Audit Log"
+        },
+        "userDialog": {
+            "storageQuota": {
+                "availableDesc": "Available to allocate: {availableQuota}GB",
+                "validateExceedsTenant": "Total user allocation exceeds the total storage."
+            }
+        }
+    },
+    "superAdmin": {
+        "tenantManagement": {
+            "title": "Tenant List",
+            "addTenant": "Add Tenant",
+            "table": {
+                "name": "Tenant Name",
+                "domain": "Path",
+                "licenseStatus": "License Status",
+                "createdAt": "Created Date",
+                "detail": "Detail",
+                "tenantType": "Type",
+                "userMode": "User Mode",
+                "office": "Office"
+            },
+            "tenantType": {
+                "SELF_MANAGED": "Self-managed",
+                "SYSTEM_MANAGED": "System-managed"
+            },
+            "userMode": {
+                "SINGLE": "Single user",
+                "MULTI": "Multi user"
+            },
+            "filter": {
+                "tenantType": "Type"
+            },
+            "badge": {
+                "valid": "Valid",
+                "noLicense": "No License",
+                "expired": "Expired",
+                "seatExceeded": "Seat Exceeded"
+            },
+            "badgeTooltip": {
+                "valid": "The license is currently valid.",
+                "expiring": "Please renew the license before it expires.",
+                "expired": "The license has expired. Please renew to continue using the service.",
+                "seatExceeded": "User access is restricted due to exceeding the seat limit.",
+                "noLicense": "No license has been registered. Service usage is not available."
+            },
+            "detail": {
+                "daysLeft": "{day} days left",
+                "daysOver": "{day} days elapsed",
+                "seatCount": "{used}/{total}"
+            },
+            "tooltip": {
+                "adminLink": "Admin Portal",
+                "adminLinkDisabled": "Set up a base domain to use the Admin Portal shortcut."
+            },
+            "domainSettingDialog": {
+                "title": "Domain Setup Required",
+                "desc": "To add a tenant, you must first set up a base domain. Please enter and save the base domain on the settings page, then try again.",
+                "confirm": "Go to Settings"
+            },
+            "office": {
+                "none": "Not connected",
+                "onPremise": "On-premise",
+                "onPremiseManaged": "On-premise · service-managed"
+            }
+        },
+        "tenantDialog": {
+            "addTitle": "Add Tenant",
+            "editTitle": "Edit Tenant",
+            "tenantName": {
+                "label": "Tenant Name",
+                "placeholder": "Enter tenant name"
+            },
+            "tenantDomain": {
+                "label": "Tenant Path",
+                "placeholder": "Enter path"
+            },
+            "adminAccount": {
+                "title": "Admin Account",
+                "desc": "The admin account can only be set when creating a tenant.\nManage additional accounts in the tenant admin portal."
+            },
+            "allowedIp": {
+                "desc": "If left empty, all IP access will be allowed. You can add or modify this at any time."
+            },
+            "totalQuota": {
+                "label": "Total Storage",
+                "placeholder": "Enter total storage",
+                "validateFormat": "Total storage must be a whole number greater than 0.",
+                "validateInsufficient": "Available storage capacity is insufficient.",
+                "validateInsufficientToast": "Not enough available storage capacity.",
+                "validateBelowAllocated": "Cannot be set lower than the total storage allocated to users.",
+                "allocatedDesc": "Total storage allocated to users: {allocatedQuota}GB",
+                "minimumDesc": "Minimum total storage: {allocatedQuota}GB. A managed single account receives the same quota."
+            },
+            "tenantType": {
+                "label": "Type",
+                "selfDesc": "A tenant operated by the customer. Only multi-user mode is available.\nType and user mode cannot be changed after creation.",
+                "systemMultiDesc": "A tenant managed by an external system with a super admin API key. The admin account becomes a protected account with the USER and ADMIN roles and the full total quota. Sharing is turned off, allowed IPs are not used, and admins cannot change license, office, login, mail, access restriction or MFA settings.\nType and user mode cannot be changed after creation.",
+                "systemSingleDesc": "A tenant managed by an external system with a super admin API key. Only the admin account is used (protected, with the USER and ADMIN roles and the full total quota); user registration and issuing or changing API keys from the admin and user screens are blocked. Sharing is turned off, allowed IPs are not used, and admins cannot change license, office, login, mail, access restriction or MFA settings.\nType and user mode cannot be changed after creation.",
+                "immutable": "cannot be changed after creation"
+            },
+            "userMode": {
+                "label": "User mode"
+            }
+        },
+        "featureSetting": {
+            "infoBox": "As a super admin, you can apply global settings to all tenants. When applied globally, individual settings for each tenant admin will be disabled.",
+            "scope": {
+                "title": "Scope",
+                "individual": "Individual Tenant",
+                "global": "Apply to All",
+                "shareDesc": "When applied globally, the same sharing policy will be enforced for all tenants.",
+                "loginDesc": "When applied globally, the same login authentication method will be enforced for all tenants."
+            },
+            "globalConfirmDialog": {
+                "title": "Switch to global settings?",
+                "desc": "All existing individual tenant settings will be deleted and replaced with global settings."
+            },
+            "individualConfirmDialog": {
+                "title": "Switch to individual tenant settings?",
+                "desc": "Global settings will be disabled, and each tenant will revert to their previous settings. If no previous settings exist, system defaults will be applied."
+            },
+            "shareTitle": "Sharing",
+            "loginTitle": "Login Settings"
+        },
+        "sidebar": {
+            "tenantManagement": "Tenant Management",
+            "tenantList": "Tenant List",
+            "featureManagement": "Service Feature Management",
+            "shareSetting": "Sharing",
+            "loginSetting": "Login Settings",
+            "apiKeyManagement": "API Keys"
+        },
+        "setting": {
+            "baseDomain": {
+                "label": "Base Domain",
+                "placeholder": "e.g. drive.example.com, https://drive.example.com:8443, 192.168.0.10:8080"
+            }
+        },
+        "apiKey": {
+            "title": "API Keys",
+            "filter": {
+                "tenant": "Tenant"
+            },
+            "createDialog": {
+                "title": "Create API key",
+                "tenant": "Tenant",
+                "tenantPlaceholder": "Select a tenant",
+                "targetUser": "Target account",
+                "targetUserPlaceholder": "Search by name or email",
+                "noUser": "No results",
+                "rolePlaceholder": "Select a target account first",
+                "protected": "Issue as a protected key",
+                "protectedDesc": "A protected key cannot have its expiry date changed, be activated, deactivated or reissued from the admin and user screens; only a super admin can. You can change this later with \"Protect / Remove protection\" in the row menu.",
+                "singleTenantDesc": "In a single-user tenant, keys cannot be issued or changed from the admin and user screens, so only a super admin manages them regardless of protection."
+            },
+            "menu": {
+                "protect": "Protect",
+                "unprotect": "Remove protection"
+            },
+            "protectionDialog": {
+                "protectTitle": "Set this API key as a protected key?",
+                "protectText": "A protected key cannot have its expiry date changed, be activated, deactivated or reissued from the admin and user screens; only a super admin can.",
+                "unprotectTitle": "Remove protection from this API key?",
+                "unprotectText": "After removing protection, the expiry date, activation, deactivation and reissue of this key can also be changed from the admin and user screens.",
+                "protectSuccess": "The key is now protected.",
+                "unprotectSuccess": "Protection removed.",
+                "fail": "Could not change protection."
+            }
+        },
+        "tenantMenu": {
+            "license": "Register license",
+            "officeRegister": "Register Office",
+            "officeModify": "Edit Office",
+            "licenseRenew": "Renew license"
+        },
+        "tenantLicenseDialog": {
+            "title": "Register license",
+            "desc": "Register a license file for the {tenantName} tenant.",
+            "noFile": "No file selected",
+            "note": "This works the same as license registration on the admin screen. The seat count becomes the limit of active accounts in this tenant.",
+            "titleRenew": "Renew license",
+            "descRenew": "Upload a new license file to replace the current license of the {tenantName} tenant. Uploading the same file changes nothing.",
+            "current": "Current license",
+            "status": "Status",
+            "expiresOn": "Expires on",
+            "seat": "Users"
+        },
+        "tenantOfficeDialog": {
+            "desc": "Configure the Office connection for the {tenantName} tenant. There is one per tenant, and saving overwrites the existing settings.",
+            "managedNote": "Once saved, this tenant's Office connection is marked as service-managed and cannot be changed from the tenant admin screen.",
+            "selfManagedWarning": "This is a self-managed (SELF_MANAGED) tenant. Once saved, the Office connection is marked as service-managed, the customer admin can no longer change Office settings, and this cannot be undone.",
+            "titleRegister": "Register Office",
+            "titleModify": "Edit Office"
+        },
+        "tenantDeleteDialog": {
+            "title": "Delete tenant",
+            "desc": "Delete the {tenantName} tenant and all of its users, files and settings. This cannot be undone.",
+            "success": "Tenant deleted.",
+            "fail": "Could not delete the tenant."
+        }
+    },
+    "officeIntegration": {
+        "serviceManaged": "Developers manages this organization’s Office connection. You cannot change the Office address or credentials on this page.",
+        "description": "Choose this organization’s Office connection and save the settings.",
+        "mode": "Document opening mode",
+        "recommended": "Recommended",
+        "deprecated": "Deprecated",
+        "ticketHelp": "Drive requests a one-use ticket from TFO and returns the document URL. A ticket service token is required.",
+        "legacyHelp": "Drive creates a document URL using the legacy method. Legacy authentication must also be enabled on TFO. Saving this mode clears the ticket service token from Drive. File access and saving still use the HTTP Storage signing key.",
+        "address": "TFO address",
+        "addressHelp": "Enter a TFO address reachable by both the user’s browser and the Drive server. Example: https://office.example.com",
+        "token": "Ticket service token",
+        "tokenHelp": "Ask the TFO server operator for TFO_DOCUMENT_OPEN_TICKET_ISSUE_SERVICE_TOKEN and enter its value here. Ticket authentication must also be enabled on TFO.",
+        "adapter": "HTTP Storage adapter name",
+        "adapterHelp": "Enter the same name as the HTTP Storage adapter in TFO. Use letters, numbers, underscores or hyphens. Different names prevent documents from opening or saving.",
+        "signingKey": "HTTP Storage request signing key",
+        "signingKeyHelp": "In TFO, generate a secure secret and copy it here. For an existing adapter, use its current secret. We recommend at least 32 ASCII letters or digits. TFO does not allow changing a registered adapter’s secret.",
+        "showSecret": "Show {field}",
+        "hideSecret": "Hide {field}",
+        "loadFailed": "Could not load Office settings. Refresh the page to try again.",
+        "connectionType": "Office connection",
+        "onPremise": "Connect to on-premise TFO",
+        "comingSoon": "Coming soon",
+        "none": "Do not connect Office",
+        "noneHelp": "After saving, Drive hides Office open, edit and new-document actions. Users can view file information or download Office documents like other files. Drive keeps the existing connection settings. Documents already open can still be saved while their sessions and permissions remain valid.",
+        "onPremiseChoice": "Open and edit documents on your organization’s TFO server.",
+        "cloudChoice": "Connection using an API Key is coming soon.",
+        "noneChoice": "Manage Office documents in the same way as other files.",
+        "detailsTitle": "On-premise TFO connection settings",
+        "detailsHelp": "Configure how your on-premise TFO server opens documents and connects to Drive.",
+        "serverSection": "1. TFO server connection",
+        "storageSection": "2. Storage settings shared by TFO and Drive",
+        "adapterInstructions": "Sign in to TFO administration. Open External integration → Add adapter and choose HTTP Storage. Use the same adapter name and signing key shown below in TFO.",
+        "endpointTitle": "What goes in TFO’s Provider Base URL?",
+        "endpointHelp": "Enter the Drive tenant’s backend address followed by /api/v1. For a tenant at https://drive.example.com/t/acme, the Provider Base URL is https://drive.example.com/t/acme/api/v1. Keep /t/acme: it identifies the tenant that receives the request. TFO appends /tfo-http-storage/v1 and the operation path automatically; do not add them here. For installations without a tenant path, enter https://drive.example.com/api/v1. The TFO server must be able to reach this address.",
+        "applyTitle": "3. Save the settings and verify the connection",
+        "applySave": "The Drive administrator clicks Save on this page. Drive saves the settings but does not register the TFO adapter automatically.",
+        "applyTest": "The TFO administrator runs Connection test in Add adapter. Drive does not return files to this initial test without a user document session. If TFO reports that listing is unsupported, review and acknowledge the notice to register the adapter.",
+        "applyOpen": "The TFO administrator checks that the adapter is running. A Drive user then opens a document to verify the connection. Drive supplies user and document-session metadata; you do not need to enter it in TFO’s additional parameters.",
+        "managedAdapterHelp": "Developers uses the Storage ID as the adapter name. Developers manages this value; you cannot change it here.",
+        "adapterChangeWarning": "Saving changes the adapter name immediately. Save and close open documents before changing the name in both Drive and TFO. Documents using the previous name may fail to save."
+    }
+}

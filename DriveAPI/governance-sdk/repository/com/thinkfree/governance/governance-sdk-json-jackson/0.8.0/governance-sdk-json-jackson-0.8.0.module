@@ -1,0 +1,132 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.thinkfree.governance",
+    "module": "governance-sdk-json-jackson",
+    "version": "0.8.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "com.thinkfree.governance",
+          "module": "governance-sdk-core",
+          "version": {
+            "requires": "0.8.0"
+          }
+        },
+        {
+          "group": "com.fasterxml.jackson.core",
+          "module": "jackson-databind",
+          "version": {
+            "requires": "2.17.2"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "governance-sdk-json-jackson-0.8.0.jar",
+          "url": "governance-sdk-json-jackson-0.8.0.jar",
+          "size": 5695,
+          "sha512": "837835d4167a87cedd7587ad1ad6645c70377cb929b0d369cec10f9cb520b1b89c62bc0d868ec734d703d5c2e9f5ffa73fe304c3266d0241a4c430be6893798c",
+          "sha256": "44a43e8119c33b1430698d116a641c49b196a637e620add40f8eb9f8407dee57",
+          "sha1": "62354bd3134cd3e147acadc220e341a02fb6f495",
+          "md5": "f7fdecdf22da35d3645a7493026f1c78"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "com.thinkfree.governance",
+          "module": "governance-sdk-core",
+          "version": {
+            "requires": "0.8.0"
+          }
+        },
+        {
+          "group": "com.fasterxml.jackson.core",
+          "module": "jackson-databind",
+          "version": {
+            "requires": "2.17.2"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "governance-sdk-json-jackson-0.8.0.jar",
+          "url": "governance-sdk-json-jackson-0.8.0.jar",
+          "size": 5695,
+          "sha512": "837835d4167a87cedd7587ad1ad6645c70377cb929b0d369cec10f9cb520b1b89c62bc0d868ec734d703d5c2e9f5ffa73fe304c3266d0241a4c430be6893798c",
+          "sha256": "44a43e8119c33b1430698d116a641c49b196a637e620add40f8eb9f8407dee57",
+          "sha1": "62354bd3134cd3e147acadc220e341a02fb6f495",
+          "md5": "f7fdecdf22da35d3645a7493026f1c78"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "governance-sdk-json-jackson-0.8.0-sources.jar",
+          "url": "governance-sdk-json-jackson-0.8.0-sources.jar",
+          "size": 5877,
+          "sha512": "4f97f8fa1e77cd94be99909807352dded82c620fd161cf1fae4bd08299f5e1c1fa5e9c0e166d5aa23aa307c18d4de52e3b8e819544b0c6b891f3581add843da7",
+          "sha256": "f7c1d92ad725801255b8e891bd58c77bbd7b5ec00d3bd18f92630647f0a1997b",
+          "sha1": "4afdca6cd3d33934270fea5e4236d22f8c9eaae3",
+          "md5": "fe5037c2873e16878fe9d979d7071a1c"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "governance-sdk-json-jackson-0.8.0-javadoc.jar",
+          "url": "governance-sdk-json-jackson-0.8.0-javadoc.jar",
+          "size": 20579,
+          "sha512": "c5d5324b6e1e405a20624b3dc4e9035e60f0f2ae406be37818d9816c66795c855cc967f858460c400a96ad1df2ad66a639f60b558abb38a427170dd28d2da134",
+          "sha256": "1cc3e3899efbaa688b7b271e9f2f0ba1d7d5444f832c99950550648449e0a756",
+          "sha1": "80dc44d26cf83cca41ab161374a611a0ffa7d202",
+          "md5": "74ead383a0d549d36e630b6cc148c124"
+        }
+      ]
+    }
+  ]
+}

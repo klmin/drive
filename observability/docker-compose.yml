@@ -1,0 +1,144 @@
+# Drive 관측성 스택 — Alloy(수집) → Prometheus(메트릭)·Loki(로그)·Tempo(트레이스) → Grafana(화면)
+#
+# 띄우기:  cd observability && docker compose up -d
+# 화면:    Grafana http://localhost:3300 (admin / admin — 첫 로그인 후 변경)
+#          Alloy 파이프라인 확인 http://localhost:12345
+#
+# 데이터 흐름 (자세한 설명은 README.md)
+#   Drive 앱 /actuator/prometheus  ◀─ Alloy 가 15초마다 가져감(scrape) ─▶ Prometheus (remote_write)
+#   Drive 앱 OTLP(트레이스)         ─▶ Alloy :4318 ─────────────────────▶ Tempo (OTLP)
+#   Drive 로그 파일                 ◀─ Alloy 가 따라 읽음(tail) ─────────▶ Loki (push API)
+#
+# 앱 주소·로그 폴더는 .env(observability/.env.example 복사)로 바꾼다.
+name: drive-observability
+
+services:
+  alloy:
+    image: grafana/alloy:v1.10.1
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      # 메트릭을 가져올 Drive 관리 포트(host:port). 앱이 이 PC 에서 뜨면 host.docker.internal
+      DRIVE_METRICS_TARGETS: ${DRIVE_METRICS_TARGETS:-host.docker.internal:8091}
+      DRIVE_ENV: ${DRIVE_ENV:-local}
+      # Drive DB 지표용 접속 문자열 — 비밀번호의 특수문자는 URL 인코딩(@ → %40, $ → %24, # → %23). 읽기 권한이면 충분
+      DRIVE_PG_DSN: ${DRIVE_PG_DSN:-postgresql://drive:drive@host.docker.internal:5432/drive?sslmode=disable}
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+      # Drive 로그 폴더(LOG_PATH·ERROR_LOG_PATH 의 상위) → 컨테이너 안 /var/log/drive
+      - ${DRIVE_LOG_DIR:-./logs}:/var/log/drive:ro
+    ports:
+      - "12345:12345"   # Alloy UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP  ← 앱이 트레이스를 보내는 곳
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on: [prometheus, loki, tempo]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}
+      - --web.enable-remote-write-receiver   # Alloy 가 보내는(push) 메트릭 수신
+      - --enable-feature=exemplar-storage    # 메트릭 → 트레이스 링크(exemplar)
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.5.3
+    command: -config.file=/etc/loki/config.yaml
+    volumes:
+      - ./loki/config.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.8.2
+    command: -config.file=/etc/tempo/config.yaml
+    # 이미지 기본 사용자(10001)는 새 도커 볼륨(/var/tempo, root 소유)에 쓸 수 없다 — 로컬 스택이라 root 로 띄운다
+    user: "0"
+    volumes:
+      - ./tempo/config.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3300:3000"     # 3000 은 Drive 프론트 개발 서버가 쓴다
+    depends_on: [prometheus, loki, tempo]
+    restart: unless-stopped
+
+  # ───────────── 부하 테스트(profile: loadtest) — 평소에는 안 뜬다. 사용법은 k6/README.md ─────────────
+  # 공용 dev DB·스토리지에 부하를 주지 않도록 테스트 전용 PG·RustFS 를 이 PC 에 띄운다. 계정은 로컬 테스트 값
+  loadtest-db:
+    profiles: [loadtest]
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_DB: drive_load
+      POSTGRES_USER: drive_load
+      POSTGRES_PASSWORD: drive_load_pw
+    ports:
+      - "15440:5432"
+    volumes:
+      - loadtest-db-data:/var/lib/postgresql   # PG 18 이미지는 이 경로(하위 18/docker 에 데이터)
+
+  loadtest-storage:
+    profiles: [loadtest]
+    image: rustfs/rustfs:1.0.0
+    environment:
+      RUSTFS_ACCESS_KEY: drive_load
+      RUSTFS_SECRET_KEY: drive_load_secret
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: ":9000"
+    ports:
+      - "19010:9000"
+    volumes:
+      - loadtest-storage-data:/data
+
+  # 부하 생성기 — 결과를 Prometheus 로 보낸다(remote write). 앱은 이 PC 의 BASE_URL
+  #   docker compose --profile loadtest run --rm k6 run /scripts/read.js
+  k6:
+    profiles: [loadtest]
+    image: grafana/k6:1.2.0
+    environment:
+      BASE_URL: ${K6_BASE_URL:-http://host.docker.internal:8082}
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_STATS: "p(95),p(99),avg,max"
+      K6_OUT: experimental-prometheus-rw
+    volumes:
+      - ./k6:/scripts:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on: [prometheus]
+
+volumes:
+  alloy-data:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  grafana-data:
+  loadtest-db-data:
+  loadtest-storage-data:

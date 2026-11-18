@@ -1,0 +1,1 @@
+// StaticBundleIndexTest fixture

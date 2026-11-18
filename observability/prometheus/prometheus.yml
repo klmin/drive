@@ -1,0 +1,9 @@
+# Prometheus 는 Alloy 가 보내는(remote_write) 메트릭을 받아 저장만 한다 — 앱을 직접 가져가지 않는다.
+# 직접 가져가는 건 자기 자신 상태뿐.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

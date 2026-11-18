@@ -1,0 +1,10 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3.5 2a1 1 0 0 1 1-1h11.086a1 1 0 0 1 .707.293l3.914 3.914a1 1 0 0 1 .293.707V22a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1V2z" fill="#FFF7F4"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M3.5 2a1 1 0 0 1 1-1h11.086a1 1 0 0 1 .707.293l3.914 3.914a1 1 0 0 1 .293.707V22a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1V2zm1-.4h11.086a.4.4 0 0 1 .164.035V5.25a.5.5 0 0 0 .5.5h3.615a.399.399 0 0 1 .035.164V22a.4.4 0 0 1-.4.4h-15a.4.4 0 0 1-.4-.4V2c0-.22.18-.4.4-.4z" fill="#FD8856"/>
+    <path d="M.5 7.154C.5 5.964 1.464 5 2.654 5h9.692c1.19 0 2.154.964 2.154 2.154v9.692c0 1.19-.964 2.154-2.154 2.154H2.654A2.154 2.154 0 0 1 .5 16.846V7.154z" fill="#FD7940"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M7.232 8.498a3.481 3.481 0 1 0 3.48 3.482h-3.48V8.498z" fill="#fff"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M8.443 8a2.807 2.807 0 0 1 2.807 2.807H8.443V8z" fill="#fff"/>
+    <g opacity=".8" fill="#FD8856">
+        <path d="M15 10h2.5v.5H15zM15 11.5h2.5v.5H15zM15 13h2.5v.5H15zM15 14.5h2.5v.5H15zM15 16h2.5v.5H15zM15 17.5h2.5v.5H15z"/>
+    </g>
+</svg>

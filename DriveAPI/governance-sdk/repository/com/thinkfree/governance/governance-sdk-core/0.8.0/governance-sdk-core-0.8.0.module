@@ -1,0 +1,100 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.thinkfree.governance",
+    "module": "governance-sdk-core",
+    "version": "0.8.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "governance-sdk-core-0.8.0.jar",
+          "url": "governance-sdk-core-0.8.0.jar",
+          "size": 121804,
+          "sha512": "d327373e31f5f64fac467e021e04e7135322c205c350bb5df97e45b51eaf9a6c3b862dee0bda0ded08ad474eb4bf439f9be537ed18124d57977d6a9345e489f6",
+          "sha256": "c04e483e350abbdfd0d244747b96c0c4685019d839f02ddc00e17267e043838f",
+          "sha1": "1ef87dbb5c1b9c554d1c696a26fd77242ea016bb",
+          "md5": "250238b139cddb8903ecd2ab2c88e149"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "governance-sdk-core-0.8.0.jar",
+          "url": "governance-sdk-core-0.8.0.jar",
+          "size": 121804,
+          "sha512": "d327373e31f5f64fac467e021e04e7135322c205c350bb5df97e45b51eaf9a6c3b862dee0bda0ded08ad474eb4bf439f9be537ed18124d57977d6a9345e489f6",
+          "sha256": "c04e483e350abbdfd0d244747b96c0c4685019d839f02ddc00e17267e043838f",
+          "sha1": "1ef87dbb5c1b9c554d1c696a26fd77242ea016bb",
+          "md5": "250238b139cddb8903ecd2ab2c88e149"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "governance-sdk-core-0.8.0-sources.jar",
+          "url": "governance-sdk-core-0.8.0-sources.jar",
+          "size": 89421,
+          "sha512": "5fbda595035fdef74582f33b9d13627d436ed63e489e780434ab396c64b0d1b3123d2dbfff3b79b3bb9bd68f7208b5e49a2ac5a9383d35d955f940cfd58bf5a6",
+          "sha256": "e8d3996c31f369794ed0bf0711c2e9a7d556e7a56e2ef89bc6cf34132e3433cb",
+          "sha1": "c0086afad5ed033dd9dbdfbbf64865e8cb8727b7",
+          "md5": "b3ff98e8caf40658842d321de42e72ee"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "governance-sdk-core-0.8.0-javadoc.jar",
+          "url": "governance-sdk-core-0.8.0-javadoc.jar",
+          "size": 330118,
+          "sha512": "1072f088ea823f194855a549209c415d64693246baab7aa641aa262cea3c53e392abebfd7f5ec14421b5876ff4584be8eb4093ddb81e8d014566a2dbb9254c17",
+          "sha256": "1219f121596141611af3eb4edf09ccbbe5d9b36d354ec7e45851369e7940d8ba",
+          "sha1": "c513975c4f0663ddeb54aac2d5ac62461ab77683",
+          "md5": "b48a40eccbed2505bc90ab816049ccba"
+        }
+      ]
+    }
+  ]
+}

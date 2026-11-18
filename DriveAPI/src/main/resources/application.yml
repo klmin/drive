@@ -1,0 +1,336 @@
+# 공통 설정 — 서버(운영·설치본·쿠버네티스) 기준값. 프로필 없이 뜨고, 서버마다 다른 값은 환경변수로 주입한다.
+# 기본값 없는 ${...}(DB·프론트 주소 등)는 주입하지 않으면 기동에 실패한다.
+# 로컬은 DriveAPI/.env(DriveAPI/.env.example 복사)가 덮는다 — yml 은 import 하지 않고, 실행 구성(.run/DriveAPI.run.xml)의 VM 옵션이 읽는다. 테스트는 application-test.yml(test 프로필).
+spring:
+  datasource:
+    url: jdbc:postgresql://${DRIVE_DATABASE_HOST}:${DRIVE_DATABASE_PORT}/${DRIVE_DATABASE_NAME}${DRIVE_DATABASE_OPTIONS:}
+    username: ${DRIVE_DATABASE_USERNAME}
+    password: ${DRIVE_DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 10
+      maximum-pool-size: 50
+  jackson:
+    time-zone: ${drive.time-zone}
+  # @Scheduled 실행 스레드 수 — 기본 1 이면 오래 걸리는 작업(삭제 대기열·휴지통 정리·라이선스 인증)이 다른 작업(매분 잠금 정리 등)을 밀어낸다.
+  #   오래 걸리는 작업 2 + 짧은 작업 1 + 여유 1. 같은 작업의 중복 실행은 스레드 수와 무관하게 없다(이전 실행 종료 후 다음 예약, WAS 간은 ShedLock).
+  task:
+    scheduling:
+      pool:
+        size: 4
+  # Flyway — 기동 시 스키마·기초 데이터 마이그레이션. 정본 = classpath:db/migration (V1__init.sql = 구 DriveInstaller initialize.sql)
+  #   DB·계정·권한은 Flyway 가 만들지 않는다(설치기·DBA 가 먼저 만든다).
+  #   빈 DB 는 V1 부터 실행, 이력(flyway_schema_history)이 있는 DB 는 남은 V 만 실행한다.
+  #   테이블은 있는데 이력이 없는 DB(예전 initialize.sql 로 만든 DB):
+  #     DRIVE_FLYWAY_BASELINE_ON_MIGRATE=false(기본) → 기동 실패(설치 잔재 등 애매한 DB 를 조용히 넘기지 않는다)
+  #     DRIVE_FLYWAY_BASELINE_ON_MIGRATE=true        → V1 을 실행하지 않고 "V1 적용됨"(baseline)만 기록한 뒤 V2 부터 적용.
+  #       스키마가 V1 과 같은지는 검사하지 않으므로 맞춰 둔 DB 에만 켠다. baseline 이 한 번 기록되면 이 값은 더는 의미 없다.
+  #   적용 이력 = DB 의 flyway_schema_history. 이미 적용된 V 파일은 고치지 않는다(checksum 불일치로 기동 실패) — 변경은 새 V 파일로.
+  flyway:
+    enabled: ${DRIVE_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: ${DRIVE_FLYWAY_BASELINE_ON_MIGRATE:false}
+    # baseline 할 때만 쓰인다(= 기존 DB 를 V1 상태로 인정). Flyway 기본값도 1 이지만 의도를 드러내려고 적는다
+    baseline-version: 1
+    validate-on-migrate: true
+    # 이메일 템플릿 본문의 ${resourceName} 같은 문자열을 Flyway placeholder 로 치환하지 않는다
+    placeholder-replacement: false
+  # JPA(Hibernate). DDL 은 Flyway(db/migration)가 관리(자동 생성 금지), OSIV 끔, SQL 로그는 log4j2 로.
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 100
+        order_inserts: true
+        order_updates: true
+        timezone:
+          default_storage: NORMALIZE_UTC
+  # jOOQ — DataSource 메타데이터 추정(p6spy 래핑) 대신 방언 고정. 운영 DB = PostgreSQL
+  jooq:
+    sql-dialect: postgres
+
+  ai:
+    mcp:
+      server:
+        name: drive-mcp
+        version: 1.0.0
+        protocol: STATELESS
+        streamable-http:
+          mcp-endpoint: /mcp
+        capabilities:
+          tool: true
+
+  servlet:
+    multipart:
+      max-file-size: -1
+      max-request-size: -1
+
+  # OAuth2 AS 세션(authorize~코드발급 구간) 저장소 — JDBC(SPRING_SESSION 테이블)로
+  # 멀티 WAS에서도 세션 공유. 테이블은 자동 생성하지 않음(initialize.sql에 DDL 포함,
+  # 다른 SAS 테이블과 동일 방침). /api·/mcp는 기존대로 STATELESS — 영향 없음.
+  session:
+    jdbc:
+      initialize-schema: never
+    timeout: 30m
+
+  mvc:
+    async:
+      request-timeout: 300000
+  web:
+    resources:
+      # StaticResourceConfig에서 /** 경로를 직접 처리하므로
+      # 기본 정적 리소스 핸들러와의 중복 매핑을 방지하기 위해 비활성화
+      add-mappings: false
+
+# 서버 로그(콘솔 + info/error 파일). 경로는 LOG_PATH·ERROR_LOG_PATH. 로컬은 .env 에서 log4j2-local.yml(콘솔 전용)로 바꾼다
+logging:
+  config: classpath:log/log4j2-server.yml
+
+# 관측성(리포 observability/ 의 Alloy·Prometheus·Loki·Tempo·Grafana)
+#   메트릭: Alloy 가 관리 포트의 /actuator/prometheus 를 가져간다(pull). 관리 포트는 서비스 포트와 분리 — 외부에 열지 않는다
+#   트레이스: 앱이 OTLP 로 Alloy 에 보낸다(push). 기본 꺼짐 — 관측성 스택이 있는 곳만 DRIVE_OTLP_TRACING_EXPORT_ENABLED=true
+#   로그: 로그 파일에 [traceId,spanId] 가 찍히고(log4j2 패턴), Alloy 가 파일을 읽는다. 전송을 꺼도 traceId 는 찍힌다
+management:
+  server:
+    port: ${DRIVE_MANAGEMENT_PORT:8091}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  health:
+    # Redis 는 코드에서 쓰지 않는다(starter 의존성만 남음) — 서버가 없어도 health 가 DOWN 이 되지 않게 지표를 끈다
+    redis:
+      enabled: false
+  metrics:
+    tags:
+      application: drive-api
+    distribution:
+      # 응답 시간 분포(histogram) — Grafana 에서 p95·p99 계산, 점(exemplar)에서 트레이스로 이동
+      percentiles-histogram:
+        http.server.requests: true
+  observations:
+    enable:
+      # Spring Security 필터 체인 구간(인증·인가 단계별 span) — 요청마다 여러 개라 트레이스를 가리고,
+      #   web.ignoring 경로는 "unsecured request" 루트 트레이스를 따로 만든다. 끈다(ObservationConfig 참고)
+      spring.security: false
+  tracing:
+    sampling:
+      # 트레이스로 남길 요청 비율(0.0~1.0). 운영은 낮게, 로컬·dev 는 1.0
+      probability: ${DRIVE_TRACING_SAMPLING_PROBABILITY:0.1}
+  otlp:
+    tracing:
+      endpoint: ${DRIVE_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
+      export:
+        enabled: ${DRIVE_OTLP_TRACING_EXPORT_ENABLED:false}
+  opentelemetry:
+    resource-attributes:
+      service.name: drive-api
+      deployment.environment: ${DRIVE_ENV:local}
+
+# p6spy SQL 로그 — 기본 끔, 로컬은 .env 에서 켠다
+decorator:
+  datasource:
+    enabled: false
+
+# TFO HTTP Storage — 티켓 최초 열기 마감·Drive 문서 세션 수명(원격 09dee78c9 의 application-common.yml 에서 옮김)
+tfo:
+  storage:
+    open-ttl: ${TFO_TICKET_OPEN_TTL:60s}
+    session-ttl: ${TFO_STORAGE_SESSION_TTL:24h}
+
+# Swagger
+springdoc:
+  swagger-ui:
+    enabled: true
+    groups-order: ASC
+    urls-primary-name: drive
+    tags-sorter: alpha
+    operations-sorter: method
+    disable-swagger-default-url: true
+    display-request-duration: true
+    defaultModelsExpandDepth: 2
+    defaultModelExpandDepth: 2
+  api-docs:
+    enabled: true
+    path: /api-docs
+  show-actuator: true
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  writer-with-default-pretty-printer: true
+  model-and-view-allowed: true
+
+storage:
+  type: ${DRIVE_STORAGE_TYPE:}
+  connection:
+    endpoint: ${DRIVE_STORAGE_ENDPOINT:}
+    region: ${DRIVE_STORAGE_REGION:}
+    access-key: ${DRIVE_STORAGE_ACCESS_KEY:}
+    secret-key: ${DRIVE_STORAGE_SECRET_KEY:}
+    bucket-name: ${DRIVE_STORAGE_BUCKET_NAME:}
+  admin:
+    url: ${DRIVE_STORAGE_ADMIN_URL:}
+    username: ${DRIVE_STORAGE_ADMIN_USERNAME:}
+    password: ${DRIVE_STORAGE_ADMIN_PASSWORD:}
+    refresh-threshold: 1m
+
+app:
+  front:
+    base-url: ${DRIVE_FRONT_BASE_URL:}
+    login-path: /login
+
+share:
+  context-path: ${DRIVE_SHARE_CONTEXT_PATH:/s/}
+
+csv:
+  upload:
+    admin-max-size: 5MB
+
+resource:
+  versions:
+    limit: 99
+
+# MCP 파일 내용 상한 (drive_read_file / drive_download_file / drive_upload_file) — LLM 컨텍스트 보호 및 서버 안전판.
+# 읽기·다운로드 기본값은 구글 드라이브 커넥터 실측 동형(다운로드 10MB 하드 리밋). FileContentProperty 참조
+file:
+  content:
+    read-max-size: ${DRIVE_FILE_CONTENT_READ_MAX_SIZE:10MB}
+    read-max-chars: ${DRIVE_FILE_CONTENT_READ_MAX_CHARS:50000}
+    download-max-size: ${DRIVE_FILE_CONTENT_DOWNLOAD_MAX_SIZE:10MB}
+    write-max-size: ${DRIVE_FILE_CONTENT_WRITE_MAX_SIZE:512KB}   # drive_upload_file 내용 상한(디코딩 후 바이트) — 모델 출력 한계와 같은 선의 안전판
+    charset-confidence-threshold: ${DRIVE_FILE_CONTENT_CHARSET_CONFIDENCE_THRESHOLD:80}  # 평문 인코딩 감지(ICU) 신뢰도 문턱 — 미만이면 MS949 기본값
+
+server:
+  forward-headers-strategy: native
+  tomcat:
+    accesslog:
+      enabled: ${DRIVE_WEB_LOG_ENABLED:true}
+      directory: ${DRIVE_WEB_LOG_DIRECTORY:/log/drive/web}
+      prefix: drive_access
+      suffix: .log
+      pattern: ${DRIVE_WEB_LOG_PATTERN:[%{yyyy-MM-dd HH:mm:ss}t] | [%I] | %h | "%r" | %s | %b | %{ms}Tms | %{s}Tsec | "%{Referer}i" | "%{User-Agent}i"}
+      rotate: true
+      rename-on-rotate: true
+      request-attributes-enabled: true
+      max-days: ${DRIVE_WEB_LOG_MAX_DAYS:14}
+      check-exists: true
+
+# 쿠키로 인증하는 내부 API 를 다른 origin 에서 부를 수 있게 할 목록(쉼표 구분). 같은 origin 배포는 비워 둠.
+# 외부 API·MCP 는 API Key·OAuth 토큰이라 이 목록과 무관하게 모든 origin 허용(CorsConfigSourceFactory)
+cors:
+  allowed-origins: ${DRIVE_CORS_ALLOWED_ORIGINS:}
+
+# Drive 를 iframe 으로 넣을 수 있는 origin(developers 등, 쉼표 구분) — frame-ancestors. 비우면 같은 origin 만 허용
+embed:
+  allowed-origins: ${DRIVE_EMBED_ALLOWED_ORIGINS:*}
+
+# 로그인 토큰 서명 키·만료(JwtProperty). 쿠키 Max-Age 에도 같은 만료를 쓴다. 키는 환경변수로 주입(설치처마다 다른 값 권장)
+jwt:
+  secret:
+    key: ${DRIVE_JWT_SECRET_KEY}
+  accessExp: 1h
+  refreshExp: 7d
+
+# auth token expiry
+auth:
+  token:
+    password-reset-expiry: 1h
+    tenant-access-expiry: 5m
+  # 로그인 토큰 쿠키(AuthCookieProperty). Max-Age 는 jwt.accessExp·refreshExp(JwtProperty), HttpOnly·Domain 은 코드에서 고정
+  cookie:
+    secure: ${DRIVE_AUTH_COOKIE_SECURE:false}        # 기본 false(HTTP 서비스 기준). HTTPS 로 서비스하는 곳(앞단 TLS 프록시 등)은 true 주입
+    same-site: ${DRIVE_AUTH_COOKIE_SAME_SITE:Lax}  # FE·BE 를 서로 다른 사이트로 배포하면 None(+secure)
+
+# OAuth2 AS(MCP 연동) 발급 토큰 수명 — DCR 등록 시 클라이언트 행(TokenSettings)에 저장됨.
+# 변경해도 이미 등록된 클라이언트에는 소급되지 않는다 (OAuth2TokenProperty 참조)
+oauth2:
+  token:
+    access-token-ttl: 1h
+    refresh-token-ttl: 30d
+
+# SMTP 비밀번호 DB 암호화 키(SmtpPasswordEncryptor). 바꾸면 저장된 SMTP 비밀번호를 못 푼다 — 기존 설치처는 원래 값 유지
+smtp:
+  aes:
+    secret:
+      key: ${DRIVE_SMTP_AES_SECRET_KEY}
+
+drive:
+  # 시간대 — 요청 날짜 해석·년월일 검색 경계·응답 시각 표시의 기준(JVM 기본 시간대는 쓰지 않는다). 설치처에서 DRIVE_TIME_ZONE 으로 변경
+  time-zone: ${DRIVE_TIME_ZONE:Asia/Seoul}
+  super-admin:
+    allowed-ips: ${DRIVE_SUPER_ADMIN_ALLOWED_IPS:}
+    external:
+      static-api-key: ${DRIVE_SUPER_ADMIN_EXTERNAL_API_KEY:}
+  scheduler:
+    batch:
+      # 공유 DB 배치 스케줄러(@ConditionalOnBatchScheduler) — k8s 에서 배치 담당 Deployment 만 true
+      enabled: ${DRIVE_SCHEDULER_BATCH_ENABLED:true}
+  rest-client:
+    # 외부 호출 요청·응답 본문까지 로그(본문 버퍼링) — 운영 false, dev·로컬은 true 주입
+    trace-enabled: ${DRIVE_REST_CLIENT_TRACE_ENABLED:false}
+  # 설치 직후 초기 설정(InitialSetupRunner) — Flyway 뒤 기동 시, 값이 주입됐고 DB 에 아직 없을 때만 넣는다(이미 있으면 유지).
+  # 대상 테넌트 = 활성 자체관리(SELF_MANAGED) 테넌트가 하나뿐일 때 그 테넌트(첫 설치면 1). 여러 개면 건너뛴다.
+  initial-setup:
+    # 라이선스 파일(.tfl) 경로 — 대상 테넌트에 라이선스가 없을 때만 업로드 API 와 같은 검증으로 등록.
+    #   검증용 공개키는 라이선스 라이브러리가 ~/weboffice/license/thinkfree.public.key(또는 $WEBOFFICE_HOME/license/) 에서 읽는다.
+    license-file: ${DRIVE_INITIAL_LICENSE_FILE:}
+    # office(TFO) 연결 — 대상 테넌트에 office 설정이 없을 때만, 관리자 화면과 같은 검증을 통과하면 통째로 저장(하나라도 빠지면 저장 안 함)
+    office:
+      domain: ${DRIVE_INITIAL_OFFICE_DOMAIN:}
+      adapter-name: ${DRIVE_INITIAL_OFFICE_ADAPTER_NAME:}
+      auth-mode: ${DRIVE_INITIAL_OFFICE_AUTH_MODE:ticket}
+      # 연결 방식(onPremise | none) — 허용값 검증·저장 규칙은 관리자 화면 저장과 같다
+      connection-type: ${DRIVE_INITIAL_OFFICE_CONNECTION_TYPE:onPremise}
+      ticket-service-token: ${DRIVE_INITIAL_OFFICE_TICKET_SERVICE_TOKEN:}
+      http-storage-request-jwt-secret: ${DRIVE_INITIAL_OFFICE_HTTP_STORAGE_REQUEST_JWT_SECRET:}
+
+tenant:
+  cache-ttl-seconds: 30
+  cache-max-size: 1000
+  dev-fallback-enabled: ${DRIVE_TENANT_DEV_FALLBACK_ENABLED:false}   # dev 서버는 true 주입(운영은 반드시 false)
+  dev-default-tenant-seq: 1
+  resolution-mode: PATH
+
+# 감사 로그 → Governance 서버 전송 (TFDRIVE-1612). 기본 ON — 아래 SDK 값을 모두 환경변수로 주입해야 뜬다(없으면 기동 실패). 쓰지 않는 설치처는 GOVERNANCE_AUDIT_ENABLED=false
+# HMAC 시크릿(base64-secret)을 기본값으로 두면 git 이력에 남는다(ceph/s3 키와 동일 성격).
+governance:
+  audit:
+    enabled: ${GOVERNANCE_AUDIT_ENABLED:true}
+  origin:
+    # 감사 로그 origin.instanceId — 이 설치 인스턴스를 구분하는 이름. 서버마다 설치처 이름 주입 권장(로컬 .env 는 tfd-local)
+    instance-id: ${GOVERNANCE_ORIGIN_INSTANCE_ID:tfd}
+  sdk:
+    endpoint: ${GOVERNANCE_SDK_ENDPOINT:}
+    tenant-id: ${GOVERNANCE_SDK_TENANT_ID:}
+    key-id: ${GOVERNANCE_SDK_KEY_ID:}
+    base64-secret: ${GOVERNANCE_SDK_BASE64_SECRET:}
+
+# 다운로드 링크 토큰 서명 키(DownloadTokenService). 키는 환경변수로 주입
+download:
+  secret:
+    key: ${DRIVE_DOWNLOAD_SECRET_KEY}
+  expire: 1m # 1분
+
+sso:
+  frontend-callback-path: ${DRIVE_SSO_CALLBACK_PATH:/sso/callback}
+
+branding:
+  defaults:
+    tab-title: ${DRIVE_BRANDING_TAB_TITLE:Drive}
+    service-name: ${DRIVE_BRANDING_SERVICE_NAME:Drive}
+
+mfa:
+  totp:
+    issuer: ${DRIVE_MFA_TOTP_ISSUER:Drive}
+    period: 30s
+    allowed-skew-steps: 1
+    digits: 6
+    setup:
+      pending-ttl: 30m
+      clear-ttl: 40m
+    login:
+      challenge-token-ttl: 2m
+      setup-challenge-token-ttl: 3m
+      confirm-challenge-token-ttl: 3m

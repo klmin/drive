@@ -1,0 +1,249 @@
+[
+  {
+    "activityLogSeq": 101,
+    "actionType": "UPLOAD",
+    "registerUserSeq": 21,
+    "registerResourceSeq": 1101,
+    "registerDate": "2025. 7. 14. 09:56",
+    "description": {
+      "userName": "Admin",
+      "fileName": "보고서.docx"
+    }
+  },
+  {
+    "activityLogSeq": 102,
+    "actionType": "UPLOAD",
+    "registerUserSeq": 21,
+    "registerResourceSeq": 1102,
+    "registerDate": "2025. 7. 14. 09:56",
+    "description": {
+      "userName": "Admin",
+      "fileName": "설계서.xlsx"
+    }
+  },
+  {
+    "activityLogSeq": 103,
+    "actionType": "UPLOAD",
+    "registerUserSeq": 21,
+    "registerResourceSeq": 1103,
+    "registerDate": "2025. 7. 14. 09:56",
+    "description": {
+      "userName": "Admin",
+      "fileName": "이미지.png"
+    }
+  },
+  {
+    "activityLogSeq": 121,
+    "actionType": "UPLOAD",
+    "registerUserSeq": 21,
+    "registerResourceSeq": 1121,
+    "registerDate": "2025. 7. 14. 09:56",
+    "description": {
+      "userName": "Admin",
+      "fileName": "계약서.pdf"
+    }
+  },
+  {
+    "activityLogSeq": 122,
+    "actionType": "UPLOAD",
+    "registerUserSeq": 21,
+    "registerResourceSeq": 1122,
+    "registerDate": "2025. 7. 14. 09:56",
+    "description": {
+      "userName": "Admin",
+      "fileName": "사내공지.hwp"
+    }
+  },
+  {
+    "activityLogSeq": 104,
+    "actionType": "MOVE",
+    "registerUserSeq": 22,
+    "registerResourceSeq": 1104,
+    "registerDate": "2025. 7. 14. 09:45",
+    "description": {
+      "userName": "김철수",
+      "fileName": "프로젝트요약문서.docx",
+      "targetFolder": "문서/기획/완료"
+    }
+  },
+  {
+    "activityLogSeq": 105,
+    "actionType": "MOVE",
+    "registerUserSeq": 22,
+    "registerResourceSeq": 1105,
+    "registerDate": "2025. 7. 14. 09:45",
+    "description": {
+      "userName": "김철수",
+      "fileName": "보고서.xlsx",
+      "targetFolder": "문서/기획/완료"
+    }
+  },
+  {
+    "activityLogSeq": 106,
+    "actionType": "RENAME",
+    "registerUserSeq": 23,
+    "registerResourceSeq": 1106,
+    "registerDate": "2025. 7. 13. 20:20",
+    "description": {
+      "userName": "John Doe",
+      "beforeName": "가입양식.pdf",
+      "afterName": "가입양식_v1.pdf"
+    }
+  },
+  {
+    "activityLogSeq": 107,
+    "actionType": "EDIT",
+    "registerUserSeq": 24,
+    "registerResourceSeq": 1107,
+    "registerDate": "2025. 7. 13. 18:40",
+    "description": {
+      "userName": "홍길동",
+      "fileName": "계획안.docx"
+    }
+  },
+  {
+    "activityLogSeq": 108,
+    "actionType": "EDIT",
+    "registerUserSeq": 24,
+    "registerResourceSeq": 1108,
+    "registerDate": "2025. 7. 13. 18:40",
+    "description": {
+      "userName": "홍길동",
+      "fileName": "회의록.pdf"
+    }
+  },
+  {
+    "activityLogSeq": 109,
+    "actionType": "COPY",
+    "registerUserSeq": 25,
+    "registerResourceSeq": 1109,
+    "registerDate": "2025. 7. 13. 17:22",
+    "description": {
+      "userName": "김영희",
+      "fileName": "보고서_v2.docx"
+    }
+  },
+  {
+    "activityLogSeq": 110,
+    "actionType": "DELETE",
+    "registerUserSeq": 26,
+    "registerResourceSeq": 1110,
+    "registerDate": "2025. 7. 13. 15:11",
+    "description": {
+      "userName": "이민호",
+      "fileName": "불필요한파일.tmp"
+    }
+  },
+  {
+    "activityLogSeq": 111,
+    "actionType": "SHARE",
+    "registerUserSeq": 27,
+    "registerResourceSeq": 1111,
+    "registerDate": "2025. 7. 13. 14:30",
+    "description": {
+      "userName": "서지수",
+      "fileName": "공유문서1.pdf"
+    }
+  },
+  {
+    "activityLogSeq": 112,
+    "actionType": "SHARE",
+    "registerUserSeq": 27,
+    "registerResourceSeq": 1112,
+    "registerDate": "2025. 7. 13. 14:30",
+    "description": {
+      "userName": "서지수",
+      "fileName": "공유문서2.pdf"
+    }
+  },
+  {
+    "activityLogSeq": 113,
+    "actionType": "UNSHARE",
+    "registerUserSeq": 28,
+    "registerResourceSeq": 1113,
+    "registerDate": "2025. 7. 13. 13:00",
+    "description": {
+      "userName": "최강민",
+      "fileName": "비공개문서.pdf"
+    }
+  },
+  {
+    "activityLogSeq": 114,
+    "actionType": "RESTORE",
+    "registerUserSeq": 29,
+    "registerResourceSeq": 1114,
+    "registerDate": "2025. 7. 13. 11:22",
+    "description": {
+      "userName": "박하늘",
+      "fileName": "복구문서.docx"
+    }
+  },
+  {
+    "activityLogSeq": 115,
+    "actionType": "DELETE",
+    "registerUserSeq": 30,
+    "registerResourceSeq": 1115,
+    "registerDate": "2025. 7. 13. 10:15",
+    "description": {
+      "userName": "김지훈",
+      "fileName": "삭제예정파일.docx"
+    }
+  },
+  {
+    "activityLogSeq": 116,
+    "actionType": "RENAME",
+    "registerUserSeq": 23,
+    "registerResourceSeq": 1116,
+    "registerDate": "2025. 7. 13. 09:50",
+    "description": {
+      "userName": "John Doe",
+      "beforeName": "draft_v1.docx",
+      "afterName": "draft_final.docx"
+    }
+  },
+  {
+    "activityLogSeq": 117,
+    "actionType": "UPLOAD",
+    "registerUserSeq": 21,
+    "registerResourceSeq": 1117,
+    "registerDate": "2025. 7. 13. 09:30",
+    "description": {
+      "userName": "Admin",
+      "fileName": "조직도.png"
+    }
+  },
+  {
+    "activityLogSeq": 118,
+    "actionType": "MOVE",
+    "registerUserSeq": 31,
+    "registerResourceSeq": 1118,
+    "registerDate": "2025. 7. 12. 16:30",
+    "description": {
+      "userName": "이은지",
+      "fileName": "기안서.pdf",
+      "targetFolder": "계약서류/기안"
+    }
+  },
+  {
+    "activityLogSeq": 119,
+    "actionType": "COPY",
+    "registerUserSeq": 25,
+    "registerResourceSeq": 1119,
+    "registerDate": "2025. 7. 12. 15:15",
+    "description": {
+      "userName": "김영희",
+      "fileName": "백업파일.docx"
+    }
+  },
+  {
+    "activityLogSeq": 120,
+    "actionType": "RESTORE",
+    "registerUserSeq": 29,
+    "registerResourceSeq": 1120,
+    "registerDate": "2025. 7. 12. 13:55",
+    "description": {
+      "userName": "박하늘",
+      "fileName": "이전버전.xlsx"
+    }
+  }
+]

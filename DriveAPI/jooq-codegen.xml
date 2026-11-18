@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    jOOQ 코드 생성 설정 — 무엇을 어떻게 생성하나(생성 대상·타입 매핑·생성 옵션).
+    pom.xml 의 jooq-codegen 프로필이 <configurationFile> 로 읽어 pom 의 <configuration>(<jdbc>·<target> — 어디서 읽어 어디에 쓰나)에 덧붙인다.
+    이 파일에서는 Maven 속성(${…})이 치환되지 않으므로 값은 문자열로 직접 쓴다.
+    새 문자열 enum 컬럼은 여기에 forcedType 을 추가하고(엔티티 @Enumerated 와 같은 enum), 재생성 결과(src/main/jooq)를 같은 커밋으로 올린다.
+-->
+<configuration xmlns="http://www.jooq.org/xsd/jooq-codegen-3.19.0.xsd">
+    <generator>
+        <database>
+            <name>org.jooq.meta.postgres.PostgresDatabase</name>
+            <inputSchema>public</inputSchema>
+            <!-- 생성 SQL 에 스키마·카탈로그 이름을 붙이지 않는다(배포 DB 의 search_path 그대로) -->
+            <outputSchemaToDefault>true</outputSchemaToDefault>
+            <outputCatalogToDefault>true</outputCatalogToDefault>
+            <!-- 생성 대상(정규식): 우리 테이블 + 우리 코드가 직접 SQL 을 쓰는 SAS 테이블(oauth2_registered_client 조인, oauth2_authorization·consent 삭제). 해시 파티션 자식(_p0/_p1)은 부모로 접근 -->
+            <includes>tb_.*|oauth2_registered_client|oauth2_authorization|oauth2_authorization_consent</includes>
+            <excludes>tb_.*_p[0-9]+</excludes>
+            <forcedTypes>
+                <!-- timestamptz → Instant (팀 방침) -->
+                <forcedType>
+                    <name>INSTANT</name>
+                    <includeTypes>(?i:timestamp\ with\ time\ zone|timestamptz)</includeTypes>
+                </forcedType>
+                <!-- char(1)·varchar(1) 'Y'/'N' 플래그 → Boolean (JdbcFlags 와 같은 규칙). 새 플래그 컬럼 이름이 includeExpression 패턴 밖이면 여기에 추가 -->
+                <forcedType>
+                    <userType>java.lang.Boolean</userType>
+                    <converter>com.thinkfree.drive.global.jooq.YnBooleanConverter</converter>
+                    <includeTypes>(?i:bpchar|char|character|varchar|character\ varying)(\(1\))?</includeTypes>
+                    <includeExpression>(?i:.*\.(is_.*|can_.*|use_default|show_powered_by|allow_idp_initiated))</includeExpression>
+                </forcedType>
+                <!-- 문자열 enum 컬럼 → 엔티티 @Enumerated(STRING) 과 같은 enum (name() 문자열 저장). 컬럼마다 명시 — 이름 패턴으로 묶으면 다른 enum 컬럼이 걸린다 -->
+                <!-- role_type: tb_user·tb_user_role·tb_api_key·tb_access_allowed_ip -->
+                <forcedType>
+                    <userType>com.thinkfree.drive.user.enums.RoleType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeTypes>(?i:varchar|character\ varying)(\(\d+\))?</includeTypes>
+                    <includeExpression>(?i:.*\.role_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.user.enums.UserStatus</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_user\.status)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.user.enums.MfaStatus</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_user\.mfa_status)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.user.enums.MfaMethod</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_user\.mfa_method)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.user.enums.SignupType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_user\.signup_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.apikey.enums.ApiKeyStatus</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_api_key\.status)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.email.template.enums.EmailTemplateKey</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_email_template\.template_key)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.notification.event.enums.ActionType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_notification_event\.action_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.resource.enums.ResourceType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_resource\.resource_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.resource.version.enums.ResourceVersionStatus</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_resource_version\.status)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.share.enums.ShareType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_share\.share_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.smtpconfig.enums.AuthType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_smtp_config\.auth_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.smtpconfig.enums.EncryptionType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_smtp_config\.encryption_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.sso.protocol.jwt.enums.KeySourceType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_sso_jwt_config\.key_source_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.sso.provider.enums.SsoProviderProtocolType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_sso_provider\.protocol_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.sso.provider.enums.SsoProviderScope</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_sso_provider\.scope)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.sso.provider.enums.SsoProviderStatus</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_sso_provider\.status)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.api.v1.auth.enums.LoginType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?(tb_tenant|tb_super_admin_login_setting)\.login_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.tenant.enums.TenantStatus</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_tenant\.status)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.tenant.enums.TenantType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_tenant\.tenant_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.tenant.enums.TenantUserMode</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_tenant\.user_mode)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.userlog.enums.ActivityType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_user_log\.activity_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.userlog.enums.ActorType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_user_log\.actor_type)</includeExpression>
+                </forcedType>
+                <!-- 코드 값 저장 컬럼(name() 아님) → JPA 변환기와 같은 규칙의 jOOQ 변환기 -->
+                <forcedType>
+                    <userType>com.thinkfree.drive.user.enums.UserLanguage</userType>
+                    <converter>com.thinkfree.drive.global.jooq.UserLanguageJooqConverter</converter>
+                    <includeExpression>(?i:(.*\.)?tb_user\.user_language)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.user.enums.DefaultLandingPage</userType>
+                    <converter>com.thinkfree.drive.global.jooq.DefaultLandingPageJooqConverter</converter>
+                    <includeExpression>(?i:(.*\.)?tb_user\.default_landing_page)</includeExpression>
+                </forcedType>
+            </forcedTypes>
+        </database>
+        <generate>
+            <pojos>false</pojos>
+            <daos>false</daos>
+            <records>true</records>
+            <javaTimeTypes>true</javaTimeTypes>
+            <generatedAnnotation>false</generatedAnnotation>
+        </generate>
+    </generator>
+</configuration>

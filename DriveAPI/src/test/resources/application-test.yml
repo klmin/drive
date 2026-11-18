@@ -1,0 +1,101 @@
+spring:
+  # JPA(Hibernate). DDL 은 DriveInstaller 정본(자동 생성 금지), OSIV 끔, SQL 로그는 log4j2 로.
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 100
+        order_inserts: true
+        order_updates: true
+        timezone:
+          default_storage: NORMALIZE_UTC
+  datasource:
+    # Testcontainers JDBC URL: 첫 접속 때 postgres:18 컨테이너를 띄우고(Docker 필요) 같은 URL 은 JVM 안에서 컨테이너를 공유한다.
+    # 빈 컨테이너에 앱과 같은 Flyway 마이그레이션(classpath:db/migration, application.yml spring.flyway)이 스키마·시드를 만든다.
+    url: jdbc:tc:postgresql:18:///t_drive
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    username: test
+    password: test
+    hikari:
+      maximum-pool-size: 10   # 공통은 50 — 통합 전(Hikari 기본 10)과 같게
+  sql:
+    init:
+      mode: never
+
+# AWS S3
+storage:
+  type: ceph
+  connection:
+    #      endpoint: http://172.23.1.52:9000
+    #      access-key: LH6WT0T7CWBACZXFYHAI
+    #      secret-key: mCuL0ZYlzyf3Rnqe5doq9ML4s6bWNppyNj7aP1Ac
+    endpoint: http://172.17.163.136:9000
+    access-key: DG5KZPPJDUW7E7SIAZFT
+    secret-key: jt0ExdOAyHsl6Xzl6qDCsZdW34lqD6wEgXgXMawd
+    bucket-name: t-drive-demo
+
+S3_BUCKET_NAME : t-drive-demo
+S3_REGION_STATIC : ap-northeast-2
+S3_ACCESS_KEY : AKIAYM7POAYPAEUG6P7W
+S3_SECRET_KEY : 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
+
+# jwt
+jwt:
+  secret:
+    key: c2lsdmVybmluZS10ZWNoLXNwcmluZy1ib290LWp3dC10dXRvcmlhbC1zZWNyZXQtclh
+  accessExp: 3600000 # 1시간
+  refreshExp: 604800000 # 7일
+
+
+# aes
+smtp:
+  aes:
+    secret:
+      key: F4r1cG8tL7pXq9zYvB2eW6hK3uJnMdPs
+
+# 공통(application.yml)은 서버 기준값이라 테스트에 맞게 되돌린다 — 통합 전(common + test)과 같은 동작 유지
+logging:
+  config: classpath:log/log4j2-local.yml   # 서버용은 /log/drive 에 파일을 쓴다
+
+app:
+  front:
+    base-url: ""            # 테스트는 미설정(요청 host 사용)과 같게 빈 값
+
+share:
+  context-path: ""
+
+server:
+  tomcat:
+    accesslog:
+      enabled: false
+
+tenant:
+  cache-ttl-seconds: 0      # 테넌트 캐시 끔(통합 전 미설정 = 0)
+  cache-max-size: 0
+
+# 외부 호출 본문 로그·버퍼링 켬(프로필 제거 전 테스트 동작 유지 — 서버 기본은 false)
+drive:
+  rest-client:
+    trace-enabled: true
+  # 삭제 대기열 스케줄 끔("-") — 테스트가 tb_storage_deletion 행을 직접 확인하고, 처리는 StorageDeletionProcessor 를 직접 부른다
+  scheduler:
+    storage-deletion:
+      cron: "-"
+
+# 다운로드 링크 토큰 키 — 공통은 환경변수 필수라 테스트 고정값
+download:
+  secret:
+    key: "N2Y5ZGNmMTAtNTU5Yi00N2IwLWE3MzAtYjA3Y2I1NzYyZWQ5LThmYzJhNzcxMQ=="
+
+# 감사 로그 — 공통과 같이 켠다. SDK 는 테스트용 가짜 값(닿지 않는 주소 — 전송은 비동기·실패 시 버림이라 테스트에 영향 없음)
+governance:
+  audit:
+    enabled: true
+  sdk:
+    endpoint: http://127.0.0.1:9/v1
+    tenant-id: 00000000-0000-0000-0000-000000000001
+    key-id: 00000000-0000-0000-0000-000000000002
+    base64-secret: dGVzdC1vbmx5LWdvdmVybmFuY2UtaG1hYy1rZXktMzI=

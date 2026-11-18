@@ -1,0 +1,6 @@
+UserID,Password,Name,StorageLimit(GB),CountryCode,PhoneNumber
+haemmas@naver.com,Passw0rd!1,James Weber,5,+82,1012345678
+kyungmin.lim@thinkfree.com,Passw0rd@,Katie Jones,10,+82,10-1234-5679
+kyungmin.lim1@thinkfree.com,Passw0rd@,Katie Jones,10
+kyungmin.lim2@thinkfree.com,Passw0rd@,Katie Jones,10,,
+

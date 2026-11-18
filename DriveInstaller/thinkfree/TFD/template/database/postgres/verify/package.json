@@ -1,0 +1,16 @@
+{
+  "name": "verify",
+  "version": "1.0.0",
+  "description": "```bash cd DriveInstaller/thinkfree/TFD/template/database/postgres/verify npm init -y && npm i @electric-sql/pglite node run.mjs                     # init/initialize.sql 전체 실행 + 제약·IDENTITY·생성컬럼 동작 확인 node compare.mjs                 # mysql_src.sql(MySQL DDL, 코멘트 제거본) vs init/initialize.sql 카탈로그 전수 대조 node compare.mjs <pg_dump.sql>   # 서버에서 뽑은 PG DDL(DBeaver 등) vs MySQL 원본 대조 node sim_load.mjs                # initialize → migration/01 → pgloader 흉내 INSERT → migration/03 흐름 검증 ```",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8"
+  }
+}

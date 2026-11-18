@@ -1,0 +1,42 @@
+-- =====================================================================================
+-- pgloader 설정: MySQL t_drive -> PostgreSQL t_drive (데이터만)
+--   실행(Rocky 서버):  pgloader 02_drive.load
+--   비밀번호는 URI 에 넣지 않고 환경변수로 준다 (pgloader 의 URI 파서가 @ $ # 같은 특수문자를 제대로 못 읽음)
+--     MYSQL_PWD='MySQL비밀번호' PGPASSWORD='PG비밀번호' pgloader 02_drive.load   (작은따옴표 필수)
+-- =====================================================================================
+LOAD DATABASE
+     FROM mysql://t_drive_user@172.17.163.141:3306/t_drive
+     INTO postgresql://t_drive_user@127.0.0.1:5432/t_drive
+
+WITH data only,          -- 스키마는 initialize.sql 이 만든 것을 사용
+     truncate,           -- 대상 테이블 비우고 적재
+     reset sequences,    -- 적재 후 시퀀스 보정 (03_after_load.sql 에서 한 번 더 보정)
+     workers = 4, concurrency = 1,
+     batch rows = 10000
+
+SET PostgreSQL PARAMETERS timezone TO 'Asia/Seoul'   -- MySQL datetime(서울 벽시계) -> timestamptz 해석 기준
+SET MySQL PARAMETERS net_read_timeout = '600', net_write_timeout = '600'
+
+-- MySQL json -> PG jsonb (initialize.sql 규칙과 동일, 없으면 "casted to json ... not the same as jsonb" 경고)
+-- tb_user_quota_alert_state.user_seq: MySQL bigint -> PG integer (10-07 initialize.sql, 다른 테이블 user_seq 와 통일. 값은 int 범위)
+--   없으면 "casted to type bigint which is not the same as integer" 경고 (적재는 됨)
+CAST type json to jsonb,
+     column tb_user_quota_alert_state.user_seq to integer drop typemod
+
+-- 런타임 임시 데이터(토큰·세션·락)는 옮기지 않음. oauth2_registered_client(등록된 MCP 클라이언트)는 옮김
+-- 뒤의 6개는 dev MySQL 에만 있는 개발자 잡 테이블(DDL 정본 43개에 없음, 09-29 pgloader 가 "failed to find target table" 보고 → Skipping)
+-- tb_mcp_oauth_jwk 는 구 이름(McpOAuthKeyManager 시절) 잔존 테이블 — 코드는 tb_oauth2_jwk 를 쓰고 PG DDL 에서 뺐다(10-07). 키는 기동 시 새로 생성되므로 안 옮김
+EXCLUDING TABLE NAMES MATCHING 'oauth2_authorization', 'oauth2_authorization_consent',
+                               'spring_session', 'spring_session_attributes', 'shedlock',
+                               'tb_mcp_oauth_jwk',
+                               'tb_license_1', 'tb_pinned_folder_test', 'tb_recent_test',
+                               'tb_share_target_test', 'tb_share_test', 'tb_starred_test'
+
+-- tb_resource 만 스테이징 테이블로 받는다 (01_before_load.sql 이 만들고 03_after_load.sql 이 본 테이블로 옮김)
+--   MySQL VIRTUAL 컬럼 값이 같이 넘어와 PG 생성 컬럼에 직접 못 넣기 때문. 본 테이블은 건드리지 않아 컬럼 순서가 MySQL 과 동일하게 유지된다.
+--   (pgloader 는 첫 매치에서 멈추므로 tb_resource_tag/version 은 정확 문자열 매치에 안 걸림)
+ALTER TABLE NAMES MATCHING 'tb_resource' RENAME TO 'tb_resource_stage'
+
+-- MySQL DB 명 t_drive 가 PG 스키마명으로 쓰이므로 public 으로 매핑
+ALTER SCHEMA 't_drive' RENAME TO 'public';
+
