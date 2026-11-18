@@ -41,6 +41,19 @@ services:
       - rustfs-data:/data
     restart: unless-stopped
 
+  # SSO(OIDC) 테스트용 IdP — 필요할 때만: docker compose -f docker-compose.local.yml --profile sso up -d keycloak
+  # 관리 콘솔 http://localhost:8180 (admin / admin), 개발 모드(H2 내장 DB, 컨테이너 재생성 시 설정 초기화)
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    profiles: ["sso"]
+    command: start-dev --http-port=8180
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8180:8180"
+    restart: unless-stopped
+
 volumes:
   pg-data:
   rustfs-data:
