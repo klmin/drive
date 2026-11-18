@@ -70,7 +70,8 @@ jobs:
           gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
           gemini_cli_version: '${{ vars.GEMINI_CLI_VERSION }}'
           gemini_debug: '${{ fromJSON(vars.GEMINI_DEBUG || vars.ACTIONS_STEP_DEBUG || false) }}'
-          gemini_model: '${{ vars.GEMINI_MODEL }}'
+          # 기본 gemini-2.5-pro 는 무료 티어에서 혼잡(503)이 잦아 Flash 사용. 저장소 변수 GEMINI_MODEL 로 덮어쓸 수 있음
+          gemini_model: "${{ vars.GEMINI_MODEL || 'gemini-3.5-flash' }}"
           upload_artifacts: '${{ vars.UPLOAD_ARTIFACTS }}'
           workflow_name: 'gemini-review'
           # issue_comment 트리거(코멘트로 재리뷰)일 때도 PR 번호를 넘기기 위해 명시
