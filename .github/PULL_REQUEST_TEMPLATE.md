@@ -1,15 +1,7 @@
-## Summary 📌
+## Summary
+<!-- 왜 바꿨는지 1~2줄. 무엇을 바꿨는지는 Gemini 요약 코멘트 참고 -->
 
-## Describe your changes 📝
+## Notes
+<!-- 리뷰어가 알아야 할 점, 확인 방법 (없으면 지우기) -->
 
-## Check list ✅
-- [ ] I write PR according to the form
-- [ ] All tests are passed
-- [ ] Program works normally
-- [ ] I set proper PR labels
-- [ ] I remove any redundant codes
-
-## Opinions 🗣️
-
-## Issue numbers and link 🚪
-Closes #{issue number}
+<!-- 관련 이슈가 있으면: Closes #번호 -->
