@@ -1,0 +1,19 @@
+# Gemini Code Assist (GitHub) 설정
+# https://developers.google.com/gemini-code-assist/docs/customize-gemini-behavior-github
+#
+# 운영 방식: PR 열 때 자동 요약·리뷰, 이후 재리뷰는 PR 코멘트에 `/gemini review`로 수동 요청
+have_fun: false
+code_review:
+  disable: false
+  comment_severity_threshold: MEDIUM
+  max_review_comments: -1
+  pull_request_opened:
+    help: false
+    summary: true
+    code_review: true
+ignore_patterns:
+  - "DriveFront/node_modules/**"
+  - "DriveFront/node/**"
+  - "docs/openapi/**"
+  - "**/*.lock"
+  - "**/package-lock.json"
