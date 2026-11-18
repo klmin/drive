@@ -10,3 +10,7 @@ DriveInstaller/thinkfree/TFD/template/database/postgres/.env
 *.bak
 .env.*
 !.env.example
+
+# gemini-cli (PR 리뷰 워크플로 실행 산출물)
+.gemini/
+gha-creds-*.json
