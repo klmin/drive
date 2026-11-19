@@ -62,6 +62,66 @@ Grafana http://localhost:3300 › Drive › **k6 부하 테스트**
 - 읽는 법: VU 를 올려도 초당 요청이 더 안 오르고 p95 만 오르면 한계. 그때 Hikari 대기가 0 보다 크면 DB 풀·쿼리, CPU 가 차면 WAS, DB 세션 active 가 많으면 DB 쪽.
   느린 요청은 WAS p95 그래프의 점을 눌러 트레이스에서 어느 SQL 인지 본다.
 
+## 장애 주입 — 부하 중에 DB 멈추기
+
+에러·느린 요청을 일부러 만들어 **tail 샘플링이 그 트레이스를 남기는지**, 장애 때 대시보드·알림이 어떻게 보이는지 확인한다.
+
+### 순서
+
+1. "처음 한 번" 이 끝난 상태에서 **DriveAPI (loadtest)** 를 띄운다(트레이스 전송 켜짐, 샘플링 1.0).
+2. 터미널 1 — 부하(약 4분). 실행 이름을 붙여 Grafana 에서 고를 수 있게 한다.
+   ```powershell
+   docker compose --profile loadtest run --rm -e TESTID=db-outage k6 run /scripts/read.js
+   ```
+3. 터미널 2 — 시작 90초 뒤 DB 를 **45초** 멈췄다가 다시 켠다.
+   ```powershell
+   Start-Sleep 90; docker compose --profile loadtest stop loadtest-db; Start-Sleep 45; docker compose --profile loadtest start loadtest-db
+   ```
+4. k6 가 끝나고 **40초 이상** 기다린 뒤 본다 — Alloy 가 `decision_wait`(30초) 동안 모았다가 Tempo 로 보낸다.
+
+- 멈추는 시간은 **Hikari 커넥션 대기(30초)보다 길게**. 20초쯤이면 요청이 커넥션을 기다렸다가 DB 가 돌아와 성공하므로 5xx 가 생기지 않고 느린 요청만 생긴다.
+- 멈춘 동안 Alloy 의 `postgres-loadtest` 수집이 접속 오류를 남긴다(무해). 운영 DB 알림(`job="postgres"`)과는 무관하다.
+- k6 는 실패율 기준(1%)을 넘겨 실패로 끝나는 것이 정상이다.
+
+### 확인 — 실제 요청 수와 남은 트레이스 수 비교
+
+**실제 요청**(Prometheus, http://localhost:9090) — 샘플링과 무관하게 전부 센다. 범위 `[6m]` 은 실행 시간에 맞춘다.
+
+| 보는 것 | 쿼리 |
+|---|---|
+| 결과별 요청 수 | `sum by (outcome) (increase(http_server_requests_seconds_count{job="drive-api"}[6m]))` |
+| 1초 이하 요청 수 | `sum(increase(http_server_requests_seconds_bucket{job="drive-api",le="0.984263336"}[6m]))` — 전체에서 빼면 1초 초과 |
+
+- histogram 에 `le="1.0"` 구간이 없어 가장 가까운 `0.984263336` 을 쓴다.
+- `increase()` 는 새로 생긴 시계열의 첫 값을 세지 못한다. 실행 중 처음 생긴 5xx 는 조금 적게 나올 수 있으니, 앱을 새로 띄운 경우 `http_server_requests_seconds_count{outcome="SERVER_ERROR"}` 의 끝값(누적)을 그대로 본다.
+
+**남은 트레이스**(Grafana › Explore › Tempo, TraceQL) — 시간 범위를 실행 구간으로.
+
+| 보는 것 | TraceQL | 기대 |
+|---|---|---|
+| 5xx 요청 | `{ span.outcome = "SERVER_ERROR" }` | 실제 5xx 와 (거의) 같은 수 |
+| 1초 초과 요청 | `{ span.http.url != nil && duration > 1s }` | 실제 1초 초과와 같은 수 |
+| 전체 HTTP 요청 | `{ span.http.url != nil }` | 실제 요청의 10% 남짓 + 에러·느린 요청 |
+
+**수집기**(http://localhost:12345/metrics 또는 Alloy UI)
+
+- `otelcol_receiver_accepted_spans_total` — 앱에서 받은 span(전부)
+- `otelcol_exporter_sent_spans_total` — Tempo 로 보낸 span(샘플링 뒤)
+- `otelcol_processor_tail_sampling_*` — 정책별 결정 수, 늦게 온 span(`dropped_too_early`)
+
+### 지난 결과 (참고)
+
+같은 방법(DB 45초 중단, `decision_wait` 10초)으로 잰 값. 지금 설정은 `decision_wait` 30초다.
+
+| | 앱 10% head 샘플링 | 앱 100% + tail 샘플링 |
+|---|---|---|
+| 5xx 트레이스 남음 | 31건 중 2 | 31건 중 26 |
+| 1초 초과 트레이스 남음 | 53건 중 4 | 53건 중 53 |
+| 앱 → Alloy span | 2,539 | 25,779 |
+| p95 | 34.1ms | 37.0ms |
+
+놓친 5xx 5건은 `decision_wait`(당시 10초)보다 오래 걸린 요청이다 — 첫 span 이 들어오고 결정이 먼저 나서 뒤늦게 온 에러 span 이 버려졌다. 그래서 30초로 늘렸고, 30초에서의 재측정은 아직 하지 않았다.
+
 ## 다시 처음부터
 
 ```bash
