@@ -65,8 +65,10 @@ docker compose up -d          # Grafana http://localhost:3300 (admin / .env 의 
 스택만 띄우면 메트릭만 보입니다. 트레이스(Tempo)와 로그(Loki)까지 보려면 백엔드 `DriveAPI/.env` 에 아래를 넣고 앱을 다시 띄웁니다.
 
 ```properties
-DRIVE_OTLP_TRACING_EXPORT_ENABLED=true            # 트레이스를 Alloy(localhost:4318)로 전송
-logging.config=classpath:log/log4j2-server.yml    # 콘솔 + C:/log/drive/backend/drive-server.log (Alloy 가 읽어 Loki 로)
+# 트레이스를 Alloy(localhost:4318)로 전송
+DRIVE_OTLP_TRACING_EXPORT_ENABLED=true
+# 콘솔 + C:/log/drive/backend/drive-server.log (Alloy 가 읽어 Loki 로). 기존 logging.config 줄을 이 값으로 바꾼다
+logging.config=classpath:log/log4j2-server.yml
 ```
 
 - 로그 폴더는 `observability/.env` 의 `DRIVE_LOG_DIR`(기본 `C:/log/drive`)과 맞춥니다.
