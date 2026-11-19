@@ -2,6 +2,8 @@
 
 Alloy(수집) → Prometheus(메트릭) · Loki(로그) · Tempo(트레이스) → Grafana(화면)
 
+각 의존성·설정의 의미와 데이터가 실제로 흐르는 길은 [HOW-IT-WORKS.md](HOW-IT-WORKS.md) 에 정리했다.
+
 ## 구성 요소와 역할
 
 | 구성요소 | 위치 | 역할 |
