@@ -158,6 +158,26 @@
                     <converter>com.thinkfree.drive.global.jooq.DefaultLandingPageJooqConverter</converter>
                     <includeExpression>(?i:(.*\.)?tb_user\.default_landing_page)</includeExpression>
                 </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.upload.session.enums.UploadSessionStatus</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_upload_session\.status)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.upload.session.enums.UploadSessionFailReason</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_upload_session\.fail_reason)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.upload.session.enums.UploadSaveType</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_upload_session\.save_type)</includeExpression>
+                </forcedType>
+                <forcedType>
+                    <userType>com.thinkfree.drive.cleanup.storage.enums.StorageDeletionAction</userType>
+                    <enumConverter>true</enumConverter>
+                    <includeExpression>(?i:(.*\.)?tb_storage_deletion\.action)</includeExpression>
+                </forcedType>
             </forcedTypes>
         </database>
         <generate>

@@ -4,6 +4,7 @@
 package com.thinkfree.drive.jooq.tables;
 
 
+import com.thinkfree.drive.cleanup.storage.enums.StorageDeletionAction;
 import com.thinkfree.drive.jooq.DefaultSchema;
 import com.thinkfree.drive.jooq.Indexes;
 import com.thinkfree.drive.jooq.Keys;
@@ -14,6 +15,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import org.jooq.Check;
 import org.jooq.Condition;
 import org.jooq.Field;
 import org.jooq.Identity;
@@ -30,6 +32,8 @@ import org.jooq.TableField;
 import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.EnumConverter;
+import org.jooq.impl.Internal;
 import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 
@@ -87,6 +91,18 @@ public class TbStorageDeletion extends TableImpl<TbStorageDeletionRecord> {
      */
     public final TableField<TbStorageDeletionRecord, Instant> REGISTER_DATE = createField(DSL.name("register_date"), SQLDataType.INSTANT.nullable(false), this, "등록시간");
 
+    /**
+     * The column <code>tb_storage_deletion.action</code>. 정리 동작(DELETE: 객체 삭제 /
+     * ABORT_MULTIPART: 미완성 멀티파트 업로드 중단)
+     */
+    public final TableField<TbStorageDeletionRecord, StorageDeletionAction> ACTION = createField(DSL.name("action"), SQLDataType.VARCHAR(20).nullable(false).defaultValue(DSL.field(DSL.raw("'DELETE'::character varying"), SQLDataType.VARCHAR)), this, "정리 동작(DELETE: 객체 삭제 / ABORT_MULTIPART: 미완성 멀티파트 업로드 중단)", new EnumConverter<String, StorageDeletionAction>(String.class, StorageDeletionAction.class));
+
+    /**
+     * The column <code>tb_storage_deletion.upload_id</code>. 멀티파트 업로드
+     * ID(ABORT_MULTIPART 전용)
+     */
+    public final TableField<TbStorageDeletionRecord, String> UPLOAD_ID = createField(DSL.name("upload_id"), SQLDataType.VARCHAR(1024).defaultValue(DSL.field(DSL.raw("NULL::character varying"), SQLDataType.VARCHAR)), this, "멀티파트 업로드 ID(ABORT_MULTIPART 전용)");
+
     private TbStorageDeletion(Name alias, Table<TbStorageDeletionRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }
@@ -123,7 +139,7 @@ public class TbStorageDeletion extends TableImpl<TbStorageDeletionRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.asList(Indexes.IDX_STORAGE_DELETION_NEXT_ATTEMPT);
+        return Arrays.asList(Indexes.IDX_STORAGE_DELETION_DUE);
     }
 
     @Override
@@ -134,6 +150,14 @@ public class TbStorageDeletion extends TableImpl<TbStorageDeletionRecord> {
     @Override
     public UniqueKey<TbStorageDeletionRecord> getPrimaryKey() {
         return Keys.TB_STORAGE_DELETION_PKEY;
+    }
+
+    @Override
+    public List<Check<TbStorageDeletionRecord>> getChecks() {
+        return Arrays.asList(
+            Internal.createCheck(this, DSL.name("chk_storage_deletion_abort_upload_id"), "((((action)::text <> 'ABORT_MULTIPART'::text) OR (upload_id IS NOT NULL)))", true),
+            Internal.createCheck(this, DSL.name("chk_storage_deletion_action"), "(((action)::text = ANY ((ARRAY['DELETE'::character varying, 'ABORT_MULTIPART'::character varying])::text[])))", true)
+        );
     }
 
     @Override

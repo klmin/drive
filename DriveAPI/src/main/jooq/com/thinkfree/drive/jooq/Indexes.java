@@ -20,6 +20,7 @@ import com.thinkfree.drive.jooq.tables.TbStorageDeletion;
 import com.thinkfree.drive.jooq.tables.TbSystemConfig;
 import com.thinkfree.drive.jooq.tables.TbTenant;
 import com.thinkfree.drive.jooq.tables.TbTrash;
+import com.thinkfree.drive.jooq.tables.TbUploadSession;
 import com.thinkfree.drive.jooq.tables.TbUser;
 import com.thinkfree.drive.jooq.tables.TbUserLog;
 import com.thinkfree.drive.jooq.tables.TbUserRole;
@@ -80,6 +81,7 @@ public class Indexes {
     public static final Index IDX_RESOURCE_USER_SEQ_PARENT_FOLDER_SEQ = Internal.createIndex(DSL.name("idx_resource_user_seq_parent_folder_seq"), TbResource.TB_RESOURCE, new OrderField[] { TbResource.TB_RESOURCE.USER_SEQ, TbResource.TB_RESOURCE.PARENT_FOLDER_SEQ }, false);
     public static final Index IDX_RESOURCE_VERSION_OWNER_SEQ = Internal.createIndex(DSL.name("idx_resource_version_owner_seq"), TbResourceVersion.TB_RESOURCE_VERSION, new OrderField[] { TbResourceVersion.TB_RESOURCE_VERSION.OWNER_SEQ }, false);
     public static final Index IDX_RESOURCE_VERSION_REGISTER_DATE = Internal.createIndex(DSL.name("idx_resource_version_register_date"), TbResourceVersion.TB_RESOURCE_VERSION, new OrderField[] { TbResourceVersion.TB_RESOURCE_VERSION.REGISTER_DATE.desc() }, false);
+    public static final Index IDX_RESOURCE_VERSION_RESOURCE_SAVE_NAME = Internal.createIndex(DSL.name("idx_resource_version_resource_save_name"), TbResourceVersion.TB_RESOURCE_VERSION, new OrderField[] { TbResourceVersion.TB_RESOURCE_VERSION.RESOURCE_SAVE_NAME }, false);
     public static final Index IDX_RESOURCE_VERSION_SEQ = Internal.createIndex(DSL.name("idx_resource_version_seq"), TbResourceVersion.TB_RESOURCE_VERSION, new OrderField[] { TbResourceVersion.TB_RESOURCE_VERSION.RESOURCE_VERSION_SEQ }, false);
     public static final Index IDX_RESOURCE_VERSION_USER_RESOURCE = Internal.createIndex(DSL.name("idx_resource_version_user_resource"), TbResourceVersion.TB_RESOURCE_VERSION, new OrderField[] { TbResourceVersion.TB_RESOURCE_VERSION.USER_SEQ, TbResourceVersion.TB_RESOURCE_VERSION.RESOURCE_SEQ }, false);
     public static final Index IDX_RESOURCE_VERSION_USER_SEQ = Internal.createIndex(DSL.name("idx_resource_version_user_seq"), TbResourceVersion.TB_RESOURCE_VERSION, new OrderField[] { TbResourceVersion.TB_RESOURCE_VERSION.USER_SEQ }, false);
@@ -94,7 +96,7 @@ public class Indexes {
     public static final Index IDX_STARRED_SHARED_BY_USER_SEQ = Internal.createIndex(DSL.name("idx_starred_shared_by_user_seq"), TbStarred.TB_STARRED, new OrderField[] { TbStarred.TB_STARRED.SHARED_BY_USER_SEQ }, false);
     public static final Index IDX_STARRED_STARRED_SEQ = Internal.createIndex(DSL.name("idx_starred_starred_seq"), TbStarred.TB_STARRED, new OrderField[] { TbStarred.TB_STARRED.STARRED_SEQ }, false);
     public static final Index IDX_STARRED_USER_SEQ = Internal.createIndex(DSL.name("idx_starred_user_seq"), TbStarred.TB_STARRED, new OrderField[] { TbStarred.TB_STARRED.USER_SEQ }, false);
-    public static final Index IDX_STORAGE_DELETION_NEXT_ATTEMPT = Internal.createIndex(DSL.name("idx_storage_deletion_next_attempt"), TbStorageDeletion.TB_STORAGE_DELETION, new OrderField[] { TbStorageDeletion.TB_STORAGE_DELETION.NEXT_ATTEMPT_DATE, TbStorageDeletion.TB_STORAGE_DELETION.STORAGE_DELETION_SEQ }, false);
+    public static final Index IDX_STORAGE_DELETION_DUE = Internal.createIndex(DSL.name("idx_storage_deletion_due"), TbStorageDeletion.TB_STORAGE_DELETION, new OrderField[] { TbStorageDeletion.TB_STORAGE_DELETION.ACTION, TbStorageDeletion.TB_STORAGE_DELETION.NEXT_ATTEMPT_DATE, TbStorageDeletion.TB_STORAGE_DELETION.STORAGE_DELETION_SEQ }, false);
     public static final Index IDX_TB_RESOURCE_VERSION_STATUS = Internal.createIndex(DSL.name("idx_tb_resource_version_status"), TbResourceVersion.TB_RESOURCE_VERSION, new OrderField[] { TbResourceVersion.TB_RESOURCE_VERSION.STATUS }, false);
     public static final Index IDX_TB_SYSCFG_REG_USER = Internal.createIndex(DSL.name("idx_tb_syscfg_reg_user"), TbSystemConfig.TB_SYSTEM_CONFIG, new OrderField[] { TbSystemConfig.TB_SYSTEM_CONFIG.REGISTER_USER_SEQ }, false);
     public static final Index IDX_TB_SYSCFG_UPD_USER = Internal.createIndex(DSL.name("idx_tb_syscfg_upd_user"), TbSystemConfig.TB_SYSTEM_CONFIG, new OrderField[] { TbSystemConfig.TB_SYSTEM_CONFIG.UPDATE_USER_SEQ }, false);
@@ -102,6 +104,8 @@ public class Indexes {
     public static final Index IDX_TRASH_REGISTER_DATE = Internal.createIndex(DSL.name("idx_trash_register_date"), TbTrash.TB_TRASH, new OrderField[] { TbTrash.TB_TRASH.REGISTER_DATE.desc() }, false);
     public static final Index IDX_TRASH_RESOURCE_SEQ = Internal.createIndex(DSL.name("idx_trash_resource_seq"), TbTrash.TB_TRASH, new OrderField[] { TbTrash.TB_TRASH.RESOURCE_SEQ }, false);
     public static final Index IDX_TRASH_TRASH_SEQ = Internal.createIndex(DSL.name("idx_trash_trash_seq"), TbTrash.TB_TRASH, new OrderField[] { TbTrash.TB_TRASH.TRASH_SEQ }, false);
+    public static final Index IDX_UPLOAD_SESSION_CLEANUP = Internal.createIndex(DSL.name("idx_upload_session_cleanup"), TbUploadSession.TB_UPLOAD_SESSION, new OrderField[] { TbUploadSession.TB_UPLOAD_SESSION.STATUS, TbUploadSession.TB_UPLOAD_SESSION.LAST_ACTIVITY }, false);
+    public static final Index IDX_UPLOAD_SESSION_USER_ACTIVE = Internal.createIndex(DSL.name("idx_upload_session_user_active"), TbUploadSession.TB_UPLOAD_SESSION, new OrderField[] { TbUploadSession.TB_UPLOAD_SESSION.USER_SEQ, TbUploadSession.TB_UPLOAD_SESSION.STATUS }, false);
     public static final Index IDX_USER_DELETE_SCHEDULE_TIME = Internal.createIndex(DSL.name("idx_user_delete_schedule_time"), TbUser.TB_USER, new OrderField[] { TbUser.TB_USER.DELETE_SCHEDULE_TIME }, false);
     public static final Index IDX_USER_LOG_REGISTER_DATE = Internal.createIndex(DSL.name("idx_user_log_register_date"), TbUserLog.TB_USER_LOG, new OrderField[] { TbUserLog.TB_USER_LOG.REGISTER_DATE.desc() }, false);
     public static final Index IDX_USER_LOG_USER_SEQ = Internal.createIndex(DSL.name("idx_user_log_user_seq"), TbUserLog.TB_USER_LOG, new OrderField[] { TbUserLog.TB_USER_LOG.USER_SEQ }, false);

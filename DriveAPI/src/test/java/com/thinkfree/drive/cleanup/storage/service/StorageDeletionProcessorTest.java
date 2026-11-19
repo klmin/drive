@@ -108,6 +108,57 @@ class StorageDeletionProcessorTest {
     }
 
     @Test
+    @DisplayName("아직 리소스·버전이 참조하는 key 는 스토리지에 보내지 않고 REFERENCED 실패로 남긴다")
+    void referencedKeyIsNotDeleted() {
+        var rows = List.of(new StorageDeletionData(1L, "1/live", 0), new StorageDeletionData(2L, "1/orphan", 0));
+        given(storageDeletionService.findDue(any(), anyInt(), anyInt())).willReturn(rows);
+        given(storageDeletionService.findReferencedKeys(any())).willReturn(java.util.Set.of("1/live"));
+        given(storageService.deleteObjectsReportingFailures(List.of("1/orphan"))).willReturn(new StorageDeleteObjectsResult(Map.of()));
+
+        assertThat(processor.processDue()).isEqualTo(1);
+
+        verify(storageDeletionService).applyResult(succeededCaptor.capture(), failCaptor.capture());
+        assertThat(succeededCaptor.getValue()).containsExactly(2L);
+        assertThat(failCaptor.getValue()).singleElement().satisfies(q -> {
+            assertThat(q.storageDeletionSeq()).isEqualTo(1L);
+            assertThat(q.lastError()).isEqualTo(StorageDeletionConstants.REFERENCED_ERROR);
+        });
+    }
+
+    @Test
+    @DisplayName("묶음의 key 가 모두 참조 중이면 스토리지를 부르지 않는다")
+    void allReferenced() {
+        given(storageDeletionService.findDue(any(), anyInt(), anyInt())).willReturn(List.of(new StorageDeletionData(1L, "1/live", 0)));
+        given(storageDeletionService.findReferencedKeys(any())).willReturn(java.util.Set.of("1/live"));
+
+        assertThat(processor.processDue()).isZero();
+
+        verify(storageService, never()).deleteObjectsReportingFailures(any());
+    }
+
+    @Test
+    @DisplayName("ABORT 행은 DELETE 묶음과 따로 행마다 abort — 성공은 지우고 실패는 백오프, 같은 key 의 DELETE 행과 섞이지 않는다")
+    void abortRowsProcessedSeparately() {
+        given(storageDeletionService.findDue(any(), anyInt(), anyInt())).willReturn(List.of(new StorageDeletionData(1L, "1/a", 0)));
+        given(storageService.deleteObjectsReportingFailures(List.of("1/a"))).willReturn(new StorageDeleteObjectsResult(Map.of()));
+        given(storageDeletionService.findDueAborts(any(), eq(StorageDeletionConstants.MAX_ATTEMPT_COUNT), eq(StorageDeletionConstants.ABORT_BATCH_SIZE)))
+                .willReturn(List.of(new StorageDeletionData(10L, "1/a", 0, "upload-ok"), new StorageDeletionData(11L, "1/b", 2, "upload-fail")));
+        // lenient — 다른 인자("1/a")로 부르는 호출이 strict stubs 의 PotentialStubbingProblem(런타임 예외)으로 잡혀 실패로 세지지 않게
+        org.mockito.Mockito.lenient().doThrow(new RuntimeException("boom")).when(storageService).abortMultipartUpload("1/b", "upload-fail");
+
+        assertThat(processor.processDue()).isEqualTo(2);
+
+        verify(storageService).abortMultipartUpload("1/a", "upload-ok");
+        verify(storageDeletionService, times(2)).applyResult(succeededCaptor.capture(), failCaptor.capture());
+        assertThat(succeededCaptor.getAllValues().get(0)).containsExactly(1L);
+        assertThat(succeededCaptor.getAllValues().get(1)).containsExactly(10L);
+        assertThat(failCaptor.getAllValues().get(1)).singleElement().satisfies(q -> {
+            assertThat(q.storageDeletionSeq()).isEqualTo(11L);
+            assertThat(q.lastError()).contains("boom");
+        });
+    }
+
+    @Test
     @DisplayName("백오프 = 2^(이전 실패 횟수) 분, 상한 60분")
     void backoff() {
         assertThat(StorageDeletionProcessor.backoffMinutes(0)).isEqualTo(1);

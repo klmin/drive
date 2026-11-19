@@ -4,6 +4,7 @@
 package com.thinkfree.drive.jooq.tables.records;
 
 
+import com.thinkfree.drive.cleanup.storage.enums.StorageDeletionAction;
 import com.thinkfree.drive.jooq.tables.TbStorageDeletion;
 
 import java.time.Instant;
@@ -108,6 +109,38 @@ public class TbStorageDeletionRecord extends UpdatableRecordImpl<TbStorageDeleti
         return (Instant) get(5);
     }
 
+    /**
+     * Setter for <code>tb_storage_deletion.action</code>. 정리 동작(DELETE: 객체 삭제 /
+     * ABORT_MULTIPART: 미완성 멀티파트 업로드 중단)
+     */
+    public void setAction(StorageDeletionAction value) {
+        set(6, value);
+    }
+
+    /**
+     * Getter for <code>tb_storage_deletion.action</code>. 정리 동작(DELETE: 객체 삭제 /
+     * ABORT_MULTIPART: 미완성 멀티파트 업로드 중단)
+     */
+    public StorageDeletionAction getAction() {
+        return (StorageDeletionAction) get(6);
+    }
+
+    /**
+     * Setter for <code>tb_storage_deletion.upload_id</code>. 멀티파트 업로드
+     * ID(ABORT_MULTIPART 전용)
+     */
+    public void setUploadId(String value) {
+        set(7, value);
+    }
+
+    /**
+     * Getter for <code>tb_storage_deletion.upload_id</code>. 멀티파트 업로드
+     * ID(ABORT_MULTIPART 전용)
+     */
+    public String getUploadId() {
+        return (String) get(7);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -131,7 +164,7 @@ public class TbStorageDeletionRecord extends UpdatableRecordImpl<TbStorageDeleti
     /**
      * Create a detached, initialised TbStorageDeletionRecord
      */
-    public TbStorageDeletionRecord(Long storageDeletionSeq, String storageKey, Integer attemptCount, Instant nextAttemptDate, String lastError, Instant registerDate) {
+    public TbStorageDeletionRecord(Long storageDeletionSeq, String storageKey, Integer attemptCount, Instant nextAttemptDate, String lastError, Instant registerDate, StorageDeletionAction action, String uploadId) {
         super(TbStorageDeletion.TB_STORAGE_DELETION);
 
         setStorageDeletionSeq(storageDeletionSeq);
@@ -140,6 +173,8 @@ public class TbStorageDeletionRecord extends UpdatableRecordImpl<TbStorageDeleti
         setNextAttemptDate(nextAttemptDate);
         setLastError(lastError);
         setRegisterDate(registerDate);
+        setAction(action);
+        setUploadId(uploadId);
         resetChangedOnNotNull();
     }
 }

@@ -10,6 +10,7 @@ import com.thinkfree.drive.storage.exception.StorageException;
 import com.thinkfree.drive.storage.properties.StorageProperty;
 import com.thinkfree.drive.storage.result.StorageDeleteObjectsResult;
 import com.thinkfree.drive.storage.result.StorageDetailResult;
+import com.thinkfree.drive.storage.result.StoragePart;
 import com.thinkfree.drive.storage.properties.S3ConnectionProperty;
 import com.thinkfree.drive.storage.util.StorageUtils;
 import com.thinkfree.drive.util.MaskingUtils;
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -485,6 +487,252 @@ public class S3StorageService implements StorageService {
             }
         }
         return true;
+    }
+
+    // ------------------------------------------------------------------ 멀티파트(업로드 세션)
+
+    @Override
+    public String createMultipartUpload(String key, String contentType) {
+        try {
+            CreateMultipartUploadResponse response = s3Client.createMultipartUpload(
+                    req -> req.bucket(connection.bucketName()).key(key).contentType(contentType));
+            log.info("[Storage createMultipartUpload] key: {}", key);
+            return response.uploadId();
+        } catch (Exception e) {
+            throw mapAndLog("createMultipartUpload", key, e, StorageErrorCode.MULTIPART_FAILED);
+        }
+    }
+
+    @Override
+    public String uploadPart(String key, String uploadId, int partNumber, InputStream in, long length) {
+        try {
+            // 호출자의 스트림(서블릿 입력 등)을 SDK 가 닫거나 length 를 넘어 읽지 않게 감싼다
+            UploadPartResponse response = s3Client.uploadPart(
+                    req -> req.bucket(connection.bucketName()).key(key).uploadId(uploadId).partNumber(partNumber).contentLength(length),
+                    RequestBody.fromInputStream(new BoundedNonClosingInputStream(in, length), length));
+            return response.eTag();
+        } catch (Exception e) {
+            throw mapMultipartAndLog("uploadPart", key, uploadId, e);
+        }
+    }
+
+    @Override
+    public List<StoragePart> listParts(String key, String uploadId) {
+        try {
+            List<StoragePart> parts = new ArrayList<>();
+            for (ListPartsResponse page : s3Client.listPartsPaginator(
+                    req -> req.bucket(connection.bucketName()).key(key).uploadId(uploadId))) {
+                for (Part part : page.parts()) {
+                    parts.add(new StoragePart(part.partNumber(), part.eTag(), part.size()));
+                }
+            }
+            parts.sort(Comparator.comparingInt(StoragePart::partNumber));
+            return parts;
+        } catch (Exception e) {
+            throw mapMultipartAndLog("listParts", key, uploadId, e);
+        }
+    }
+
+    @Override
+    public void completeMultipartUpload(String key, String uploadId, List<StoragePart> parts) {
+        try {
+            List<CompletedPart> completedParts = parts.stream()
+                    .map(p -> CompletedPart.builder().partNumber(p.partNumber()).eTag(p.eTag()).build())
+                    .toList();
+            s3Client.completeMultipartUpload(req -> req.bucket(connection.bucketName()).key(key).uploadId(uploadId)
+                                                       .multipartUpload(m -> m.parts(completedParts)));
+            log.info("[Storage completeMultipartUpload] key: {}, parts: {}", key, parts.size());
+        } catch (Exception e) {
+            throw mapMultipartAndLog("completeMultipartUpload", key, uploadId, e);
+        }
+    }
+
+    @Override
+    public void abortMultipartUpload(String key, String uploadId) {
+        try {
+            s3Client.abortMultipartUpload(req -> req.bucket(connection.bucketName()).key(key).uploadId(uploadId));
+            log.info("[Storage abortMultipartUpload] key: {}", key);
+        } catch (Exception e) {
+            if (isNoSuchUpload(e)) {
+                // 이미 없음 = 목적 달성(멱등)
+                log.info("[Storage abortMultipartUpload] already gone. key: {}", key);
+                return;
+            }
+            throw mapAndLog("abortMultipartUpload", key, e, StorageErrorCode.MULTIPART_FAILED);
+        }
+    }
+
+    @Override
+    public List<StoragePart> uploadPartsFromStream(String key, String uploadId, InputStream in, long length, long partSize) {
+        if (length <= 0 || partSize <= 0) {
+            throw new IllegalArgumentException("length and partSize must be positive: length=" + length + ", partSize=" + partSize);
+        }
+        long partCount = (length + partSize - 1) / partSize;
+        if (partCount > StorageConstants.MAX_PART_COUNT) {
+            throw new IllegalArgumentException("too many parts: " + partCount);
+        }
+        List<StoragePart> parts = new ArrayList<>((int) partCount);
+        long remaining = length;
+        for (int partNumber = 1; remaining > 0; partNumber++) {
+            long partLength = Math.min(partSize, remaining);
+            String eTag = uploadPart(key, uploadId, partNumber, in, partLength);
+            parts.add(new StoragePart(partNumber, eTag, partLength));
+            remaining -= partLength;
+        }
+        return parts;
+    }
+
+    @Override
+    public void putObject(String key, String contentType, InputStream in, long length) {
+        try {
+            s3Client.putObject(req -> req.bucket(connection.bucketName()).key(key).contentType(contentType).contentLength(length),
+                               RequestBody.fromInputStream(new BoundedNonClosingInputStream(in, length), length));
+            log.info("[Storage putObject] key: {}, length: {}", key, length);
+        } catch (Exception e) {
+            throw mapAndLog("putObject", key, e, StorageErrorCode.UPLOAD_FAILED);
+        }
+    }
+
+    @Override
+    public long headContentLength(String key) {
+        try {
+            return s3Client.headObject(req -> req.bucket(connection.bucketName()).key(key)).contentLength();
+        } catch (Exception e) {
+            throw mapAndLog("headContentLength", key, e, StorageErrorCode.GET_FAILED);
+        }
+    }
+
+    @Override
+    public byte[] readRange(String key, long start, long endInclusive) {
+        if (start < 0 || endInclusive < start) {
+            throw new IllegalArgumentException("invalid range: " + start + "-" + endInclusive);
+        }
+        try (ResponseInputStream<GetObjectResponse> in = s3Client.getObject(
+                req -> req.bucket(connection.bucketName()).key(key).range("bytes=" + start + "-" + endInclusive))) {
+            // 범위가 객체보다 길면 있는 만큼, 0바이트 객체·시작이 끝을 넘으면 416 → 빈 배열
+            return in.readNBytes((int) Math.min(endInclusive - start + 1, Integer.MAX_VALUE));
+        } catch (S3Exception e) {
+            if (e.statusCode() == 416) {
+                return new byte[0];
+            }
+            throw mapAndLog("readRange", key, e, StorageErrorCode.GET_FAILED);
+        } catch (Exception e) {
+            throw mapAndLog("readRange", key, e, StorageErrorCode.GET_FAILED);
+        }
+    }
+
+    @Override
+    public void copyObjectAnySize(String sourceKey, String targetKey) {
+        copyObjectAnySize(sourceKey, targetKey, StorageConstants.MAX_SINGLE_COPY_SIZE, StorageConstants.DEFAULT_COPY_PART_SIZE);
+    }
+
+    /** singleCopyLimit 이하면 CopyObject, 넘으면 minCopyPartSize 이상 파트로 UploadPartCopy — 테스트가 작은 값으로 멀티파트 경로를 확인한다. */
+    void copyObjectAnySize(String sourceKey, String targetKey, long singleCopyLimit, long minCopyPartSize) {
+        HeadObjectResponse head;
+        try {
+            head = s3Client.headObject(req -> req.bucket(connection.bucketName()).key(sourceKey));
+        } catch (Exception e) {
+            throw mapAndLog("copyObjectAnySize head", sourceKey, e, StorageErrorCode.COPY_FAILED);
+        }
+        long size = head.contentLength();
+        if (size <= singleCopyLimit) {
+            copy(sourceKey, targetKey);
+            return;
+        }
+        long partSize = Math.max(minCopyPartSize,
+                                 (size + StorageConstants.MAX_PART_COUNT - 1) / StorageConstants.MAX_PART_COUNT);
+        String uploadId = createMultipartUpload(targetKey, head.contentType());
+        try {
+            List<StoragePart> parts = new ArrayList<>();
+            long offset = 0;
+            for (int partNumber = 1; offset < size; partNumber++) {
+                long end = Math.min(offset + partSize, size) - 1;
+                final int n = partNumber;
+                final String range = "bytes=" + offset + "-" + end;
+                UploadPartCopyResponse response = s3Client.uploadPartCopy(req -> req
+                        .sourceBucket(connection.bucketName()).sourceKey(sourceKey)
+                        .destinationBucket(connection.bucketName()).destinationKey(targetKey)
+                        .uploadId(uploadId).partNumber(n).copySourceRange(range));
+                parts.add(new StoragePart(n, response.copyPartResult().eTag(), end - offset + 1));
+                offset = end + 1;
+            }
+            completeMultipartUpload(targetKey, uploadId, parts);
+            log.info("[Storage copyObjectAnySize multipart] from: {}, to: {}, size: {}, parts: {}", sourceKey, targetKey, size, parts.size());
+        } catch (Exception e) {
+            try {
+                abortMultipartUpload(targetKey, uploadId);
+            } catch (RuntimeException abortException) {
+                e.addSuppressed(abortException);
+            }
+            if (e instanceof StorageException se) {
+                throw se;
+            }
+            throw mapAndLog("copyObjectAnySize", targetKey, e, StorageErrorCode.COPY_FAILED);
+        }
+    }
+
+    private StorageException mapMultipartAndLog(String action, String key, String uploadId, Exception e) {
+        if (isNoSuchUpload(e)) {
+            log.warn("[Storage {} NoSuchUpload] key: {}, uploadId: {}", action, key, uploadId);
+            return StorageException.type(StorageErrorCode.NO_SUCH_UPLOAD);
+        }
+        return mapAndLog(action, key, e, StorageErrorCode.MULTIPART_FAILED);
+    }
+
+    /** NoSuchUpload — SDK 전용 예외 또는 S3 호환 스토리지가 주는 오류 코드(404 + NoSuchUpload). */
+    static boolean isNoSuchUpload(Throwable e) {
+        if (e instanceof NoSuchUploadException) {
+            return true;
+        }
+        if (e instanceof S3Exception s3) {
+            return s3.awsErrorDetails() != null && "NoSuchUpload".equals(s3.awsErrorDetails().errorCode());
+        }
+        return false;
+    }
+
+    /** 원본 스트림에서 최대 limit 바이트만 읽고 close 는 원본에 전달하지 않는다 — 한 스트림을 파트별로 잘라 쓰고, 서블릿 입력을 SDK 가 닫지 않게. */
+    static final class BoundedNonClosingInputStream extends InputStream {
+        private final InputStream in;
+        private long remaining;
+
+        BoundedNonClosingInputStream(InputStream in, long limit) {
+            this.in = in;
+            this.remaining = limit;
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (remaining <= 0) {
+                return -1;
+            }
+            int b = in.read();
+            if (b >= 0) {
+                remaining--;
+            }
+            return b;
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            if (remaining <= 0) {
+                return -1;
+            }
+            int n = in.read(b, off, (int) Math.min(len, remaining));
+            if (n > 0) {
+                remaining -= n;
+            }
+            return n;
+        }
+
+        @Override
+        public int available() throws IOException {
+            return (int) Math.min(in.available(), remaining);
+        }
+
+        @Override
+        public void close() {
+            // 원본은 호출자 소유
+        }
     }
 
     private Delete createDelete(List<String> keys) {

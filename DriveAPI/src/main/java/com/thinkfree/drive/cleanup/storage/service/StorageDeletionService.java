@@ -3,17 +3,25 @@ package com.thinkfree.drive.cleanup.storage.service;
 import com.thinkfree.drive.cleanup.storage.data.StorageDeletionData;
 import com.thinkfree.drive.cleanup.storage.query.StorageDeletionFailQuery;
 import com.thinkfree.drive.cleanup.storage.repository.StorageDeletionRepository;
+import com.thinkfree.drive.global.jdbc.JdbcAudit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
- * 스토리지 객체 삭제 대기열(아웃박스) — 등록은 DB 행을 지우는 트랜잭션 안에서, 처리는 {@link StorageDeletionProcessor} 가 한다.
+ * 스토리지 객체 정리 대기열(아웃박스) — 등록은 DB 상태를 바꾸는 트랜잭션 안에서, 처리는 {@link StorageDeletionProcessor} 가 한다.
+ * <ul>
+ *   <li>DELETE — 객체 삭제(즉시 또는 유예)</li>
+ *   <li>ABORT_MULTIPART — 미완성 멀티파트 업로드 중단(업로드 세션을 끝내는 쪽이 같은 tx 에서 등록)</li>
+ * </ul>
  */
 @Slf4j
 @Service
@@ -28,24 +36,50 @@ public class StorageDeletionService {
      */
     @Transactional
     public void register(List<String> storageKeys) {
-        if (storageKeys == null || storageKeys.isEmpty()) {
-            return;
-        }
-        List<String> keys = storageKeys.stream().filter(StringUtils::hasText).distinct().toList();
+        List<String> keys = normalize(storageKeys);
         if (keys.isEmpty()) {
             return;
         }
         int inserted = storageDeletionRepository.insertAll(keys);
-        if (inserted != keys.size()) {
-            log.warn("[StorageDeletionService register] requested: {}, inserted: {}", keys.size(), inserted);
+        logInserted("register", keys.size(), inserted);
+    }
+
+    /**
+     * 교체·밀려난 이전 key 의 삭제를 delay 뒤로 미뤄 등록한다(다운로드 중인 요청·편집 세션 보호) — 트랜잭션 합류는 {@link #register} 와 같다.
+     */
+    @Transactional
+    public void registerDeferred(List<String> storageKeys, Duration delay) {
+        List<String> keys = normalize(storageKeys);
+        if (keys.isEmpty()) {
             return;
         }
-        log.info("[StorageDeletionService register] count: {}", inserted);
+        int inserted = storageDeletionRepository.insertDeferred(keys, JdbcAudit.now().plus(delay));
+        logInserted("registerDeferred", keys.size(), inserted);
+    }
+
+    /** 미완성 멀티파트 업로드 중단을 등록한다 — 트랜잭션 합류는 {@link #register} 와 같다. 중복 등록돼도 abort 는 멱등. */
+    @Transactional
+    public void registerAbort(String storageKey, String uploadId) {
+        if (!StringUtils.hasText(storageKey) || !StringUtils.hasText(uploadId)) {
+            return;
+        }
+        storageDeletionRepository.insertAbort(storageKey, uploadId);
+        log.info("[StorageDeletionService registerAbort] key: {}", storageKey);
     }
 
     @Transactional(readOnly = true)
     public List<StorageDeletionData> findDue(Instant now, int maxAttemptCount, int limit) {
         return storageDeletionRepository.findDue(now, maxAttemptCount, limit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<StorageDeletionData> findDueAborts(Instant now, int maxAttemptCount, int limit) {
+        return storageDeletionRepository.findDueAborts(now, maxAttemptCount, limit);
+    }
+
+    @Transactional(readOnly = true)
+    public Set<String> findReferencedKeys(Collection<String> storageKeys) {
+        return storageDeletionRepository.findReferencedKeys(storageKeys);
     }
 
     /** 한 묶음의 결과 반영 — 성공 행은 지우고 실패 행은 시도 횟수·다음 시도 시각·사유를 갱신한다(한 트랜잭션). */
@@ -57,5 +91,20 @@ public class StorageDeletionService {
             log.warn("[StorageDeletionService applyResult] succeeded: {}, deleted rows: {}", succeededSeqList.size(), deleted);
         }
         storageDeletionRepository.markFailed(failQueries);
+    }
+
+    private static List<String> normalize(List<String> storageKeys) {
+        if (storageKeys == null || storageKeys.isEmpty()) {
+            return List.of();
+        }
+        return storageKeys.stream().filter(StringUtils::hasText).distinct().toList();
+    }
+
+    private static void logInserted(String action, int requested, int inserted) {
+        if (inserted != requested) {
+            log.warn("[StorageDeletionService {}] requested: {}, inserted: {}", action, requested, inserted);
+            return;
+        }
+        log.info("[StorageDeletionService {}] count: {}", action, inserted);
     }
 }

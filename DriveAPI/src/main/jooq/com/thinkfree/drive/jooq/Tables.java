@@ -40,6 +40,7 @@ import com.thinkfree.drive.jooq.tables.TbSystemConfig;
 import com.thinkfree.drive.jooq.tables.TbTenant;
 import com.thinkfree.drive.jooq.tables.TbTenantAccessToken;
 import com.thinkfree.drive.jooq.tables.TbTrash;
+import com.thinkfree.drive.jooq.tables.TbUploadSession;
 import com.thinkfree.drive.jooq.tables.TbUser;
 import com.thinkfree.drive.jooq.tables.TbUserLog;
 import com.thinkfree.drive.jooq.tables.TbUserQuotaAlertState;
@@ -232,6 +233,11 @@ public class Tables {
      * 휴지통 테이블
      */
     public static final TbTrash TB_TRASH = TbTrash.TB_TRASH;
+
+    /**
+     * 업로드 세션(파일 저장 한 건의 진행 상태)
+     */
+    public static final TbUploadSession TB_UPLOAD_SESSION = TbUploadSession.TB_UPLOAD_SESSION;
 
     /**
      * The table <code>tb_user</code>.
