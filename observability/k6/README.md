@@ -75,4 +75,4 @@ docker volume rm drive-observability_loadtest-db-data drive-observability_loadte
 - 라이선스 없는 새 DB 는 좌석이 20개 남짓(admin 포함) — 사용자를 더 만들면 `USER_013`. 늘리려면 관리자 화면에서 라이선스를 넣고 `-e USERS=` 를 올린다.
 - 틀린 비밀번호 5번이면 계정이 잠긴다 — 비밀번호를 바꾸면 처음부터.
 - 같은 PC 에서 k6·WAS·DB 가 CPU 를 나눠 쓴다. 이 결과는 **병목 위치 찾기** 용이고, 처리량 수치는 k6 를 다른 머신에 두고 서버에서 잰다.
-- 트레이스 샘플링은 실행 구성에서 0.1(10%) — 1.0 이면 Tempo 디스크가 금방 찬다.
+- 앱은 트레이스를 전부 보내고(실행 구성 1.0), Alloy 가 에러·5xx·1초 이상 요청은 전부, 나머지는 10%만 Tempo 에 남긴다(`../README.md` 트레이스 샘플링).

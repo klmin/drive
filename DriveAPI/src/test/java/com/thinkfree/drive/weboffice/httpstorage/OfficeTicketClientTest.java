@@ -61,6 +61,24 @@ class OfficeTicketClientTest {
     @Test void missingServiceConfigurationFailsWithoutRequest() {
         serviceToken = ""; assertThrows(HttpStorageException.class, this::issue); assertNull(body.get());
     }
+    @Test void ticketCallIsObservedAsChildOfCurrentObservation() {
+        var stopped = new java.util.concurrent.CopyOnWriteArrayList<io.micrometer.observation.Observation.Context>();
+        var registry = io.micrometer.observation.ObservationRegistry.create();
+        registry.observationConfig().observationHandler(new io.micrometer.observation.ObservationHandler<>() {
+            @Override public void onStop(io.micrometer.observation.Observation.Context c) { stopped.add(c); }
+            @Override public boolean supportsContext(io.micrometer.observation.Observation.Context c) { return true; }
+        });
+        var request = io.micrometer.observation.Observation.start("request", registry);
+        try (var ignored = request.openScope()) {
+            new OfficeTicketClient(properties, org.springframework.web.client.RestClient.builder().observationRegistry(registry)).issue(officeBase, "drive-local", "documents/2-3/a.docx",
+                    Map.of("app", "WORD_EDITOR", "docId", "2-3"), Map.of("tenantId", "drive:1", "userId", "2"),
+                    "browser-session", serviceToken);
+        } finally { request.stop(); }
+        var call = stopped.stream().filter(c -> "http.client.requests".equals(c.getName())).findFirst().orElseThrow();
+        assertSame(request, call.getParentObservation());
+        assertEquals("POST", call.getLowCardinalityKeyValue("method").getValue());
+        assertEquals("200", call.getLowCardinalityKeyValue("status").getValue());
+    }
     @Test void invalidBaseUrlDoesNotSendCredential() {
         officeBase = "http://user:password@localhost/";
         assertThrows(HttpStorageException.class, this::issue); assertNull(body.get());

@@ -2,11 +2,15 @@ package com.thinkfree.drive.storage.config;
 
 import com.thinkfree.drive.storage.condition.ConditionalOnStorageType;
 import com.thinkfree.drive.storage.enums.StorageType;
+import com.thinkfree.drive.storage.observation.S3ObservationInterceptor;
 import com.thinkfree.drive.storage.properties.S3ConnectionProperty;
 import com.thinkfree.drive.storage.properties.StorageProperty;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -66,11 +70,19 @@ public class S3ClientConfig {
         );
     }
 
+    /** S3 호출을 트레이스 구간·메트릭으로 남긴다. 끄기: {@code drive.observability.s3-tracing.enabled=false} */
     @Bean
-    public S3Client s3Client(StaticCredentialsProvider credentials) {
+    @ConditionalOnProperty(name = "drive.observability.s3-tracing.enabled", havingValue = "true", matchIfMissing = true)
+    public S3ObservationInterceptor s3ObservationInterceptor(ObjectProvider<ObservationRegistry> observationRegistry) {
+        return new S3ObservationInterceptor(() -> observationRegistry.getIfAvailable(() -> ObservationRegistry.NOOP));
+    }
+
+    @Bean
+    public S3Client s3Client(StaticCredentialsProvider credentials, ObjectProvider<S3ObservationInterceptor> observation) {
         var builder = S3Client.builder()
                               .credentialsProvider(credentials)
-                              .region(resolveRegion());
+                              .region(resolveRegion())
+                              .overrideConfiguration(o -> observation.ifAvailable(o::addExecutionInterceptor));
         if (connection.isEndpointBased()) {
             builder.endpointOverride(URI.create(connection.endpoint()))
                    .serviceConfiguration(pathStyle());
@@ -79,11 +91,14 @@ public class S3ClientConfig {
     }
 
     @Bean
-    public S3AsyncClient s3AsyncClient(StaticCredentialsProvider credentials) {
+    public S3AsyncClient s3AsyncClient(StaticCredentialsProvider credentials, ObjectProvider<S3ObservationInterceptor> observation) {
         var builder = S3AsyncClient.builder()
                                    .credentialsProvider(credentials)
                                    .region(resolveRegion())
-                                   .overrideConfiguration(o -> o.retryStrategy(RetryMode.STANDARD));
+                                   .overrideConfiguration(o -> {
+                                       o.retryStrategy(RetryMode.STANDARD);
+                                       observation.ifAvailable(o::addExecutionInterceptor);
+                                   });
         if (connection.isEndpointBased()) {
             builder.endpointOverride(URI.create(connection.endpoint()))
                    .serviceConfiguration(pathStyle());

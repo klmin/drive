@@ -54,13 +54,50 @@ docker compose up -d
 | `DRIVE_MANAGEMENT_PORT` | 8091 | Actuator 관리 포트. 서비스 포트와 분리 — 외부에 열지 않는다 |
 | `DRIVE_OTLP_TRACING_EXPORT_ENABLED` | false | 트레이스를 Alloy 로 보낼지. 스택이 있는 곳만 true |
 | `DRIVE_OTLP_TRACING_ENDPOINT` | http://localhost:4318/v1/traces | Alloy OTLP HTTP 주소 |
-| `DRIVE_TRACING_SAMPLING_PROBABILITY` | 0.1 | 트레이스로 남길 요청 비율. 로컬·dev 는 1.0 |
+| `DRIVE_TRACING_SAMPLING_PROBABILITY` | 1.0 | 앱이 트레이스를 보낼 요청 비율. 전부 보내고 남길지는 Alloy 가 정한다(아래 트레이스 샘플링) |
 | `DRIVE_ENV` | local | 트레이스 resource 의 deployment.environment |
 | `drive.observability.jdbc-tracing.enabled` | true | SQL 실행 구간(span) 기록 |
+| `drive.observability.s3-tracing.enabled` | true | S3 API 호출 구간(span)·`aws.s3.client` 메트릭 기록 |
+
+### 트레이스에 잡히는 구간
+
+요청 1건 = 트레이스 1개(traceId). 아래는 그 요청의 자식 구간으로 남는다.
+
+| 구간 | 이름 예 | 만드는 곳 |
+|---|---|---|
+| HTTP 요청 | `http post /api/v1/files` | Spring MVC 관측 (`/actuator` 는 `ObservationConfig` 가 제외) |
+| SQL | `query` (`jdbc.query[0]` 에 SQL, 바인딩 값 없음) | `JdbcObservationConfig` |
+| S3 호출 | `s3 put-object`·`s3 get-object` (버킷·상태코드, 객체 키 없음) | `S3ObservationInterceptor` — 404 는 "객체 없음" 정상 결과라 오류로 표시하지 않는다 |
+| 외부 HTTP | `http post` (상대에게 `traceparent` 전달) | `RestClientFactory`·`OfficeTicketClient` 의 `observationRegistry` |
+| `@Async` 작업 안의 SQL·S3 | 요청 트레이스 안에 이어진다 | `AsyncConfig` 의 `ContextPropagatingTaskDecorator` (로그 traceId 도 이어진다) |
+
+- 비즈니스 메서드 단위 구간은 없다 — 필요한 곳만 `@Observed` 로 더한다.
+- `@Async` 작업 자체는 구간을 만들지 않아, 그 안의 SQL·S3 가 요청 구간 바로 아래에 붙는다(응답 뒤 시각일 수 있다).
+- GetObject 구간은 응답 헤더를 받은 시점까지다. 본문 스트림을 읽는 시간은 요청 구간에 포함된다.
+- 메트릭: S3 호출은 `aws_s3_client_seconds_*`(operation·status 별), 외부 HTTP 는 `http_client_requests_seconds_*`.
 
 로그를 Loki 로 보내려면 앱이 **파일로** 로그를 남겨야 한다(`log4j2-server.yml`, `LOG_PATH`).
 로컬 `.env` 는 콘솔 전용(`log4j2-local.yml`)이라, 쓰려면 `DriveAPI/.env.example` 의 관측성 절을 참고.
 `observability/.env` 의 `DRIVE_LOG_DIR` 은 `LOG_PATH` 의 상위 폴더로 맞춘다(그 아래 `**/drive-server.log` 를 읽는다).
+
+## 트레이스 샘플링
+
+앱은 모든 요청의 트레이스를 Alloy 로 보내고(`DRIVE_TRACING_SAMPLING_PROBABILITY=1.0`),
+Alloy 의 `otelcol.processor.tail_sampling` 이 요청이 끝난 뒤 **요청(trace) 단위로** 남길지 정한다.
+
+| 정책 | 남기는 요청 |
+|---|---|
+| errors | span 상태가 ERROR (처리 안 된 예외) |
+| server_errors | 응답 5xx (`outcome=SERVER_ERROR`) |
+| slow | 1초 이상 걸린 요청 |
+| sample | 위에 해당하지 않는 요청 중 10% (traceId 기준) |
+
+- 앱에서 비율을 낮추면(head 샘플링) 요청 시작 때 결과를 모른 채 버리므로 에러 트레이스도 같이 사라진다.
+- 버린 요청도 로그(Loki)와 메트릭(Prometheus)은 전부 남는다. 로그의 traceId 로 Tempo 를 열었을 때 트레이스가 없을 수는 있다.
+- Alloy 가 트레이스를 `decision_wait`(30초) 동안 메모리에 모았다가 보내므로 Tempo 에 늦게 보인다.
+  요청이 이 시간보다 오래 걸리면 결정이 먼저 나서 뒤에 온 에러 span 을 놓칠 수 있다 — DB 커넥션 대기(Hikari 30초)를 고려한 값이다.
+- Tempo 가 트레이스로 만드는 span 메트릭은 남은 트레이스 기준이라 치우친다. 요청 수·응답 시간은 Micrometer 메트릭을 본다.
+- 비율·기준은 `alloy/config.alloy` 의 `tail_sampling` 정책에서 바꾼다.
 
 ## 서버에 둘 때
 
