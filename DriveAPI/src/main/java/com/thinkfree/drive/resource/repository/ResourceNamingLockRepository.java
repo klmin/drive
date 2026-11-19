@@ -22,6 +22,23 @@ public class ResourceNamingLockRepository {
 
     private final DSLContext dsl;
 
+    /**
+     * 대상의 현재 부모(잠금 없음) — 대상 행을 잠그기 전에 이름 정할 자리를 먼저 잠그려고 읽는다(위에서 아래로 잠금).
+     *
+     * @param parentFolderSeq 부모 폴더 seq(루트면 null)
+     */
+    public record Parent(Long parentFolderSeq) {
+    }
+
+    /** @return 대상이 없으면 empty(뒤이은 대상 잠금이 NOT_FOUND 를 낸다) */
+    public java.util.Optional<Parent> findParent(int userSeq, long resourceSeq) {
+        return dsl.select(TB_RESOURCE.PARENT_FOLDER_SEQ)
+                  .from(TB_RESOURCE)
+                  .where(TB_RESOURCE.USER_SEQ.eq(userSeq))
+                  .and(TB_RESOURCE.RESOURCE_SEQ.eq(resourceSeq))
+                  .fetchOptional(r -> new Parent(r.value1()));
+    }
+
     /** 루트에 이름을 정할 때 — 사용자 행 잠금. @return 행이 있으면 true */
     public boolean lockUser(int userSeq) {
         return dsl.select(TB_USER.USER_SEQ)

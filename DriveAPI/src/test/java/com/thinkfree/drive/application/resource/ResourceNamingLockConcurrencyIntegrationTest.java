@@ -217,4 +217,28 @@ class ResourceNamingLockConcurrencyIntegrationTest {
 
         assertThat(namesIn(destination)).hasSize(THREADS).doesNotHaveDuplicates();
     }
+
+    @Test
+    @DisplayName("부모 폴더와 그 자식 폴더 동시 이름 변경(서로 다른 이름) — 잠금이 위에서 아래로라 교착 없이 둘 다 성공(Codex 리뷰 P1 회귀)")
+    void concurrentParentAndChildRenameDoNotDeadlock() throws Exception {
+        for (int round = 0; round < 5; round++) {
+            long grand = folder(null, "nl-g-" + UUID.randomUUID());
+            long parent = folder(grand, "nl-p-" + UUID.randomUUID());
+            long child = folder(parent, "nl-c-" + UUID.randomUUID());
+            long grandChild = folder(child, "nl-gc-" + UUID.randomUUID());
+            String parentName = "p-renamed-" + UUID.randomUUID();
+            String childName = "c-renamed-" + UUID.randomUUID();
+
+            List<Callable<?>> tasks = List.of(
+                    () -> folders.rename(parent, new FolderRenameRequest(null, parentName), user),
+                    () -> folders.rename(child, new FolderRenameRequest(null, childName), user));
+            assertThat(race(tasks)).as("round %d", round).containsOnlyNulls();
+
+            assertThat(jdbc.queryForObject("SELECT resource_name FROM tb_resource WHERE user_seq=? AND resource_seq=?", String.class, USER, parent)).isEqualTo(parentName);
+            assertThat(jdbc.queryForObject("SELECT resource_name FROM tb_resource WHERE user_seq=? AND resource_seq=?", String.class, USER, child)).isEqualTo(childName);
+            // 하위 경로가 두 변경을 모두 반영했는지 — 손자 폴더 경로에 새 부모·자식 이름이 둘 다 있어야 한다
+            String grandChildPath = jdbc.queryForObject("SELECT full_path FROM tb_resource WHERE user_seq=? AND resource_seq=?", String.class, USER, grandChild);
+            assertThat(grandChildPath).contains(parentName).contains(childName);
+        }
+    }
 }

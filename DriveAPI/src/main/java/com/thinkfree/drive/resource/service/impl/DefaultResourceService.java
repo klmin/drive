@@ -313,9 +313,24 @@ public class DefaultResourceService implements ResourceService {
         return resourceConverter.toSaveResult(resource, null, null, null, resource.getSizeByte(), null, parentFolderName, resource.getRegisterDate(), null, null, null);
     }
 
+    /**
+     * 대상 행을 잠그기 전에 그 대상의 이름 정할 자리를 먼저 잠근다 — 잠금은 늘 위에서 아래로(자리 → 대상 → 하위).
+     * 부모 폴더 이름 변경은 부모를 잠근 뒤 하위 경로를 고치며 자식 행을 기다리므로, 자식 쪽이 자식 → 부모 순으로 잡으면 순환 대기(교착)가 된다.
+     * 부모는 잠금 없이 읽은 값이라, 대상 잠금 뒤 부모가 바뀌었으면(그 사이 이동) 호출부의 {@link #lockNamingScope} 가 새 자리를 한 번 더 잠근다.
+     *
+     * @param useParent false 면 루트(사용자 행) — 부모가 없어진 항목의 휴지통 복원
+     */
+    private void lockCurrentScopeBeforeTarget(long resourceSeq, int userSeq, boolean useParent) {
+        var parent = resourceNamingLockRepository.findParent(userSeq, resourceSeq);
+        if (parent.isEmpty()) {
+            return; // 대상이 없음 — 뒤이은 대상 잠금이 NOT_FOUND
+        }
+        lockNamingScope(useParent ? parent.get().parentFolderSeq() : null, userSeq);
+    }
 
     /**
-     * 이름을 정할 자리 잠금(규칙 9, §8.2) — 부모 폴더 행, 루트면 사용자 행을 FOR NO KEY UPDATE. 이름 넘버링·중복 검사 전에, 대상 행 잠금 뒤에 부른다.
+     * 이름을 정할 자리 잠금(규칙 9, §8.2) — 부모 폴더 행, 루트면 사용자 행을 FOR NO KEY UPDATE. 이름 넘버링·중복 검사 전에 부른다.
+     * 잠금 순서는 위에서 아래로(자리 → 대상 → 하위) — 대상이 있는 경로는 {@link #lockCurrentScopeBeforeTarget} 로 먼저 잡고, 대상 잠금 뒤 여기서 한 번 더(이미 쥔 잠금이면 대기 없음).
      * 이름 유니크 인덱스가 없어 이 잠금이 같은 위치의 동시 이름 결정(같은 이름 두 개)을 막는 유일한 장치다. 부모가 살아 있는 폴더가 아니면 NOT_FOUND.
      */
     private void lockNamingScope(Long parentFolderSeq, int userSeq) {
@@ -325,6 +340,7 @@ public class DefaultResourceService implements ResourceService {
         }
         DriveAssert.throwIfFalse(resourceNamingLockRepository.lockLiveFolder(userSeq, parentFolderSeq), ResourceErrorCode.NOT_FOUND);
     }
+
     private ResourceDetailData validateParentFolderExists(Long parentFolderSeq, int userSeq){
         if(parentFolderSeq != null) {
             var parentFineQuery = resourceConverter.toFindQuery(parentFolderSeq, userSeq, ResourceType.FOLDER, false);
@@ -440,6 +456,8 @@ public class DefaultResourceService implements ResourceService {
         // 고칠 행 = 관리 엔티티 한 번 로드(W10, 7-8) — 감사 "변경 전" 이름·부모도 여기서 읽는다(구 감사용 findResource DTO 재조회 + 메모리 엔티티 + 리포 재로드).
         // 조건은 구 findResource 와 같음(미삭제·소유 계정 노출, 타입 무관) — 없으면 NOT_FOUND. 첫 로드에서 잠금(10-14 — 같은 행 동시 변경 직렬화, 고칠 행 잠금 규칙 통일)
         // ncp=AUTO 는 잠김 확인을 건너뛴다(구 @CheckResourceLock 의 nameConflictPolicy 분기 그대로 — 잠금을 쥔 편집기 자신의 이름 변경)
+        // 위에서 아래로 잠금 — 이름 정할 자리(현재 부모)를 대상보다 먼저(부모 폴더 이름 변경이 하위를 고치며 대상을 기다리는 것과 순환하지 않게)
+        lockCurrentScopeBeforeTarget(resourceSeq, userSeq, true);
         var entity = nameConflictPolicy == NameConflictPolicy.AUTO
                 ? lockForChange(resourceSeq, userSeq, null, false)
                 : lockForChangeUnlocked(resourceSeq, userSeq, null, false);
@@ -486,6 +504,8 @@ public class DefaultResourceService implements ResourceService {
 
         // 고칠 행 = 관리 엔티티(W10 — 구 detach 엔티티 수정 + 리포 재로드·flush·detach), 첫 로드에서 잠금(10-14 — 이동과 동시에 오면 옛 경로로
         // 자기 경로를 덮어쓰고 하위 치환(LIKE 옛경로%)이 0행이 되던 것: 늦은 쪽은 앞선 커밋까지 기다린 뒤 새 경로를 읽는다)
+        // 위에서 아래로 잠금 — 이름 정할 자리(현재 부모) → 대상 → 하위(부모·자식 폴더 동시 이름 변경의 교착 방지)
+        lockCurrentScopeBeforeTarget(dto.getResourceSeq(), dto.getUserSeq(), true);
         var entity = lockForChange(dto.getResourceSeq(), dto.getUserSeq(), dto.getResourceType(), dto.getIsDelete());
         // 이름 정할 자리 잠금(대상 행 다음, 규칙 8·9)
         lockNamingScope(entity.getParentFolderSeq(), dto.getUserSeq());
@@ -557,6 +577,8 @@ public class DefaultResourceService implements ResourceService {
     public void restoreFile(ResourceRestoreDto dto){
 
         // 고칠 행 = 관리 엔티티, 첫 로드에서 잠금(W10 R4 — 구 is_delete = Y 조건 JPQL 의 동시 복원 보호)
+        // 위에서 아래로 잠금 — 복원 자리(원래 부모가 있으면 그 폴더, 없으면 루트) → 대상
+        lockCurrentScopeBeforeTarget(dto.getResourceSeq(), dto.getUserSeq(), dto.isParentExists());
         var resource = lockForRestore(dto.getResourceSeq(), dto.getUserSeq(), dto.getResourceType());
 
         var resourceName = resource.getResourceName();
@@ -578,6 +600,8 @@ public class DefaultResourceService implements ResourceService {
     public void restoreFolder(ResourceRestoreDto dto) {
 
         // 고칠 행 = 관리 엔티티, 첫 로드에서 잠금(W10 R4)
+        // 위에서 아래로 잠금 — 복원 자리(원래 부모가 있으면 그 폴더, 없으면 루트) → 대상
+        lockCurrentScopeBeforeTarget(dto.getResourceSeq(), dto.getUserSeq(), dto.isParentExists());
         var resource = lockForRestore(dto.getResourceSeq(), dto.getUserSeq(), dto.getResourceType());
 
         var oldFullPath = resource.getFullPath();
@@ -636,6 +660,8 @@ public class DefaultResourceService implements ResourceService {
         var userSeq = dto.getUserSeq();
         var targetUserSeq = dto.getTargetUserSeq();
         // 고칠 행 = 관리 엔티티(W10 — 구 detach 엔티티 수정 + 리포 재로드·flush·detach / 소유자 변경은 JdbcClient), 첫 로드에서 잠금(6-c — 동시 이동)
+        // 위에서 아래로 잠금 — 목적지 자리(받는 사용자의 폴더·루트면 사용자 행) → 대상
+        lockNamingScope(dto.getParentFolderSeq(), targetUserSeq == null ? userSeq : targetUserSeq);
         var resource = lockForChangeUnlocked(dto.getResourceSeq(), userSeq, dto.getResourceType(), dto.getIsDelete());
 
         var oldParentFolderSeq = resource.getParentFolderSeq();
