@@ -263,4 +263,40 @@ class ResourceNamingLockConcurrencyIntegrationTest {
                     .as("루트로 옮긴 폴더 경로에 옛 부모 이름이 남지 않는다").doesNotContain(parentName);
         }
     }
+
+    @Autowired com.thinkfree.drive.application.trash.TrashUseCase trash;
+
+    @Test
+    @DisplayName("같은 휴지통 파일의 복원과 영구 삭제 동시 — 둘 다 사용자 행을 먼저 잡아 교착 없이 한쪽만 반영(Codex 리뷰 P1 회귀)")
+    void concurrentRestoreAndPermanentDeleteDoNotDeadlock() throws Exception {
+        for (int round = 0; round < 5; round++) {
+            long f = file(null, "nl-trash-" + UUID.randomUUID());
+            trash.moveFileToTrash(f, USER);
+
+            List<Callable<?>> tasks = List.of(
+                    () -> { trash.restoreFile(f, false, USER); return null; },
+                    () -> { trash.deleteFile(f, USER, "fixture"); return null; });
+            // 교착(DeadlockLoser·CannotAcquireLock)이면 race 가 예외로 실패한다 — 나머지 업무 오류(이미 복원·이미 삭제)는 허용
+            List<ErrorCode> results = race(tasks);
+
+            assertThat(results).as("round %d — 적어도 하나는 성공", round).containsNull();
+        }
+    }
+
+    @Test
+    @DisplayName("같은 파일의 이름 변경과 직접 영구 삭제 동시 — 교착 없이 한쪽만 반영")
+    void concurrentRenameAndDirectDeleteDoNotDeadlock() throws Exception {
+        for (int round = 0; round < 5; round++) {
+            long parent = folder(null, "nl-dd-" + UUID.randomUUID());
+            long target = folder(parent, "nl-ddt-" + UUID.randomUUID());
+            String newName = "dd-renamed-" + UUID.randomUUID();
+
+            List<Callable<?>> tasks = List.of(
+                    () -> folders.rename(target, new FolderRenameRequest(null, newName), user),
+                    () -> { trash.deleteActivePermanently(target, USER, "fixture", ResourceType.FOLDER); return null; });
+            List<ErrorCode> results = race(tasks);
+
+            assertThat(results).as("round %d — 적어도 하나는 성공", round).containsNull();
+        }
+    }
 }
