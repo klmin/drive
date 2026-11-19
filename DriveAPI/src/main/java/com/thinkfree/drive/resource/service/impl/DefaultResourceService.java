@@ -314,6 +314,16 @@ public class DefaultResourceService implements ResourceService {
     }
 
     /**
+     * 이름을 정하는 작업의 첫 잠금 — 소유자 사용자 행(소유자가 바뀌는 이동이면 두 사용자 행을 번호 순서로), FOR NO KEY UPDATE.
+     * 업로드 커밋도 사용자 행을 먼저 잡으므로, 같은 소유자의 이름 결정은 모두 이 행에서 줄을 서 순환 대기가 생기지 않는다
+     * (부모·자식 이름 변경, 루트 이동과 루트 폴더 이름 변경, 교차 이동처럼 행 순서만으로는 다 맞출 수 없는 조합 포함 — Codex 리뷰 P1).
+     */
+    private void lockOwners(Integer userSeq, Integer targetUserSeq) {
+        java.util.stream.Stream.of(userSeq, targetUserSeq).filter(Objects::nonNull).distinct().sorted()
+                .forEach(seq -> DriveAssert.throwIfFalse(resourceNamingLockRepository.lockUser(seq), UserErrorCode.USER_NOT_FOUND));
+    }
+
+    /**
      * 대상 행을 잠그기 전에 그 대상의 이름 정할 자리를 먼저 잠근다 — 잠금은 늘 위에서 아래로(자리 → 대상 → 하위).
      * 부모 폴더 이름 변경은 부모를 잠근 뒤 하위 경로를 고치며 자식 행을 기다리므로, 자식 쪽이 자식 → 부모 순으로 잡으면 순환 대기(교착)가 된다.
      * 부모는 잠금 없이 읽은 값이라, 대상 잠금 뒤 부모가 바뀌었으면(그 사이 이동) 호출부의 {@link #lockNamingScope} 가 새 자리를 한 번 더 잠근다.
@@ -418,6 +428,8 @@ public class DefaultResourceService implements ResourceService {
     
     @Override
     public ResourceFolderCreateResult saveFolderWithCopyCheck(FolderUploadDto dto){
+        // 잠금 순서 1 — 소유자 사용자 행(규칙 8). 같은 소유자의 이름 결정(생성·이름 변경·이동·복원·업로드 커밋)이 한 줄로 서서 순환 대기가 없다
+        lockOwners(dto.getUserSeq(), null);
 
         var resource = resourceConverter.toFolderResource(dto);
         
@@ -448,6 +460,8 @@ public class DefaultResourceService implements ResourceService {
     
     @Override
     public ResourceRenameResult resolveName(ResourceRenameDto dto) {
+        // 잠금 순서 1 — 소유자 사용자 행(규칙 8). 같은 소유자의 이름 결정(생성·이름 변경·이동·복원·업로드 커밋)이 한 줄로 서서 순환 대기가 없다
+        lockOwners(dto.getUserSeq(), null);
 
         var nameConflictPolicy = dto.getNameConflictPolicy() == null ? NameConflictPolicy.NONE : dto.getNameConflictPolicy();
         var resourceSeq = dto.getResourceSeq();
@@ -501,6 +515,8 @@ public class DefaultResourceService implements ResourceService {
     
     @Override
     public void folderRenameWithChildFolders(ResourceRenameDto dto) {
+        // 잠금 순서 1 — 소유자 사용자 행(규칙 8). 같은 소유자의 이름 결정(생성·이름 변경·이동·복원·업로드 커밋)이 한 줄로 서서 순환 대기가 없다
+        lockOwners(dto.getUserSeq(), null);
 
         // 고칠 행 = 관리 엔티티(W10 — 구 detach 엔티티 수정 + 리포 재로드·flush·detach), 첫 로드에서 잠금(10-14 — 이동과 동시에 오면 옛 경로로
         // 자기 경로를 덮어쓰고 하위 치환(LIKE 옛경로%)이 0행이 되던 것: 늦은 쪽은 앞선 커밋까지 기다린 뒤 새 경로를 읽는다)
@@ -575,6 +591,8 @@ public class DefaultResourceService implements ResourceService {
 
     @Override
     public void restoreFile(ResourceRestoreDto dto){
+        // 잠금 순서 1 — 소유자 사용자 행(규칙 8). 같은 소유자의 이름 결정(생성·이름 변경·이동·복원·업로드 커밋)이 한 줄로 서서 순환 대기가 없다
+        lockOwners(dto.getUserSeq(), null);
 
         // 고칠 행 = 관리 엔티티, 첫 로드에서 잠금(W10 R4 — 구 is_delete = Y 조건 JPQL 의 동시 복원 보호)
         // 위에서 아래로 잠금 — 복원 자리(원래 부모가 있으면 그 폴더, 없으면 루트) → 대상
@@ -598,6 +616,8 @@ public class DefaultResourceService implements ResourceService {
 
     @Override
     public void restoreFolder(ResourceRestoreDto dto) {
+        // 잠금 순서 1 — 소유자 사용자 행(규칙 8). 같은 소유자의 이름 결정(생성·이름 변경·이동·복원·업로드 커밋)이 한 줄로 서서 순환 대기가 없다
+        lockOwners(dto.getUserSeq(), null);
 
         // 고칠 행 = 관리 엔티티, 첫 로드에서 잠금(W10 R4)
         // 위에서 아래로 잠금 — 복원 자리(원래 부모가 있으면 그 폴더, 없으면 루트) → 대상
@@ -656,6 +676,8 @@ public class DefaultResourceService implements ResourceService {
 
     @Override
     public ResourceMoveResult fileMove(ResourceMoveDto dto) {
+        // 잠금 순서 1 — 소유자 사용자 행(규칙 8). 같은 소유자의 이름 결정(생성·이름 변경·이동·복원·업로드 커밋)이 한 줄로 서서 순환 대기가 없다
+        lockOwners(dto.getUserSeq(), dto.getTargetUserSeq());
 
         var userSeq = dto.getUserSeq();
         var targetUserSeq = dto.getTargetUserSeq();
@@ -712,6 +734,8 @@ public class DefaultResourceService implements ResourceService {
 
     @Override
     public ResourceMoveResult folderMove(ResourceMoveDto dto) {
+        // 잠금 순서 1 — 소유자 사용자 행(규칙 8). 같은 소유자의 이름 결정(생성·이름 변경·이동·복원·업로드 커밋)이 한 줄로 서서 순환 대기가 없다
+        lockOwners(dto.getUserSeq(), dto.getTargetUserSeq());
         
         var userSeq = dto.getUserSeq();
         var targetUserSeq = dto.getTargetUserSeq();

@@ -241,4 +241,26 @@ class ResourceNamingLockConcurrencyIntegrationTest {
             assertThat(grandChildPath).contains(parentName).contains(childName);
         }
     }
+
+    @Test
+    @DisplayName("루트 폴더 이름 변경과 그 자식 폴더의 루트 이동 동시 — 소유자 행을 먼저 잡아 교착 없이 둘 다 반영(Codex 리뷰 P1 회귀)")
+    void concurrentRootRenameAndChildMoveToRootDoNotDeadlock() throws Exception {
+        for (int round = 0; round < 5; round++) {
+            long parent = folder(null, "nl-rp-" + UUID.randomUUID());
+            long child = folder(parent, "nl-rc-" + UUID.randomUUID());
+            folder(child, "nl-rgc-" + UUID.randomUUID());
+            String parentName = "rp-renamed-" + UUID.randomUUID();
+
+            List<Callable<?>> tasks = List.of(
+                    () -> folders.rename(parent, new FolderRenameRequest(null, parentName), user),
+                    () -> resourceService.folderMove(ResourceMoveDto.builder().resourceSeq(child).parentFolderSeq(null).userSeq(USER)
+                            .resourceType(ResourceType.FOLDER).isDelete(false).build()));
+            assertThat(race(tasks)).as("round %d", round).containsOnlyNulls();
+
+            assertThat(jdbc.queryForObject("SELECT resource_name FROM tb_resource WHERE user_seq=? AND resource_seq=?", String.class, USER, parent)).isEqualTo(parentName);
+            assertThat(jdbc.queryForObject("SELECT parent_folder_seq FROM tb_resource WHERE user_seq=? AND resource_seq=?", Long.class, USER, child)).isNull();
+            assertThat(jdbc.queryForObject("SELECT full_path FROM tb_resource WHERE user_seq=? AND resource_seq=?", String.class, USER, child))
+                    .as("루트로 옮긴 폴더 경로에 옛 부모 이름이 남지 않는다").doesNotContain(parentName);
+        }
+    }
 }
