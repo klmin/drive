@@ -411,7 +411,8 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
   - OVERWRITE 커밋(`commitOverwrite`): 세션 시작 때 저장한 base key 와 잠근 뒤 현재 key 를 비교해 같을 때만 교체(JPQL `overwrite` 에 `resource_save_name = :baseKey` 조건), 이전 key 24h 유예 삭제. 다르면(그 사이 다른 저장) 버전 저장으로.
   - 복원은 출처가 스토리지 객체인 VERSION = 세션 RESTORE. 잠긴 파일은 세션 시작 전에 미리 거절(최종 판정은 커밋 tx).
   - 남겨 둔 것(전환 기간): `cleanVersionIfExists`(옛 흐름이 남긴 PENDING·DELETE 버전 정리 — 저장 마커 `findSaveMarker`, `finalizeAfterStorageUpload`, `rollbackResourceVersionMetadata` 포함). 옛 PENDING 행이 없다고 확인된 뒤 제거. `ResourceRepository.revertOverwrite` 는 호출부 없음(다음 정리 때 제거).
-- **미착수**: 이름 결정 경로(폴더 생성·이름 변경·이동·복원) 잠금 통일, 단계 4(청크 API·프론트), 지표(§13).
+- **이름 결정 경로 잠금 통일** — 브랜치 `fix/name-lock-parent-folder`: `DefaultResourceService.lockNamingScope` 가 폴더 생성·파일/폴더 이름 변경·이동(소유자 변경 시 받는 사용자 기준)·휴지통 복원에서 대상 행 잠금 뒤 부모 폴더 행(루트면 사용자 행)을 `FOR NO KEY UPDATE`(`ResourceNamingLockRepository`). 업로드 커밋은 3-1 에서 이미 같은 잠금. 동시 같은 이름 생성·이름 변경·이동 테스트(잠금을 끄면 4건 모두 이름 중복으로 실패하는 것 확인).
+- **미착수**: 단계 4(청크 API·프론트), 지표(§13), 커밋 tx 권한 재확인·매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
 
 ---
 
