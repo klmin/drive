@@ -24,7 +24,6 @@ public interface ResourceService {
      * 값(DTO)으로 돌려주는 이유: 뒤이은 휴지통 이동·삭제가 벌크 JPQL 이라 관리 엔티티로 쥐면 캐시가 옛 값이 된다.
      */
     ResourceDetailData lockActiveUnlocked(long resourceSeq, int ownerSeq, ResourceType type);
-    ResourceSaveResult saveWithCopyCheck(FileUploadDto dto);
     /**
      * 업로드 세션 커밋(신규) — 이름 넘버링 후 파일 행을 넣고 스토리지 key 를 세션 key 로 둔다.
      * 호출자가 같은 트랜잭션에서 부모 폴더 행(루트면 사용자 행)을 먼저 잠가 둬야 한다(이름 중복 방지의 유일한 장치, 규칙 9).
@@ -34,9 +33,15 @@ public interface ResourceService {
     ResourceSaveResult saveUploadedFile(FileUploadDto dto, String storageKey, String parentFolderName);
     /** 폴더 생성(복사본 이름 처리) — 저장된 폴더의 식별 값(감사 인자). 경로는 커밋 때 변경 감지 */
     ResourceFolderCreateResult saveFolderWithCopyCheck(FolderUploadDto dto);
-    ResourceSaveResult updateWithVersioning(FileUploadDto dto);
-    ResourceSaveResult updateWithOverwrite(FileUploadDto dto);
-    void rollbackVersion(ResourceSaveResult result);
+    /**
+     * 업로드 세션 커밋(VERSION·RESTORE) — 리소스 행·버전 행을 잠그고 현재 내용을 버전으로 넘긴 뒤 새 key·크기로 바꾼다.
+     * 사용량·밀려난 버전 key 삭제 등록은 호출자(같은 tx)가 결과로 한다. 호출자가 사용자 행을 먼저 잠근다(규칙 8).
+     */
+    ResourceVersionReplaceResult replaceWithVersioning(FileUploadDto dto, String newKey);
+    /**
+     * 업로드 세션 커밋(OVERWRITE) — 현재 key 가 baseKey 일 때만 newKey·새 크기로 바꾼다. 그 사이 내용이 바뀌었으면 null(호출자가 버전 저장으로).
+     */
+    ResourceSaveResult overwriteContent(FileUploadDto dto, String newKey, String baseKey);
     void delete(long resourceSeq, int userSeq);
     ResourceDeleteResult deleteAllVersions(long resourceSeq, int userSeq);
     ResourceDeleteResult deleteResourceAndVersions(long resourceSeq, int userSeq);

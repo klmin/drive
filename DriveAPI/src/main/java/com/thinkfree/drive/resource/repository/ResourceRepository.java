@@ -42,8 +42,8 @@ public interface ResourceRepository {
     int restoreChildResources(ResourceRestoreChildQuery query);
     int deleteByResourceSeqList(ResourceDeleteSeqListQuery query);
     int updateUserSeqForResources(ResourcesUserUpdateQuery query);
-    /** 덮어쓰기(크기 + 수정 감사) — 쓴 감사 값을 돌려준다(되돌리기 조건·이벤트 시각). 없는 행이면 null */
-    UpdateStamp overwrite(int userSeq, long resourceSeq, long sizeByte);
+    /** 덮어쓰기(업로드 세션 커밋) — 저장 key 를 baseKey 일 때만 newKey 로 바꾸고 크기·수정 감사 갱신(낙관적 비교). 쓴 감사 값, 0행(없음·그 사이 내용 바뀜)이면 null */
+    UpdateStamp overwrite(int userSeq, long resourceSeq, long sizeByte, String newKey, String baseKey);
     int revertOverwrite(ResourceRevertOverWriteQuery query);
     int deleteByUserSeqList(List<Integer> userSeqList);
     int updateExpiredLocks(ResourceLockExpireQuery query);

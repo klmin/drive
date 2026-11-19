@@ -238,13 +238,6 @@ public class DefaultResourceService implements ResourceService {
         var result = resourcerepository.rollbackResourceVersionData(query);
         DriveAssert.throwIfZero(result, ResourceErrorCode.UPDATE_FAIL);
     }
-    @Override
-    public void rollbackVersion(ResourceSaveResult result){
-        var query = resourceConverter.toVersionRollbackQuery(result);
-        rollbackResourceVersionData(query);
-        resourceVersionService.rollbackResourceVersionMetadata(query, result.rollbackData());
-    }
-    
     private void updateFullPathForChildFolders(ResourcePathUpdateQuery query){
         var result = resourcerepository.updateFullPathForChildFolders(query);
         log.info("""
@@ -299,34 +292,6 @@ public class DefaultResourceService implements ResourceService {
     }
 
     @Override
-    public ResourceSaveResult saveWithCopyCheck(FileUploadDto dto){
-
-        var resource = resourceConverter.toUploadResource(dto);
-        
-        var parentFolderResource = validateParentFolderExists(dto.getParentFolderSeq(), dto.getUserSeq());
-        String parentFolderName = null;
-        if(parentFolderResource != null){
-            parentFolderName = parentFolderResource.getResourceName();
-        }
-        
-        var resourceLockQuery = resourceConverter.toResourceLockQuery(null, resource.getUserSeq(), resource.getResourceType(), resource.getParentFolderSeq(), resource.getOriginalFileName(), resource.getIsDelete());
-        var resourceCopyNumbers = resourcerepository.lockMaxCopyNumbers(resourceLockQuery);
-        
-        var numberedNameRequestDto = new NumberedNameRequestDto(dto.isCopyFile(), dto.getOriginalFileName(), dto.getBaseFileName(), dto.getCopyNumber(), dto.getExt(), dto.getOriginalFileNameWithoutExt());
-        applyCopyNameToResource(resource, resourceCopyNumbers, numberedNameRequestDto);
-        var token = resourceShareTokenService.createNewToken();
-        resource.applyShareToken(token);
-        
-        var saved = resourcerepository.save(resource);
-        saved.initResourceSaveName();
-        
-        var occurredDatetime = resource.getRegisterDate();
-        
-        return resourceConverter.toSaveResult(resource, null, null, null, resource.getSizeByte(), null, parentFolderName, occurredDatetime, null, null, null);
-
-    }
-    
-    @Override
     public ResourceSaveResult saveUploadedFile(FileUploadDto dto, String storageKey, String parentFolderName){
 
         var resource = resourceConverter.toUploadResource(dto);
@@ -354,46 +319,60 @@ public class DefaultResourceService implements ResourceService {
     }
     
     @Override
-    public ResourceSaveResult updateWithVersioning(FileUploadDto dto) {
-        
+    public ResourceVersionReplaceResult replaceWithVersioning(FileUploadDto dto, String newKey) {
+
         var lockResource = lockResourceForVersioning(dto.getResourceSeq(), dto.getUserSeq());
         var resourceSeq = lockResource.getResourceSeq();
 
-        // 버전 복원만 — 행 잠금 뒤 같은 트랜잭션에서 잠김 확인(구 컨트롤러 @CheckResourceLock 은 트랜잭션 밖이라 확인~복원 사이에 잠기면 못 막았다)
+        // 버전 복원만 — 행 잠금 뒤 같은 트랜잭션에서 잠김 확인
         if (dto.isUnlockedRequired()) {
             resourceLockUnlockService.checkLockedResource(resourceSeq, dto.getUserSeq());
         }
 
-        /* lock 정책에 버전은 아직 없음. 버전 lock 들어갈 경우 lock 소유주 필요해보임
-        if (dto.isLockedResourceCheck()) {
-            resourceLockUnlockService.checkLockedResource(resourceSeq, dto.getUserSeq());
-        }
-        */
+        // 옛 저장 흐름(FileWriteOrchestrator 버전 핸들러)이 남긴 미완료 버전(PENDING·DELETE) 정리 — 새 흐름은 PENDING 을 남기지 않는다. 전환 기간 뒤 제거
+        cleanVersionIfExists(lockResource);
+
+        // 고칠 행 = 관리 엔티티 — 잠금(DTO)·정리 뒤의 첫 JPA 로드라 DB 현재 값
+        var resource = loadForChange(resourceSeq, lockResource.getUserSeq(), ResourceType.FILE, false);
+        var versionRegisterUserSeq = dto.getVersionRegisterUserSeq();
+        var currentVersionNumber = resource.getCurrentVersionNumber();
+        var newSizeByte = dto.getFileSize();
+
+        // 현재 내용(key·크기·등록일)을 그대로 버전 행으로 — S3 복사 없음
+        var current = resourceVersionConverter.toResourceVersionSaveDto(resource.getUserSeq(), resourceSeq, resource.getLatestOwnerSeq(), resource.getResourceSaveName(),
+                currentVersionNumber, resource.getSizeByte(), resource.getVersionRegisterDate(), versionRegisterUserSeq);
+        var pushed = resourceVersionService.pushCurrentAsVersion(current);
+        var versionRegisterDate = Instant.now();
+
+        var result = resourceConverter.toSaveResult(resource, pushed.resourceVersionSeq(), currentVersionNumber, pushed.versionResourceSaveName(), newSizeByte,
+                null, null, versionRegisterDate, null, null, null);
+
+        resource.applyVersionUpdate(pushed.isLimitExceeded(), versionRegisterUserSeq, newSizeByte, dto.getOwnerSeq(), versionRegisterDate);
+        resource.applyResourceSaveName(newKey);
+
+        return new ResourceVersionReplaceResult(result, pushed.prunedSizeByte(), pushed.prunedResourceSaveName());
+    }
+
+    @Override
+    public ResourceSaveResult overwriteContent(FileUploadDto dto, String newKey, String baseKey) {
+        var lockResource = lockResourceForVersioning(dto.getResourceSeq(), dto.getUserSeq());
+        var resourceSeq = lockResource.getResourceSeq();
 
         cleanVersionIfExists(lockResource);
 
-        // 고칠 행 = 관리 엔티티 — 잠금(DTO)·정리(JdbcClient 되돌리기) 뒤의 첫 JPA 로드라 DB 현재 값(W10 R2, H1)
-        var resource = loadForChange(resourceSeq, lockResource.getUserSeq(), ResourceType.FILE, false);
-
-        var currentVersionNumber = resource.getCurrentVersionNumber();
-        var userSeq = resource.getUserSeq();
-        var versionRegisterUserSeq = dto.getVersionRegisterUserSeq();
-        var newSizeByte = dto.getFileSize();
-        var newLatestOwnerSeq = dto.getOwnerSeq();
-
-        var resourceVersionSaveDto = resourceVersionConverter.toResourceVersionSaveDto(userSeq, resourceSeq, resource.getLatestOwnerSeq(), resource.getResourceSaveName(), currentVersionNumber, resource.getSizeByte(), resource.getVersionRegisterDate(), versionRegisterUserSeq);
-        var resourceVersionSaveResult = resourceVersionService.saveAndSetResourceName(resourceVersionSaveDto);
-        var versionRegisterDate = Instant.now();
-
-        // 결과(롤백 기준 = 저장 전 크기·수정자·수정일·최종 소유자·버전 등록일)는 바꾸기 전에 만든다 — 구 revertToPreviousVersionMetadata(메모리 되돌리기) 제거(W10 H2).
-        // 이벤트 시각 = Service 가 정한 버전 등록 시각(W10 H7·결정 X — 구 감사 write-back)
-        var result = resourceConverter.toSaveResult(resource, resourceVersionSaveResult.resourceVersionSeq(), currentVersionNumber, resourceVersionSaveResult.resourceSaveName(), newSizeByte,
-                resourceVersionSaveResult.rollbackData(), null, versionRegisterDate, null, null, null);
-
-        // 커밋 때 변경 감지 UPDATE(W10 — 구 리포 재로드·flush·detach). 같은 tx 에서 이 행을 JdbcClient 로 읽는 곳 없음(prepareMeta 끝) → flush 없음
-        resource.applyVersionUpdate(resourceVersionSaveResult.isLimitExceeded(), versionRegisterUserSeq, newSizeByte, newLatestOwnerSeq, versionRegisterDate);
-
-        return result;
+        // 정리(JdbcClient) 뒤 DB 현재 값을 DTO 로 — 덮어쓰기는 @Modifying 이라 관리 엔티티를 쥘 이유가 없다
+        var findQuery = resourceConverter.toFindQuery(resourceSeq, lockResource.getUserSeq(), ResourceType.FILE, false);
+        var before = resourceFindService.findDetail(findQuery);
+        if (!Objects.equals(baseKey, before.getResourceSaveName())) {
+            // 세션 시작 뒤 다른 저장이 내용을 바꿨다(불변 key 라 key 같음 = 내용 안 바뀜) — 호출자가 버전 저장으로 처리
+            return null;
+        }
+        var newFileSize = dto.getFileSize();
+        var stamp = resourcerepository.overwrite(before.getUserSeq(), resourceSeq, newFileSize, newKey, baseKey);
+        if (stamp == null) {
+            return null;
+        }
+        return resourceConverter.toOverwriteResult(before, newFileSize, stamp, newFileSize - before.getSizeByte());
     }
 
     private void cleanVersionIfExists(ResourceDetailData resource){
@@ -404,25 +383,6 @@ public class DefaultResourceService implements ResourceService {
             var rollbackQuery = resourceConverter.toVersionRollbackQuery(cleanResourceVersion);
             rollbackResourceVersionData(rollbackQuery);
         }
-    }
-    
-    @Override
-    public ResourceSaveResult updateWithOverwrite(FileUploadDto dto) {
-        var lockResource = lockResourceForVersioning(dto.getResourceSeq(), dto.getUserSeq());
-        var resourceSeq = lockResource.getResourceSeq();
-
-        cleanVersionIfExists(lockResource);
-
-        // 엔티티 없이(W10, 계획 Q7·C-7 ③): 덮어쓰기는 @Modifying 이라 관리 엔티티를 쥘 이유가 없다 — 정리(JdbcClient) 뒤 DB 현재 값을 DTO 로 읽는다
-        var findQuery = resourceConverter.toFindQuery(resourceSeq, lockResource.getUserSeq(), ResourceType.FILE, false);
-        var before = resourceFindService.findDetail(findQuery);
-        var newFileSize = dto.getFileSize();
-        var restoreQuotaSizeByte = newFileSize - before.getSizeByte();
-
-        var stamp = resourcerepository.overwrite(before.getUserSeq(), resourceSeq, newFileSize);
-        DriveAssert.throwIfNull(stamp, ResourceErrorCode.OVERWRITE_FAIL);
-
-        return resourceConverter.toOverwriteResult(before, newFileSize, stamp, restoreQuotaSizeByte);
     }
     
     @Override

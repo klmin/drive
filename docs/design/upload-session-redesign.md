@@ -404,8 +404,14 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
   - `UploadSessionWriter`(tx 없음): 세션 생성 → key `{tenantSeq}/{세션 ID}` → 32MB 미만 단일 PUT / 이상 멀티파트(16MB) / 복사는 `copyObjectAnySize` → COMPLETING → (조립) → 크기 확인 → 커밋(일시적 DB 오류 3회 재시도). 실패는 진행 위치에 맞춰 FAILED + 정리 등록, uploadId 기록 실패는 `failWithAbort`, 커밋 뒤 예외는 세션이 COMPLETED 면 저장 결과 반환.
   - `UploadSessionTxService`(각 단계 REQUIRES_NEW), `UploadCommitService.commitDuplicate`(사용자 행 → 부모 폴더 행 `FOR NO KEY UPDATE`, 용량 최종 판정·증가, `saveUploadedFile`, COMPLETED, `FileUploadedEvent` 를 tx 안에서 발행), `UploadLockRepository`.
   - 용량 사전 필터는 확정 + 진행 중 + 신고 크기. IS_FULL 이면 트랜잭션 밖에서 알림(`QuotaService.notifyQuotaExceeded`).
-  - 아직 아님: 커밋 tx 의 권한 재확인(호출부 검사만), 확장자 기반 Content-Type·매직바이트 검사(규칙 3), 감사 로그 발행 시점(호출부 그대로).
-- **미착수**: 단계 3-2 이후(VERSION·OVERWRITE·복원·웹오피스, 옛 코드 제거, 이름 결정 경로 잠금 통일), 단계 4(청크 API·프론트), 지표(§13).
+  - 아직 아님: 커밋 tx 의 권한 재확인(호출부 검사만), 확장자 기반 Content-Type 은 클라이언트 값이 없을 때만(Codex 리뷰 반영)·매직바이트 검사(규칙 3), 감사 로그 발행 시점(호출부 그대로).
+- **단계 3-2 (VERSION·OVERWRITE·RESTORE)** — 브랜치 `feat/upload-session-version`:
+  - 모든 저장 유형이 `UploadSessionWriter.write` 하나로. `FileWriteOrchestrator` 는 크기 정책 확인 후 넘기기만 한다. `Version/OverwriteFileWriteService`·`FileWriteService`·`ResourceVersionRetryService`·`S3StorageService.copyAndUpload/backUpAndRestore`·`ResourceService.updateWithVersioning/updateWithOverwrite/rollbackVersion/saveWithCopyCheck` 제거.
+  - VERSION·RESTORE 커밋(`commitVersion`): 사용자 행 → 리소스 행 → 버전 행 잠금, 현재 key·크기·등록일을 SUCCESS 버전 행으로 그대로 넘김(S3 복사 없음, `pushCurrentAsVersion`), 한도 초과 시 가장 오래된 버전 행 삭제 + 사용량 차감 + key 24h 유예 삭제 등록, 리소스는 세션 key.
+  - OVERWRITE 커밋(`commitOverwrite`): 세션 시작 때 저장한 base key 와 잠근 뒤 현재 key 를 비교해 같을 때만 교체(JPQL `overwrite` 에 `resource_save_name = :baseKey` 조건), 이전 key 24h 유예 삭제. 다르면(그 사이 다른 저장) 버전 저장으로.
+  - 복원은 출처가 스토리지 객체인 VERSION = 세션 RESTORE. 잠긴 파일은 세션 시작 전에 미리 거절(최종 판정은 커밋 tx).
+  - 남겨 둔 것(전환 기간): `cleanVersionIfExists`(옛 흐름이 남긴 PENDING·DELETE 버전 정리 — 저장 마커 `findSaveMarker`, `finalizeAfterStorageUpload`, `rollbackResourceVersionMetadata` 포함). 옛 PENDING 행이 없다고 확인된 뒤 제거. `ResourceRepository.revertOverwrite` 는 호출부 없음(다음 정리 때 제거).
+- **미착수**: 이름 결정 경로(폴더 생성·이름 변경·이동·복원) 잠금 통일, 단계 4(청크 API·프론트), 지표(§13).
 
 ---
 

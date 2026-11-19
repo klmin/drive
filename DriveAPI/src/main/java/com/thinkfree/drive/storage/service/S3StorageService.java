@@ -400,47 +400,6 @@ public class S3StorageService implements StorageService {
     /**
      * 복사하면서 사용자 메타데이터를 저장 마커로 바꾼다 — REPLACE 는 Content-Type 도 새로 정해야 해서(안 주면 기본값) 원본의 것을 HEAD 로 읽어 넘긴다.
      */
-    private void copyWithSaveMarker(String key, String newKey, String saveMarker) {
-        String contentType = getFileMetadata(key).contentType();
-        copy(key, newKey, req -> req.metadataDirective(MetadataDirective.REPLACE)
-                                    .contentType(contentType)
-                                    .metadata(saveMarkerMetadata(saveMarker)));
-    }
-
-    private static Map<String, String> saveMarkerMetadata(String saveMarker) {
-        return Map.of(StorageConstants.SAVE_MARKER_METADATA_KEY, saveMarker);
-    }
-
-    @Override
-    public void copyAndUpload(MultipartFile file, String key, String newKey, String saveMarker) {
-        var fileData = toFileData(file);
-        copyAndUpload(fileData, key, newKey, saveMarker);
-    }
-
-    @Override
-    public void copyAndUpload(FileData fileData, String key, String newKey, String saveMarker) {
-        copy(key, newKey);
-        try {
-            upload(fileData, key, saveMarkerMetadata(saveMarker));
-        }catch(StorageException e){
-            delete(newKey);
-            log.error("[Storage copyAndUpload Exception] delete newKey : {}", newKey);
-            throw StorageException.type(StorageErrorCode.UPLOAD_FAILED);
-        }
-    }
-    
-    @Override
-    public void backUpAndRestore(String key, String backUpKey, String restoreKey, String saveMarker) {
-        copy(key, backUpKey);
-        try {
-            copyWithSaveMarker(restoreKey, key, saveMarker);
-        }catch(StorageException e){
-            delete(backUpKey);
-            log.error("[Storage backUpAndRestore Exception] delete backUpKey : {}", backUpKey);
-            throw StorageException.type(StorageErrorCode.COPY_FAILED);
-        }
-    }
-
     @Override
     public StorageDetailResult getStorageInfo() {
         var status = checkStorageHealth();
