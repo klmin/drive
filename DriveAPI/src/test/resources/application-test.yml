@@ -84,6 +84,8 @@ drive:
   scheduler:
     storage-deletion:
       cron: "-"
+    upload-session-cleanup:
+      cron: "-"
 
 # 다운로드 링크 토큰 키 — 공통은 환경변수 필수라 테스트 고정값
 download:

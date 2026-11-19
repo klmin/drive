@@ -40,6 +40,7 @@ import com.thinkfree.drive.jooq.tables.TbSystemConfig;
 import com.thinkfree.drive.jooq.tables.TbTenant;
 import com.thinkfree.drive.jooq.tables.TbTenantAccessToken;
 import com.thinkfree.drive.jooq.tables.TbTrash;
+import com.thinkfree.drive.jooq.tables.TbUploadSession;
 import com.thinkfree.drive.jooq.tables.TbUser;
 import com.thinkfree.drive.jooq.tables.TbUserLog;
 import com.thinkfree.drive.jooq.tables.TbUserQuotaAlertState;
@@ -248,6 +249,11 @@ public class DefaultSchema extends SchemaImpl {
     public final TbTrash TB_TRASH = TbTrash.TB_TRASH;
 
     /**
+     * 업로드 세션(파일 저장 한 건의 진행 상태)
+     */
+    public final TbUploadSession TB_UPLOAD_SESSION = TbUploadSession.TB_UPLOAD_SESSION;
+
+    /**
      * The table <code>tb_user</code>.
      */
     public final TbUser TB_USER = TbUser.TB_USER;
@@ -324,6 +330,7 @@ public class DefaultSchema extends SchemaImpl {
             TbTenant.TB_TENANT,
             TbTenantAccessToken.TB_TENANT_ACCESS_TOKEN,
             TbTrash.TB_TRASH,
+            TbUploadSession.TB_UPLOAD_SESSION,
             TbUser.TB_USER,
             TbUserLog.TB_USER_LOG,
             TbUserQuotaAlertState.TB_USER_QUOTA_ALERT_STATE,

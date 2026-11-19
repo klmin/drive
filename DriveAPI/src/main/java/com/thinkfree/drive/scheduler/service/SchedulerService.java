@@ -13,6 +13,7 @@ import com.thinkfree.drive.resource.query.ResourceLockExpireQuery;
 import com.thinkfree.drive.resource.service.ResourceLockUnlockService;
 import com.thinkfree.drive.scheduler.annotation.ConditionalOnBatchScheduler;
 import com.thinkfree.drive.scheduler.constants.SchedulerConstant;
+import com.thinkfree.drive.upload.session.service.UploadSessionCleanupProcessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -34,6 +35,7 @@ public class SchedulerService {
     private final MfaService mfaService;
     private final LicenseAuthService licenseAuthService;
     private final StorageDeletionProcessor storageDeletionProcessor;
+    private final UploadSessionCleanupProcessor uploadSessionCleanupProcessor;
 
     @Scheduled(cron = SchedulerConstant.CRON_LICENSE_AUTO_AUTH)
     @SchedulerLock(name = SchedulerConstant.LOCK_LICENSE_AUTO_AUTH, lockAtMostFor = SchedulerConstant.LOCK_AT_MOST_LICENSE_AUTO_AUTH)
@@ -108,6 +110,17 @@ public class SchedulerService {
         int result = storageDeletionProcessor.processDue();
         if (result > 0) {
             log.info("[SchedulerService processStorageDeletions count : {}]", result);
+        }
+    }
+
+    /** 업로드 세션 정리(만료 PENDING·시간 초과 COMPLETING → FAILED + 정리 등록, 오래된 끝난 행 삭제) — 트랜잭션 없이 호출(묶음마다 짧은 트랜잭션). */
+    @Scheduled(cron = SchedulerConstant.CRON_UPLOAD_SESSION_CLEANUP)
+    @SchedulerLock(name = SchedulerConstant.LOCK_UPLOAD_SESSION_CLEANUP)
+    public void cleanupUploadSessions() {
+        var result = uploadSessionCleanupProcessor.run();
+        if (!result.isEmpty()) {
+            log.info("[SchedulerService cleanupUploadSessions] expired: {}, staleCompleting: {}, purged: {}",
+                     result.expired(), result.staleCompleting(), result.purged());
         }
     }
 

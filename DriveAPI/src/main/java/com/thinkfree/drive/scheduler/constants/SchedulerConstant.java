@@ -38,4 +38,8 @@ public class SchedulerConstant {
     public static final String LOCK_AT_MOST_STORAGE_DELETION = "PT5M";
     public static final String LOCK_AT_LEAST_STORAGE_DELETION = "PT10S";
 
+    // 업로드 세션 정리 — 10분마다. 상태 변경 + 정리 등록만(S3 호출 없음). 프로퍼티는 테스트 전용 스위치("-" 이면 등록하지 않음)
+    public static final String CRON_UPLOAD_SESSION_CLEANUP = "${drive.scheduler.upload-session-cleanup.cron:0 */10 * * * *}";
+    public static final String LOCK_UPLOAD_SESSION_CLEANUP = "upload_session_cleanup";
+
 }
