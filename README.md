@@ -59,10 +59,22 @@ npm run dev                   # http://localhost:3000
 ```bash
 cd observability
 cp .env.example .env
-docker compose up -d          # Grafana http://localhost:3300
+docker compose up -d          # Grafana http://localhost:3300 (admin / .env 의 GRAFANA_ADMIN_PASSWORD)
 ```
 
-자세한 구성과 k6 부하 테스트 방법은 [observability/README.md](observability/README.md)와 [observability/k6/README.md](observability/k6/README.md)를 참고하세요.
+스택만 띄우면 메트릭만 보입니다. 트레이스(Tempo)와 로그(Loki)까지 보려면 백엔드 `DriveAPI/.env` 에 아래를 넣고 앱을 다시 띄웁니다.
+
+```properties
+# 트레이스를 Alloy(localhost:4318)로 전송
+DRIVE_OTLP_TRACING_EXPORT_ENABLED=true
+# 콘솔 + C:/log/drive/backend/drive-server.log (Alloy 가 읽어 Loki 로). 기존 logging.config 줄을 이 값으로 바꾼다
+logging.config=classpath:log/log4j2-server.yml
+```
+
+- 로그 폴더는 `observability/.env` 의 `DRIVE_LOG_DIR`(기본 `C:/log/drive`)과 맞춥니다.
+- 정상 요청의 트레이스는 tail 샘플링으로 10%만 남고 30초쯤 뒤에 보입니다. 에러·1초 이상 요청은 항상 남습니다.
+
+각 의존성·설정의 의미와 데이터 흐름은 [observability/HOW-IT-WORKS.md](observability/HOW-IT-WORKS.md), 스택 운영·알림은 [observability/README.md](observability/README.md), 부하 테스트는 [observability/k6/README.md](observability/k6/README.md)를 참고하세요.
 
 ## 주요 기능
 
@@ -77,3 +89,5 @@ docker compose up -d          # Grafana http://localhost:3300
 ## 문서
 
 - [docs/openapi](docs/openapi) — API 스펙
+- [observability/HOW-IT-WORKS.md](observability/HOW-IT-WORKS.md) — 관측성(메트릭·트레이스·로그) 구성 요소, 설정 의미, 데이터 흐름
+- [observability/README.md](observability/README.md) — 관측성 스택 띄우기·샘플링·알림·서버 배치
