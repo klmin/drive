@@ -16,6 +16,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.support.ContextPropagatingTaskDecorator;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.net.URI;
@@ -62,6 +63,8 @@ public class GovernanceSdkConfig {
         executor.setMaxPoolSize(4);
         executor.setQueueCapacity(500);
         executor.setThreadNamePrefix("gov-audit-");
+        // 제출한 스레드의 관측 컨텍스트(trace·MDC)를 넘긴다 — 감사 로그 전송 구간이 원래 요청 트레이스에 붙고 로그에도 같은 traceId 가 찍힌다
+        executor.setTaskDecorator(new ContextPropagatingTaskDecorator());
         executor.setRejectedExecutionHandler((r, e) ->
                 log.warn("[AuditLog] governance send task rejected (queue full) - dropped"));
         executor.initialize();

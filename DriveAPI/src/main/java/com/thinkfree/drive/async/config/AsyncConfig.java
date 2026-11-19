@@ -6,6 +6,7 @@ import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.task.support.ContextPropagatingTaskDecorator;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -38,6 +39,9 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setMaxPoolSize(maxPoolSize);
         executor.setQueueCapacity(queSize);
         executor.setThreadNamePrefix(ASYNC_TASK_BEAN_NAME + "Normal");
+        // 제출한 스레드의 관측 컨텍스트(trace·MDC)를 작업 스레드로 넘긴다 — @Async 작업이 원래 요청 트레이스의 자식 구간이 되고
+        // 로그에도 같은 traceId 가 찍힌다. 넘기지 않으면 작업 안의 SQL·S3 구간이 요청과 끊긴 별도 트레이스가 된다
+        executor.setTaskDecorator(new ContextPropagatingTaskDecorator());
 
         // 포화 시 큐에 자리가 날 때까지 기다렸다 넣는다 — @Async 리스너는 전부 커밋 뒤(@TransactionalEventListener) 제출되므로
         // - 거부(AbortPolicy)하면 커밋된 요청이 TaskRejectedException 으로 500 이 되고 작업(스토리지 삭제·메일·알림)이 사라진다

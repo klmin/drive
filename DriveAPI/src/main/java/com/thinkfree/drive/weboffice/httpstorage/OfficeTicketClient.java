@@ -1,6 +1,7 @@
 package com.thinkfree.drive.weboffice.httpstorage;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -19,12 +20,18 @@ public class OfficeTicketClient {
     private final RestClient client;
 
     public OfficeTicketClient(HttpStorageProperties properties) {
+        this(properties, RestClient.builder());
+    }
+
+    /** Boot 의 Builder 를 써서 티켓 발급 호출이 트레이스 구간·메트릭으로 남고 TFO 에 traceparent 가 전달된다 */
+    @Autowired
+    public OfficeTicketClient(HttpStorageProperties properties, RestClient.Builder restClientBuilder) {
         this.properties = properties;
         var transport = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3))
                 .followRedirects(HttpClient.Redirect.NEVER).version(HttpClient.Version.HTTP_1_1).build();
         var factory = new JdkClientHttpRequestFactory(transport);
         factory.setReadTimeout(Duration.ofSeconds(10));
-        client = RestClient.builder().requestFactory(factory).build();
+        client = restClientBuilder.clone().requestFactory(factory).build();
     }
 
     public record Issued(String url, long expiresAt) {}

@@ -1,5 +1,8 @@
 package com.thinkfree.drive.async.config;
 
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -65,6 +68,35 @@ class AsyncConfigTest {
         } finally {
             release.countDown();
             executor.shutdown();
+        }
+    }
+
+    @Test
+    @DisplayName("제출한 스레드의 관측(트레이스)이 작업 스레드로 넘어간다 — @Async 작업이 요청 트레이스와 이어진다")
+    void propagatesCurrentObservationToPoolThread() throws InterruptedException {
+        ObservationRegistry registry = ObservationRegistry.create();
+        registry.observationConfig().observationHandler(context -> true);
+        ObservationRegistry previous = ObservationThreadLocalAccessor.getInstance().getObservationRegistry();
+        ObservationThreadLocalAccessor.getInstance().setObservationRegistry(registry);
+        ThreadPoolTaskExecutor executor = new AsyncConfig().getAsyncExecutor();
+        try {
+            Observation request = Observation.start("request", registry);
+            AtomicReference<Observation> seen = new AtomicReference<>();
+            CountDownLatch ran = new CountDownLatch(1);
+            try (Observation.Scope ignored = request.openScope()) {
+                executor.execute(() -> {
+                    seen.set(registry.getCurrentObservation());
+                    ran.countDown();
+                });
+            } finally {
+                request.stop();
+            }
+
+            assertThat(ran.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(seen.get()).as("작업 스레드의 현재 관측 = 제출 시점의 요청 관측").isSameAs(request);
+        } finally {
+            executor.shutdown();
+            ObservationThreadLocalAccessor.getInstance().setObservationRegistry(previous);
         }
     }
 }

@@ -123,9 +123,65 @@ otelcol.receiver.otlp "default" {
     endpoint = "0.0.0.0:4318"
   }
   output {
-    traces  = [otelcol.processor.batch.default.input]
+    // 트레이스만 tail 샘플링을 거친다. 메트릭·로그는 전부 보낸다
+    traces  = [otelcol.processor.tail_sampling.default.input]
     metrics = [otelcol.processor.batch.default.input]
     logs    = [otelcol.processor.batch.default.input]
+  }
+}
+
+// tail 샘플링 — 앱은 모든 요청의 트레이스를 보내고(샘플링 1.0), 여기서 요청(trace) 단위로 남길지 정한다.
+//   한 요청의 span 을 decision_wait 동안 모았다가 아래 정책 중 하나라도 맞으면 그 요청의 span 전부를 남기고, 아니면 전부 버린다.
+//   - errors: span 상태가 ERROR (처리 안 된 예외)
+//   - server_errors: 응답 5xx (예외 처리기가 응답을 만들어 span 이 ERROR 가 아닌 경우까지)
+//   - slow: 첫 span 부터 마지막 span 까지 1초 이상
+//   - sample: 나머지는 traceId 기준 10% — 같은 요청은 항상 같은 결정
+// 주의: 같은 trace 의 span 은 한 Alloy 로 모여야 한다(지금은 서버당 Alloy 1대라 무관).
+//   Tempo metrics_generator 의 span 메트릭은 남은 트레이스 기준이라 치우친다 — 요청 수·응답 시간은 Micrometer 메트릭(Prometheus)을 본다
+otelcol.processor.tail_sampling "default" {
+  // trace 의 첫 span 이 들어온 뒤 이 시간 안에 끝나지 않은 요청은 뒤늦게 온 에러 span 을 놓칠 수 있다(10초에서 5xx 31건 중 5건 유실).
+  //   DB 장애 시 커넥션 대기(Hikari 30초)에 맞춘 값 — 그보다 오래 걸리는 요청은 여전히 놓칠 수 있다
+  decision_wait = "30s"
+
+  policy {
+    name = "errors"
+    type = "status_code"
+
+    status_code {
+      status_codes = ["ERROR"]
+    }
+  }
+
+  policy {
+    name = "server_errors"
+    type = "string_attribute"
+
+    string_attribute {
+      key    = "outcome"
+      values = ["SERVER_ERROR"]
+    }
+  }
+
+  policy {
+    name = "slow"
+    type = "latency"
+
+    latency {
+      threshold_ms = 1000
+    }
+  }
+
+  policy {
+    name = "sample"
+    type = "probabilistic"
+
+    probabilistic {
+      sampling_percentage = 10
+    }
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
   }
 }
 

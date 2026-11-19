@@ -29,6 +29,8 @@ public class RestClientFactory {
     private final RestClientProperty restClientProperty;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    // Boot 가 관측(트레이스 구간·http.client.requests 메트릭, traceparent 전달)을 넣어 둔 Builder. 싱글톤에서 여러 번 쓰므로 매번 clone() 한다
+    private final RestClient.Builder restClientBuilder;
 
     private ClientHttpRequestFactory createRequestFactory() {
 
@@ -47,7 +49,7 @@ public class RestClientFactory {
     }
 
     public RestClient createRestClient(String baseUrl) {
-        return RestClient.builder()
+        return restClientBuilder.clone()
                          .baseUrl(baseUrl)
                          .requestInterceptor(new RestRequestInterceptor(interceptorProfile()))
                          .requestFactory(createRequestFactory())
