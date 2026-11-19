@@ -61,6 +61,15 @@ public class ResourceVersion extends BaseAuditEntity {
         this.resourceSaveName += PATH_SEPARATOR + resourceVersionSeq;
     }
 
+    /**
+     * 저장 이름 = 넘겨받은 이전 현재 내용의 key(불변 key — S3 복사 없음). save 직후 관리 엔티티에 호출해 커밋 때 변경 감지 UPDATE.
+     * 저장 전 엔티티의 이 필드는 비워 둬야 한다(insertable=false 라 INSERT 에 안 들어가고, 같은 값이면 변경으로 안 잡힌다).
+     */
+    public void applyResourceSaveName(String storageKey) {
+        DriveAssert.throwIfNoText("storageKey is null", storageKey);
+        this.resourceSaveName = storageKey;
+    }
+
     /** INSERT 전 번호 조정(버전 한도 초과로 가장 오래된 버전을 밀어낼 때) — 아직 저장 안 한 새 엔티티에만 */
     public void decreaseVersionNumber() {
         this.versionNumber--;

@@ -63,7 +63,8 @@ class UploadSessionWriterTest {
     private final QuotaService quotaService = Mockito.mock(QuotaService.class);
     private final UploadSessionProperty property = new UploadSessionProperty(Duration.ofHours(1), Duration.ofMinutes(30), Duration.ofDays(7),
             Duration.ofHours(24), DataSize.ofMegabytes(16), DataSize.ofMegabytes(32), DataSize.ofTerabytes(5), 4, 50, 500, true, 1);
-    private final UploadSessionWriter writer = new UploadSessionWriter(tx, commit, storage, userFindService, quotaService, property);
+    private final com.thinkfree.drive.upload.session.repository.UploadLockRepository locks = Mockito.mock(com.thinkfree.drive.upload.session.repository.UploadLockRepository.class);
+    private final UploadSessionWriter writer = new UploadSessionWriter(tx, commit, storage, userFindService, quotaService, locks, Mockito.mock(com.thinkfree.drive.resource.service.ResourceLockUnlockService.class), property);
 
     private final ResourceSaveResult saved = new ResourceSaveResult(100L, USER, null, null, null, "a.docx", KEY, null, null, null,
             null, null, null, null, null, null, null, null, null);
@@ -94,7 +95,7 @@ class UploadSessionWriterTest {
         given(storage.headContentLength(KEY)).willReturn(10L);
         given(commit.commitDuplicate(eq(ID), eq(KEY), any(), eq(USER))).willReturn(saved);
 
-        assertThat(writer.writeDuplicate(streamDto(10), USER)).isSameAs(saved);
+        assertThat(writer.write(streamDto(10), USER)).isSameAs(saved);
 
         var order = inOrder(tx, storage, commit);
         order.verify(tx).create(Mockito.argThat(q -> q.saveType() == UploadSaveType.DUPLICATE && q.sizeByte() == 10 && q.tenantSeq() == TENANT));
@@ -115,7 +116,7 @@ class UploadSessionWriterTest {
         given(storage.headContentLength(KEY)).willReturn(size);
         given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
 
-        writer.writeDuplicate(streamDto(size), USER);
+        writer.write(streamDto(size), USER);
 
         var order = inOrder(tx, storage);
         order.verify(tx).attachStorage(ID, KEY, "up-1");
@@ -140,7 +141,7 @@ class UploadSessionWriterTest {
                 .given(tx).touch(ID);
         given(tx.fail(any(), any(), any(), any(), any())).willReturn(false);
 
-        assertThatThrownBy(() -> writer.writeDuplicate(streamDto(40 * MIB), USER)).isInstanceOf(ApiRuntimeException.class);
+        assertThatThrownBy(() -> writer.write(streamDto(40 * MIB), USER)).isInstanceOf(ApiRuntimeException.class);
 
         verify(storage, times(1)).uploadPart(any(), any(), anyInt(), any(), anyLong());
         verify(tx, never()).markCompleting(any(), anyInt());
@@ -158,7 +159,7 @@ class UploadSessionWriterTest {
         given(storage.uploadPartCopy(eq("1/src"), eq(KEY), eq("up-copy"), anyInt(), anyLong(), anyLong())).willReturn("e");
         given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
 
-        writer.writeDuplicate(dto, USER);
+        writer.write(dto, USER);
 
         var order = inOrder(tx, storage);
         order.verify(tx).attachStorage(ID, KEY, "up-copy");
@@ -178,7 +179,7 @@ class UploadSessionWriterTest {
         given(storage.headContentLength(KEY)).willReturn(40L);
         given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
 
-        writer.writeDuplicate(dto, USER);
+        writer.write(dto, USER);
 
         verify(tx).attachStorage(ID, KEY, null);
         verify(storage).copy("1/src", KEY);
@@ -196,7 +197,7 @@ class UploadSessionWriterTest {
         given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
         var dto = streamDto(10).toBuilder().contentType(null).originalFileName("report.pdf").build();
 
-        writer.writeDuplicate(dto, USER);
+        writer.write(dto, USER);
 
         verify(tx).create(Mockito.argThat(q -> "application/pdf".equals(q.contentType())));
         verify(storage).putObject(eq(KEY), eq("application/pdf"), any(), eq(10L));
@@ -209,7 +210,7 @@ class UploadSessionWriterTest {
         given(storage.createMultipartUpload(eq(KEY), anyString())).willReturn("up-1");
         willThrow(new IllegalStateException("db down")).given(tx).attachStorage(ID, KEY, "up-1");
 
-        assertThatThrownBy(() -> writer.writeDuplicate(streamDto(40 * MIB), USER)).hasMessage("db down");
+        assertThatThrownBy(() -> writer.write(streamDto(40 * MIB), USER)).hasMessage("db down");
 
         verify(tx).failWithAbort(eq(ID), eq(KEY), eq("up-1"), eq(UploadSessionFailReason.STORAGE_ERROR), anyString());
         verify(tx, never()).fail(any(), any(), any(), any(), any());
@@ -222,7 +223,7 @@ class UploadSessionWriterTest {
         willThrow(StorageException.type(StorageErrorCode.UPLOAD_FAILED)).given(storage).putObject(anyString(), anyString(), any(), anyLong());
         given(tx.fail(any(), any(), any(), any(), any())).willReturn(true);
 
-        assertThatThrownBy(() -> writer.writeDuplicate(streamDto(10), USER)).isInstanceOf(StorageException.class);
+        assertThatThrownBy(() -> writer.write(streamDto(10), USER)).isInstanceOf(StorageException.class);
 
         verify(tx).fail(eq(ID), eq(UploadSessionStatus.PENDING), eq(UploadSessionFailReason.STORAGE_ERROR), anyString(), eq(CleanupPhase.BEFORE_ASSEMBLE));
         verify(commit, never()).commitDuplicate(any(), any(), any(), anyInt());
@@ -236,7 +237,7 @@ class UploadSessionWriterTest {
         willThrow(StorageException.type(StorageErrorCode.MULTIPART_FAILED)).given(storage).completeMultipartUpload(any(), any(), any());
         given(tx.fail(any(), any(), any(), any(), any())).willReturn(true);
 
-        assertThatThrownBy(() -> writer.writeDuplicate(streamDto(40 * MIB), USER)).isInstanceOf(StorageException.class);
+        assertThatThrownBy(() -> writer.write(streamDto(40 * MIB), USER)).isInstanceOf(StorageException.class);
 
         verify(tx).fail(eq(ID), eq(UploadSessionStatus.COMPLETING), eq(UploadSessionFailReason.COMMIT_ERROR), anyString(), eq(CleanupPhase.AMBIGUOUS));
     }
@@ -250,7 +251,7 @@ class UploadSessionWriterTest {
                 .willThrow(new CannotAcquireLockException("deadlock"))
                 .willReturn(saved);
 
-        assertThat(writer.writeDuplicate(streamDto(10), USER)).isSameAs(saved);
+        assertThat(writer.write(streamDto(10), USER)).isSameAs(saved);
 
         verify(commit, times(3)).commitDuplicate(any(), any(), any(), anyInt());
         verify(storage, times(1)).putObject(anyString(), anyString(), any(), anyLong());
@@ -264,7 +265,7 @@ class UploadSessionWriterTest {
         given(commit.commitDuplicate(any(), any(), any(), anyInt())).willThrow(new CannotAcquireLockException("deadlock"));
         given(tx.fail(any(), any(), any(), any(), any())).willReturn(true);
 
-        assertThatThrownBy(() -> writer.writeDuplicate(streamDto(10), USER)).isInstanceOf(CannotAcquireLockException.class);
+        assertThatThrownBy(() -> writer.write(streamDto(10), USER)).isInstanceOf(CannotAcquireLockException.class);
 
         verify(commit, times(UploadSessionWriter.COMMIT_ATTEMPTS)).commitDuplicate(any(), any(), any(), anyInt());
         verify(tx).fail(eq(ID), eq(UploadSessionStatus.COMPLETING), eq(UploadSessionFailReason.COMMIT_ERROR), anyString(), eq(CleanupPhase.AFTER_ASSEMBLE));
@@ -279,7 +280,7 @@ class UploadSessionWriterTest {
         given(tx.find(ID, USER)).willReturn(Optional.of(new UploadSessionData(ID, TENANT, USER, USER, UploadSaveType.DUPLICATE, null, null, null, null,
                 "a.docx", "application/octet-stream", 10, KEY, null, null, null, UploadSessionStatus.COMPLETED, null, 100L, "a (1).docx", null, null, null)));
 
-        ResourceSaveResult result = writer.writeDuplicate(streamDto(10), USER);
+        ResourceSaveResult result = writer.write(streamDto(10), USER);
 
         assertThat(result.resourceSeq()).isEqualTo(100L);
         assertThat(result.resourceName()).isEqualTo("a (1).docx");
@@ -292,7 +293,7 @@ class UploadSessionWriterTest {
         given(commit.commitDuplicate(any(), any(), any(), anyInt())).willThrow(ApiRuntimeException.type(QuotaErrorCode.IS_FULL));
         given(tx.fail(any(), any(), any(), any(), any())).willReturn(true);
 
-        assertThatThrownBy(() -> writer.writeDuplicate(streamDto(10), USER))
+        assertThatThrownBy(() -> writer.write(streamDto(10), USER))
                 .isInstanceOfSatisfying(ApiRuntimeException.class, e -> assertThat(e.getCode()).isEqualTo(QuotaErrorCode.IS_FULL));
 
         verify(tx).fail(eq(ID), eq(UploadSessionStatus.COMPLETING), eq(UploadSessionFailReason.QUOTA_EXCEEDED), anyString(), eq(CleanupPhase.AFTER_ASSEMBLE));
@@ -305,7 +306,7 @@ class UploadSessionWriterTest {
         willThrow(StorageException.type(StorageErrorCode.UPLOAD_FAILED)).given(storage).putObject(anyString(), anyString(), any(), anyLong());
         given(tx.fail(any(), any(), any(), any(), any())).willThrow(new IllegalStateException("db down"));
 
-        assertThatThrownBy(() -> writer.writeDuplicate(streamDto(10), USER))
+        assertThatThrownBy(() -> writer.write(streamDto(10), USER))
                 .isInstanceOf(StorageException.class)
                 .satisfies(e -> assertThat(e.getSuppressed()).hasSize(1));
     }
@@ -317,9 +318,56 @@ class UploadSessionWriterTest {
                 .contentSource(new FileContentSource.Stream(new FileData("text/plain", new ByteArrayInputStream(new byte[3]), 3))).build();
         given(tx.fail(any(), any(), any(), any(), any())).willReturn(true);
 
-        assertThatThrownBy(() -> writer.writeDuplicate(dto, USER)).isInstanceOf(ApiRuntimeException.class);
+        assertThatThrownBy(() -> writer.write(dto, USER)).isInstanceOf(ApiRuntimeException.class);
 
         verify(storage, never()).putObject(anyString(), anyString(), any(), anyLong());
         verify(tx).fail(eq(ID), eq(UploadSessionStatus.PENDING), eq(UploadSessionFailReason.VALIDATION), anyString(), eq(CleanupPhase.BEFORE_ASSEMBLE));
+    }
+
+    // ------------------------------------------------------------------ 저장 유형별 세션·커밋
+
+    private static FileUploadDto typed(ResourceSaveType type, FileContentSource source, long size) {
+        return FileUploadDto.builder().userSeq(USER).resourceSeq(55L).fileSize(size).contentType("text/plain").originalFileName("a.txt")
+                .resourceSaveType(type).contentSource(source).build();
+    }
+
+    @Test
+    @DisplayName("OVERWRITE — 세션 시작 시 대상의 현재 key 를 base key 로 남기고, 커밋은 그 key 로 낙관적 비교")
+    void overwriteRecordsBaseKey() {
+        given(locks.findFileKey(USER, 55L)).willReturn(Optional.of("3/base"));
+        given(storage.headContentLength(KEY)).willReturn(10L);
+        given(commit.commitOverwrite(any(), any(), any(), any(), anyInt())).willReturn(saved);
+
+        writer.write(typed(ResourceSaveType.OVERWRITE, new FileContentSource.Stream(new FileData("text/plain", new ByteArrayInputStream(new byte[10]), 10)), 10), USER);
+
+        verify(tx).create(Mockito.argThat(q -> q.saveType() == UploadSaveType.OVERWRITE && "3/base".equals(q.baseStorageKey()) && q.resourceSeq() == 55L));
+        verify(commit).commitOverwrite(eq(ID), eq(KEY), eq("3/base"), any(), eq(USER));
+    }
+
+    @Test
+    @DisplayName("OVERWRITE 대상이 없으면(삭제·휴지통) 세션을 만들지 않고 NOT_FOUND")
+    void overwriteTargetMissing() {
+        given(locks.findFileKey(USER, 55L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> writer.write(typed(ResourceSaveType.OVERWRITE,
+                new FileContentSource.Stream(new FileData("text/plain", new ByteArrayInputStream(new byte[10]), 10)), 10), USER))
+                .isInstanceOfSatisfying(ApiRuntimeException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(com.thinkfree.drive.resource.exception.ResourceErrorCode.NOT_FOUND));
+        verify(tx, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("VERSION(내용) → 세션 VERSION, 스토리지 객체가 출처인 VERSION(버전 복원) → 세션 RESTORE — 커밋은 둘 다 commitVersion")
+    void versionAndRestoreUseVersionCommit() {
+        given(storage.headContentLength(any())).willReturn(10L);
+        given(commit.commitVersion(any(), any(), any(), anyInt())).willReturn(saved);
+
+        writer.write(typed(ResourceSaveType.VERSION, new FileContentSource.Stream(new FileData("text/plain", new ByteArrayInputStream(new byte[10]), 10)), 10), USER);
+        writer.write(typed(ResourceSaveType.VERSION, new FileContentSource.StorageCopy("1/v1"), 10), USER);
+
+        verify(tx).create(Mockito.argThat(q -> q != null && q.saveType() == UploadSaveType.VERSION));
+        verify(tx).create(Mockito.argThat(q -> q != null && q.saveType() == UploadSaveType.RESTORE));
+        verify(commit, times(2)).commitVersion(eq(ID), eq(KEY), any(), eq(USER));
+        verify(storage).copy("1/v1", KEY);
     }
 }

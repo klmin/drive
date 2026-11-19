@@ -6,7 +6,10 @@ import com.thinkfree.drive.quota.exception.QuotaErrorCode;
 import com.thinkfree.drive.quota.service.QuotaService;
 import com.thinkfree.drive.resource.dto.file.FileContentSource;
 import com.thinkfree.drive.resource.dto.file.FileUploadDto;
+import com.thinkfree.drive.resource.enums.ResourceSaveType;
+import com.thinkfree.drive.resource.exception.ResourceErrorCode;
 import com.thinkfree.drive.resource.result.ResourceSaveResult;
+import com.thinkfree.drive.resource.service.ResourceLockUnlockService;
 import com.thinkfree.drive.storage.constants.StorageConstants;
 import com.thinkfree.drive.storage.exception.StorageException;
 import com.thinkfree.drive.storage.result.StoragePart;
@@ -18,6 +21,7 @@ import com.thinkfree.drive.upload.session.exception.UploadSessionErrorCode;
 import com.thinkfree.drive.upload.session.model.UploadPartPlan;
 import com.thinkfree.drive.upload.session.properties.UploadSessionProperty;
 import com.thinkfree.drive.upload.session.query.UploadSessionCreateQuery;
+import com.thinkfree.drive.upload.session.repository.UploadLockRepository;
 import com.thinkfree.drive.upload.session.service.UploadSessionTxService.CleanupPhase;
 import com.thinkfree.drive.user.service.UserFindService;
 import lombok.RequiredArgsConstructor;
@@ -64,6 +68,8 @@ public class UploadSessionWriter {
     private final StorageService storageService;
     private final UserFindService userFindService;
     private final QuotaService quotaService;
+    private final UploadLockRepository uploadLockRepository;
+    private final ResourceLockUnlockService resourceLockUnlockService;
     private final UploadSessionProperty property;
 
     /** 세션 key — 계산은 여기 한 곳(세션 생성 시)뿐이고, 이후 조회·삭제는 DB 에 저장된 값으로만 한다(규칙 1). */
@@ -71,11 +77,16 @@ public class UploadSessionWriter {
         return (tenantSeq == null ? NO_TENANT_PREFIX : tenantSeq.toString()) + "/" + uploadSessionId;
     }
 
-    /** DUPLICATE(신규) 쓰기. 내용 출처는 dto 의 contentSource(없으면 업로드 파일). */
-    public ResourceSaveResult writeDuplicate(FileUploadDto requested, int requestUserSeq) {
+
+    /**
+     * 저장 유형별 쓰기 — DUPLICATE(신규) / VERSION(현재 내용을 버전으로) / RESTORE(버전 객체를 새 key 로 복사한 VERSION) / OVERWRITE(현재 내용 교체).
+     * 내용 출처는 dto 의 contentSource(없으면 업로드 파일). 저장 유형은 dto 의 resourceSaveType, 출처가 스토리지 객체인 VERSION 은 RESTORE.
+     */
+    public ResourceSaveResult write(FileUploadDto requested, int requestUserSeq) {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             log.warn("[UploadSessionWriter] called inside a transaction — storage calls will run while it is open. userSeq: {}", requested.getUserSeq());
         }
+        UploadSaveType saveType = saveTypeOf(requested);
         // Content-Type 이 없는 요청(파일 파트 헤더 누락)도 받는다 — 세션·스토리지·리소스 행에 같은 값
         FileUploadDto dto = requested.toBuilder()
                 .contentType(resolveContentType(requested.getContentType(), requested.getOriginalFileName()))
@@ -83,11 +94,21 @@ public class UploadSessionWriter {
         int userSeq = dto.getUserSeq();
         long size = dto.getFileSize();
         Integer tenantSeq = userFindService.findTenantSeqByUserSeq(userSeq);
+        // 덮어쓰기 충돌 감지 기준 — 세션 시작 시 대상의 현재 key(불변 key 라 커밋 때 같으면 그 사이 내용이 안 바뀐 것, §4.3)
+        String baseStorageKey = saveType == UploadSaveType.OVERWRITE
+                ? uploadLockRepository.findFileKey(userSeq, dto.getResourceSeq())
+                                      .orElseThrow(() -> ApiRuntimeException.type(ResourceErrorCode.NOT_FOUND))
+                : null;
+        // 잠긴 파일은 복원 불가 — 스토리지 복사 전에 미리 거절(최종 판정은 커밋 tx 의 행 잠금 뒤 확인)
+        if (dto.isUnlockedRequired() && dto.getResourceSeq() != null) {
+            resourceLockUnlockService.checkLockedResource(dto.getResourceSeq(), userSeq);
+        }
+        String fileName = dto.getOriginalFileName() != null ? dto.getOriginalFileName() : String.valueOf(dto.getResourceSeq());
 
         UUID id;
         try {
-            id = uploadSessionTxService.create(new UploadSessionCreateQuery(tenantSeq, userSeq, requestUserSeq, UploadSaveType.DUPLICATE,
-                    dto.getParentFolderSeq(), null, null, null, dto.getOriginalFileName(), dto.getContentType(), size, null, null));
+            id = uploadSessionTxService.create(new UploadSessionCreateQuery(tenantSeq, userSeq, requestUserSeq, saveType,
+                    dto.getParentFolderSeq(), dto.getResourceSeq(), null, baseStorageKey, fileName, dto.getContentType(), size, null, null));
         } catch (ApiRuntimeException e) {
             notifyIfQuotaExceeded(e, userSeq, requestUserSeq);
             throw e;
@@ -108,7 +129,7 @@ public class UploadSessionWriter {
             if (stored != size) {
                 throw ApiRuntimeException.type(UploadSessionErrorCode.UPLOAD_SIZE_MISMATCH).with("expected", size).with("stored", stored);
             }
-            return commitWithRetry(id, key, dto, requestUserSeq);
+            return commitWithRetry(saveType, id, key, baseStorageKey, dto, requestUserSeq);
         } catch (RuntimeException e) {
             ResourceSaveResult committed = failOrRecover(id, userSeq, requestUserSeq, progress, e);
             if (committed != null) {
@@ -224,10 +245,30 @@ public class UploadSessionWriter {
         throw new IllegalStateException("Unsupported content source: " + source);
     }
 
-    private ResourceSaveResult commitWithRetry(UUID id, String key, FileUploadDto dto, int requestUserSeq) {
+    private static UploadSaveType saveTypeOf(FileUploadDto dto) {
+        ResourceSaveType type = dto.getResourceSaveType();
+        if (type == null) {
+            throw new IllegalArgumentException("ResourceSaveType must not be null");
+        }
+        return switch (type) {
+            case DUPLICATE -> UploadSaveType.DUPLICATE;
+            case OVERWRITE -> UploadSaveType.OVERWRITE;
+            case VERSION -> dto.resolveContentSource() instanceof FileContentSource.StorageCopy ? UploadSaveType.RESTORE : UploadSaveType.VERSION;
+        };
+    }
+
+    private ResourceSaveResult commit(UploadSaveType saveType, UUID id, String key, String baseStorageKey, FileUploadDto dto, int requestUserSeq) {
+        return switch (saveType) {
+            case DUPLICATE -> uploadCommitService.commitDuplicate(id, key, dto, requestUserSeq);
+            case VERSION, RESTORE -> uploadCommitService.commitVersion(id, key, dto, requestUserSeq);
+            case OVERWRITE -> uploadCommitService.commitOverwrite(id, key, baseStorageKey, dto, requestUserSeq);
+        };
+    }
+
+    private ResourceSaveResult commitWithRetry(UploadSaveType saveType, UUID id, String key, String baseStorageKey, FileUploadDto dto, int requestUserSeq) {
         for (int attempt = 1; ; attempt++) {
             try {
-                return uploadCommitService.commitDuplicate(id, key, dto, requestUserSeq);
+                return commit(saveType, id, key, baseStorageKey, dto, requestUserSeq);
             } catch (TransientDataAccessException e) {
                 // 교착(40P01)·잠금 대기 실패 등 — 커밋 tx 는 통째로 롤백됐으므로 다시 해도 안전
                 if (attempt >= COMMIT_ATTEMPTS) {

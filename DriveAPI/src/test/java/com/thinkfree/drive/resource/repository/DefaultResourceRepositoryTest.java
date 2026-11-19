@@ -495,12 +495,15 @@ class DefaultResourceRepositoryTest extends RepositoryTest {
                     .currentVersionNumber(3).versionRegisterDate(vDate).sizeByte(5L).updateUserSeq(SUPER_ADMIN).updateDate(vDate).build())).isEqualTo(1);
 
             Instant before = queryRepository.findDetail(find(f.getResourceSeq(), ADMIN, null, null)).getUpdateDate();
-            var stamp = repository.overwrite(ADMIN, f.getResourceSeq(), 50L);
+            String baseKey = col(f.getResourceSeq(), "resource_save_name", String.class);
+            assertThat(repository.overwrite(ADMIN, f.getResourceSeq(), 50L, "2/ow", "stale-key")).as("base key 불일치(그 사이 내용 바뀜)는 null").isNull();
+            var stamp = repository.overwrite(ADMIN, f.getResourceSeq(), 50L, "2/ow", baseKey);
             assertThat(stamp).as("W10 — 쓴 감사 값 반환").isNotNull();
             assertThat(stamp.userSeq()).as("시큐리티 사용자").isEqualTo(ADMIN);
             assertThat(col(f.getResourceSeq(), "size_byte", Long.class)).isEqualTo(50L);
             assertThat(col(f.getResourceSeq(), "update_date", java.sql.Timestamp.class).toInstant()).as("반환 stamp = DB 에 쓴 수정일").isEqualTo(stamp.date());
-            assertThat(repository.overwrite(SUPER_ADMIN, f.getResourceSeq(), 60L)).as("없는 행(파티션 키 불일치)은 null").isNull();
+            assertThat(col(f.getResourceSeq(), "resource_save_name", String.class)).isEqualTo("2/ow");
+            assertThat(repository.overwrite(SUPER_ADMIN, f.getResourceSeq(), 60L, "2/ow2", "2/ow")).as("없는 행(파티션 키 불일치)은 null").isNull();
 
             Instant currentDate = stamp.date();
             Instant restoreDate = before;

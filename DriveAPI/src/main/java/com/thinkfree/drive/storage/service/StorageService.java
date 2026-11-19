@@ -23,7 +23,7 @@ public interface StorageService {
     FileMetadata getFileMetadata(String key);
     /** 객체의 마지막 수정 시각(스토리지 서버 시각) — 객체가 없으면 empty. */
     Optional<Instant> findLastModified(String key);
-    /** 버전 저장이 남긴 저장 마커(copyAndUpload·backUpAndRestore 의 saveMarker) — 객체가 없거나 마커가 없으면 empty. */
+    /** 옛 버전 저장 흐름이 남긴 저장 마커 — 전환 기간의 미완료 버전 정리(cleanVersionIfExists)만 쓴다. 객체가 없거나 마커가 없으면 empty. */
     Optional<String> findSaveMarker(String key);
     void delete(String key);
     CompletableFuture<Void> deleteAsync(String key);
@@ -35,11 +35,6 @@ public interface StorageService {
      */
     StorageDeleteObjectsResult deleteObjectsReportingFailures(List<String> keys);
     void copy(String key, String newKey);
-    /** key 의 현재 내용을 newKey 로 복사한 뒤 key 에 새 내용 — 새 내용에 saveMarker 를 남겨 업로드 완료를 나중에 확인할 수 있게 한다. */
-    void copyAndUpload(MultipartFile file, String key, String newKey, String saveMarker);
-    void copyAndUpload(FileData fileData, String key, String newKey, String saveMarker);
-    /** key 의 현재 내용을 backUpKey 로 복사한 뒤 restoreKey 내용을 key 로 — 복원한 내용에 saveMarker 를 남긴다. */
-    void backUpAndRestore(String key, String backUpKey, String restoreKey, String saveMarker);
     StorageDetailResult getStorageInfo();
 
     // ------------------------------------------------------------------ 멀티파트(업로드 세션 — docs/design/upload-session-redesign.md §6.5)

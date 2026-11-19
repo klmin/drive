@@ -143,20 +143,42 @@ public class DefaultResourceVersionService implements ResourceVersionService {
         DriveAssert.throwIfZero(result, ResourceVersionErrorCode.UPDATE_FAIL);
     }
     
+    /**
+     * 업로드 세션 커밋(VERSION) — 리소스의 현재 내용(key·크기·등록일)을 그대로 새 버전 행(SUCCESS)으로 넘긴다. S3 복사 없음(불변 key).
+     * 버전 한도에 걸리면 가장 오래된 SUCCESS 버전 행을 지우고 번호를 당긴다 — 그 크기·key 는 돌려주고 사용량 차감·삭제 등록은 호출자(같은 tx)가 한다.
+     * 호출자는 사용자 행 → 리소스 행을 먼저 잠근다(규칙 8). 여기서 버전 행을 잠근다.
+     */
     @Override
-    public ResourceVersionSaveResult saveAndSetResourceName(ResourceVersionSaveDto dto) {
-    
-        // status 는 INSERT 에 안 들어가고 DB 기본값 PENDING 으로 시작 — 저장 뒤 관리 상태로 남는 엔티티의 메모리 값도 DB 와 같게(구 SUCCESS 는 detach 라 무해했음)
-        var entity = resourceVersionConverter.toSaveResourceVersion(dto, ResourceVersionStatus.PENDING);
-        var resourceVersionLimit = checkAndVersionLimit(entity);
+    public ResourceVersionPushResult pushCurrentAsVersion(ResourceVersionSaveDto current) {
+        DriveAssert.throwIfNoText("current resourceSaveName is null", current.getResourceSaveName());
 
-        resourceVersionRepository.save(entity); // IDENTITY — 즉시 INSERT·PK 주입, 관리 상태
-        entity.initResourceSaveName();          // 저장 이름(원본 키 + PK) — 커밋 때 변경 감지 UPDATE(구 재로드 → flush → detach → 감사 write-back)
-        
-        return new ResourceVersionSaveResult(entity.getResourceVersionSeq(), entity.getResourceSaveName(), resourceVersionLimit.isLimitExceeded(), resourceVersionLimit.deletedVersion());
-        
+        List<ResourceVersionRowData> successVersions = lockAllVersionsByResource(current.getUserSeq(), current.getResourceSeq()).stream()
+                .filter(v -> ResourceVersionStatus.SUCCESS == v.getStatus())
+                .toList();
+
+        // 저장 이름은 비운 채 INSERT(insertable=false), 저장 뒤 넣어야 변경 감지 UPDATE 가 나간다
+        var withoutKey = resourceVersionConverter.toResourceVersionSaveDto(current.getUserSeq(), current.getResourceSeq(), current.getOwnerSeq(), null,
+                current.getVersionNumber(), current.getSizeByte(), current.getVersionRegisterDate(), current.getRegisterUserSeq());
+        var entity = resourceVersionConverter.toSaveResourceVersion(withoutKey, ResourceVersionStatus.PENDING);
+
+        boolean isLimitExceeded = isLimitExceeded(successVersions.size());
+        ResourceVersionRowData pruned = null;
+        if (isLimitExceeded) {
+            pruned = successVersions.get(0);
+            delete(resourceVersionConverter.toDeleteResourceVersionQuery(pruned.getResourceVersionSeq(), null, pruned.getUserSeq()));
+            entity.decreaseVersionNumber();
+            var numberQuery = resourceVersionConverter.toResourceVersionDecreaseNumberQuery(pruned.getResourceSeq(), pruned.getUserSeq(), ResourceVersionStatus.SUCCESS, null);
+            decreaseAllVersionNumbers(numberQuery);
+        }
+
+        resourceVersionRepository.save(entity);          // IDENTITY — 즉시 INSERT(status = DB 기본 PENDING)
+        entity.applyResourceSaveName(current.getResourceSaveName());
+        entity.changeStatus(ResourceVersionStatus.SUCCESS); // 같은 tx 의 변경 감지 — 다른 tx 에는 PENDING 이 보이지 않는다
+
+        return new ResourceVersionPushResult(entity.getResourceVersionSeq(), current.getResourceSaveName(), isLimitExceeded,
+                pruned == null ? 0L : pruned.getSizeByte(), pruned == null ? null : pruned.getResourceSaveName());
     }
-    
+
     @Override
     public void finalizeAfterStorageUpload(Long resourceVersionSeq, int userSeq, ResourceVersionRowData deleteResourceVersion) {
         
@@ -254,30 +276,6 @@ public class DefaultResourceVersionService implements ResourceVersionService {
     private void completeExpiredPending(ResourceVersionRowData expiredPendingData, Long resourceSeq, int userSeq) {
         var pushedOut = findExpiredVersion(resourceSeq, userSeq, ResourceVersionStatus.DELETE);
         finalizeAfterStorageUpload(expiredPendingData.getResourceVersionSeq(), userSeq, pushedOut);
-    }
-    
-    public ResourceVersionLimitResult checkAndVersionLimit(ResourceVersion entity) {
-        
-        ResourceVersionRowData deletedVersion = null;
-        List<ResourceVersionRowData> lockedVersions = lockAllVersionsByResource(entity.getUserSeq(), entity.getResourceSeq());
-        
-        boolean isLimitExceeded = isLimitExceeded(lockedVersions.size());
-        
-        if (isLimitExceeded) {
-            
-            deletedVersion = lockedVersions.get(0);
-            
-            entity.decreaseVersionNumber();
-            
-            userService.decreaseUseQuotaByte(deletedVersion.getSizeByte(), deletedVersion.getUserSeq());
-            
-            updateStatus(deletedVersion.getResourceVersionSeq(), deletedVersion.getUserSeq(), ResourceVersionStatus.DELETE);
-    
-            var numberQuery = resourceVersionConverter.toResourceVersionDecreaseNumberQuery(deletedVersion.getResourceSeq(), deletedVersion.getUserSeq(), ResourceVersionStatus.SUCCESS, null);
-            decreaseAllVersionNumbersWithThrow(numberQuery);
-        }
-        
-        return new ResourceVersionLimitResult(isLimitExceeded, deletedVersion);
     }
     
     public void rollbackResourceVersionMetadata(ResourceVersionRollbackQuery query, ResourceVersionRowData rollbackData){

@@ -101,6 +101,7 @@ class WebOfficeSaveAuditIntegrationTest {
 
         SecurityContextHolder.clearContext();
 
+        given(storageService.headContentLength(org.mockito.ArgumentMatchers.anyString())).willReturn(30L);
         webOfficeService.save(WebOfficeSaveDto.builder()
                 .loginUserSeq(SUPER_ADMIN).userSeq(ADMIN).resourceSeq(resourceSeq).size(30L)
                 .inputStream(new ByteArrayInputStream(new byte[30])).build());

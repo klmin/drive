@@ -76,6 +76,15 @@ class VersionRestoreConcurrencyIntegrationTest {
         // 픽스처 사용자의 총 용량이 작아(0 일 수 있음) 복원(사용량 예약)이 IS_FULL 로 막히지 않게 — 끝에 원래 값으로 되돌린다
         totalQuotaBefore = jdbc.queryForObject("SELECT total_quota_byte FROM tb_user WHERE user_seq=?", Long.class, USER);
         jdbc.update("UPDATE tb_user SET total_quota_byte=? WHERE user_seq=?", Long.MAX_VALUE / 4, USER);
+        // 업로드 세션은 커밋 전에 저장된 크기를 확인한다 — 목 스토리지의 복사 대상 크기 = 복사 원본(버전·리소스 행)의 크기
+        java.util.Map<String, String> copiedFrom = new java.util.concurrent.ConcurrentHashMap<>();
+        org.mockito.Mockito.doAnswer(inv -> copiedFrom.put(inv.getArgument(1), inv.getArgument(0)))
+                .when(storage).copy(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+        when(storage.headContentLength(org.mockito.ArgumentMatchers.anyString())).thenAnswer(inv -> {
+            String key = copiedFrom.getOrDefault((String) inv.getArgument(0), inv.getArgument(0));
+            return jdbc.queryForObject("SELECT COALESCE((SELECT size_byte FROM tb_resource_version WHERE resource_save_name = ? LIMIT 1),"
+                    + " (SELECT size_byte FROM tb_resource WHERE resource_save_name = ? LIMIT 1), -1)", Long.class, key, key);
+        });
     }
 
     @AfterEach
@@ -141,7 +150,7 @@ class VersionRestoreConcurrencyIntegrationTest {
     @DisplayName("웹 버전 복원 — 확인 뒤 다른 요청이 파일을 잠그면, 잠긴 파일은 복원되지 않아야 한다(RESOURCE_LOCKED)")
     void webRestore_lockedInGap_mustNotRestore() {
         long[] f = fileWithHistory();
-        doAnswer(call -> { lockFromOtherConnection(f[0]); return call.callRealMethod(); }).when(target()).updateWithVersioning(any());
+        doAnswer(call -> { lockFromOtherConnection(f[0]); return call.callRealMethod(); }).when(target()).replaceWithVersioning(any(), any());
 
         Throwable failure = catchAll(() -> versions.restoreVersion(new ResourceVersionPath(f[0], f[1]), new ResourceVersionRestoreRequest(null), user));
 
@@ -153,7 +162,7 @@ class VersionRestoreConcurrencyIntegrationTest {
     @DisplayName("MCP 버전 복원 — 웹과 같은 경로: 확인 뒤 잠기면 복원되지 않는다(RESOURCE_LOCKED)")
     void mcpRestore_lockedInGap_mustNotRestore() {
         long[] f = fileWithHistory();
-        doAnswer(call -> { lockFromOtherConnection(f[0]); return call.callRealMethod(); }).when(target()).updateWithVersioning(any());
+        doAnswer(call -> { lockFromOtherConnection(f[0]); return call.callRealMethod(); }).when(target()).replaceWithVersioning(any(), any());
 
         var result = mcp.restoreResourceVersion(f[0], f[1], null);
 

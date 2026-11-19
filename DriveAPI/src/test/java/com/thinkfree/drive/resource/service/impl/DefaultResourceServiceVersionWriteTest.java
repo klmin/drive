@@ -114,29 +114,9 @@ class DefaultResourceServiceVersionWriteTest extends RepositoryTest {
     }
 
     @Test
-    @DisplayName("updateWithVersioning — DB 는 새 값(크기·버전·최종 소유자·수정자), 결과는 저장 전 값(롤백 기준), 이벤트 시각 = 버전 등록 시각")
-    void updateWithVersioning_resultHoldsPreviousValues() {
-        var result = resourceService.updateWithVersioning(versionUpload(20L));
-
-        assertThat(col("size_byte", Long.class)).isEqualTo(20L);
-        assertThat(col("current_version_number", Integer.class)).isEqualTo(2);
-        assertThat(col("update_user_seq", Integer.class)).as("시큐리티 사용자").isEqualTo(ADMIN);
-
-        assertThat(result.sizeByte()).as("저장 전 크기").isEqualTo(10L);
-        assertThat(result.updateUserSeq()).as("저장 전 수정자").isEqualTo(SUPER_ADMIN);
-        assertThat(result.updateDate()).as("저장 전 수정일").isEqualTo(PAST_UPDATE);
-        assertThat(result.versionRegisterDate()).as("저장 전 버전 등록일").isEqualTo(PAST_VERSION);
-        assertThat(result.currentVersionNumber()).as("저장 전 버전 번호").isEqualTo(1);
-        assertThat(result.rollbackSizeByte()).as("새 크기").isEqualTo(20L);
-        Instant versionRegisterDate = col("version_register_date", Timestamp.class).toInstant();
-        // PG timestamptz 는 마이크로초로 반올림 저장 — 1µs 이내
-        assertThat(result.occurredDatetime()).as("이벤트 시각 = 새 버전 등록 시각").isCloseTo(versionRegisterDate, within(1, ChronoUnit.MICROS));
-    }
-
-    @Test
     @DisplayName("deleteVersion — 현재 버전 번호 -1, 이벤트 시각 = 현재 시각 / deleteAllVersions — 버전 번호 기본값, 이벤트 시각 = 현재 시각")
     void deleteVersionAndAll_occurredNow() {
-        resourceService.updateWithVersioning(versionUpload(20L));
+        resourceService.replaceWithVersioning(versionUpload(20L), "2/new-key");
         Long versionSeq = jdbc.queryForObject("SELECT resource_version_seq FROM tb_resource_version WHERE resource_seq = ?", Long.class, resourceSeq);
         jdbc.update("UPDATE tb_resource_version SET status = 'SUCCESS' WHERE resource_version_seq = ?", versionSeq);
         assertThat(col("current_version_number", Integer.class)).isEqualTo(2);
@@ -154,20 +134,54 @@ class DefaultResourceServiceVersionWriteTest extends RepositoryTest {
         assertThat(all.occurredDatetime()).isBetween(beforeAll, Instant.now());
     }
 
-    @Test
-    @DisplayName("updateWithOverwrite — 결과의 수정자·수정일 = DB 에 쓴 값(되돌리기 조건), restore* = 덮어쓰기 전 값, 이벤트 시각 = 쓴 수정일")
-    void updateWithOverwrite_resultHoldsWrittenStamp() {
-        var result = resourceService.updateWithOverwrite(FileUploadDto.builder().resourceSeq(resourceSeq).userSeq(ADMIN).fileSize(30L)
-                .resourceSaveType(ResourceSaveType.OVERWRITE).build());
 
+    private String key() {
+        return col("resource_save_name", String.class);
+    }
+
+    @Test
+    @DisplayName("replaceWithVersioning — 현재 key·크기·등록일을 그대로 버전 행(SUCCESS)으로 넘기고 리소스는 새 key·크기·버전 번호, 결과 = 저장 전 값")
+    void replaceWithVersioning_handsOverCurrentKey() {
+        String oldKey = key();
+
+        var replaced = resourceService.replaceWithVersioning(versionUpload(20L), "2/new-key");
+
+        assertThat(key()).isEqualTo("2/new-key");
+        assertThat(col("size_byte", Long.class)).isEqualTo(20L);
+        assertThat(col("current_version_number", Integer.class)).isEqualTo(2);
+        assertThat(col("update_user_seq", Integer.class)).as("시큐리티 사용자").isEqualTo(ADMIN);
+        var version = jdbc.queryForMap("SELECT resource_save_name, size_byte, version_number, status, version_register_date FROM tb_resource_version WHERE resource_seq = ?", resourceSeq);
+        assertThat(version.get("resource_save_name")).as("이전 내용 key 를 그대로(S3 복사 없음)").isEqualTo(oldKey);
+        assertThat(version.get("size_byte")).isEqualTo(10L);
+        assertThat(version.get("version_number")).isEqualTo(1);
+        assertThat(version.get("status")).isEqualTo("SUCCESS");
+        assertThat(((Timestamp) version.get("version_register_date")).toInstant()).isEqualTo(PAST_VERSION);
+
+        assertThat(replaced.prunedSizeByte()).isZero();
+        assertThat(replaced.prunedResourceSaveName()).isNull();
+        assertThat(replaced.saveResult().sizeByte()).as("저장 전 크기").isEqualTo(10L);
+        assertThat(replaced.saveResult().currentVersionNumber()).as("저장 전 버전 번호").isEqualTo(1);
+        Instant versionRegisterDate = col("version_register_date", Timestamp.class).toInstant();
+        assertThat(replaced.saveResult().occurredDatetime()).as("이벤트 시각 = 새 버전 등록 시각").isCloseTo(versionRegisterDate, within(1, ChronoUnit.MICROS));
+    }
+
+    @Test
+    @DisplayName("overwriteContent — 현재 key 가 base key 일 때만 새 key·크기, 다르면 null(아무것도 안 바뀜)")
+    void overwriteContent_optimisticOnBaseKey() {
+        String baseKey = key();
+        FileUploadDto dto = FileUploadDto.builder().resourceSeq(resourceSeq).userSeq(ADMIN).fileSize(30L).resourceSaveType(ResourceSaveType.OVERWRITE).build();
+
+        assertThat(resourceService.overwriteContent(dto, "2/ow-1", "2/someone-else")).as("그 사이 내용이 바뀜").isNull();
+        assertThat(key()).isEqualTo(baseKey);
+        assertThat(col("size_byte", Long.class)).isEqualTo(10L);
+
+        var result = resourceService.overwriteContent(dto, "2/ow-1", baseKey);
+
+        assertThat(key()).isEqualTo("2/ow-1");
         assertThat(col("size_byte", Long.class)).isEqualTo(30L);
-        assertThat(result.sizeByte()).isEqualTo(30L);
         assertThat(result.updateUserSeq()).isEqualTo(col("update_user_seq", Integer.class)).isEqualTo(ADMIN);
         assertThat(result.updateDate()).isEqualTo(col("update_date", Timestamp.class).toInstant());
-        assertThat(result.occurredDatetime()).isEqualTo(result.updateDate());
-        assertThat(result.restoreSizeByte()).isEqualTo(10L);
-        assertThat(result.restoreUpdateUserSeq()).isEqualTo(SUPER_ADMIN);
-        assertThat(result.restoreUpdateDate()).isEqualTo(PAST_UPDATE);
-        assertThat(result.rollbackSizeByte()).isEqualTo(20L);
+        assertThat(result.restoreSizeByte()).as("덮어쓰기 전 크기").isEqualTo(10L);
+        assertThat(result.rollbackSizeByte()).as("사용량 증가분 = 새 − 이전").isEqualTo(20L);
     }
 }

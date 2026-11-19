@@ -65,6 +65,20 @@ public class UploadLockRepository {
                   .fetchOptional(r -> new LockedFolder(r.value1(), r.value2()));
     }
 
+    /** 살아 있는 파일의 현재 저장 key(잠금 없음) — 덮어쓰기 세션의 base key(커밋 tx 가 잠근 뒤 다시 비교한다). */
+    public Optional<String> findFileKey(int userSeq, Long resourceSeq) {
+        if (resourceSeq == null) {
+            return Optional.empty();
+        }
+        return dsl.select(TB_RESOURCE.RESOURCE_SAVE_NAME)
+                  .from(TB_RESOURCE)
+                  .where(TB_RESOURCE.USER_SEQ.eq(userSeq))
+                  .and(TB_RESOURCE.RESOURCE_SEQ.eq(resourceSeq))
+                  .and(TB_RESOURCE.RESOURCE_TYPE.eq(ResourceType.FILE))
+                  .and(TB_RESOURCE.IS_DELETE.eq(false))
+                  .fetchOptional(TB_RESOURCE.RESOURCE_SAVE_NAME);
+    }
+
     private static long nz(Long value) {
         return value == null ? 0L : value;
     }

@@ -143,9 +143,9 @@ public class DefaultResourceRepository implements ResourceRepository {
      * 실제로 쓴 감사 값(stamp)을 돌려준다 — 되돌리기 조건과 이벤트 시각이 이 값을 쓴다(W10 H7, 구 인자 엔티티 write-back). 없는 행이면 null.
      */
     @Override
-    public UpdateStamp overwrite(int userSeq, long resourceSeq, long sizeByte) {
+    public UpdateStamp overwrite(int userSeq, long resourceSeq, long sizeByte, String newKey, String baseKey) {
         UpdateStamp stamp = UpdateStamp.of(null, null);
-        return jpaRepository.overwrite(userSeq, resourceSeq, sizeByte, stamp) == 0 ? null : stamp;
+        return jpaRepository.overwrite(userSeq, resourceSeq, sizeByte, newKey, baseKey, stamp) == 0 ? null : stamp;
     }
 
     /** 폴더 이동의 하위 파일 소유자 일괄 이전 — 조건부 다건(행마다 로드할 이유 없음) */

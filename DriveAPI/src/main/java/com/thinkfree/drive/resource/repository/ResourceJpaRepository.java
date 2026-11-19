@@ -145,8 +145,8 @@ interface ResourceJpaRepository extends JpaRepository<Resource, Long> {
 
     @Transactional
     @Modifying
-    @Query("update Resource r set r.sizeByte = :sizeByte, r.updateUserSeq = :#{#stamp.userSeq}, r.updateDate = :#{#stamp.date} where r.userSeq = :userSeq and r.resourceSeq = :resourceSeq")
-    int overwrite(@Param("userSeq") Integer userSeq, @Param("resourceSeq") Long resourceSeq, @Param("sizeByte") Long sizeByte,
+    @Query("update Resource r set r.sizeByte = :sizeByte, r.resourceSaveName = :newKey, r.updateUserSeq = :#{#stamp.userSeq}, r.updateDate = :#{#stamp.date} where r.userSeq = :userSeq and r.resourceSeq = :resourceSeq and r.resourceSaveName = :baseKey")
+    int overwrite(@Param("userSeq") Integer userSeq, @Param("resourceSeq") Long resourceSeq, @Param("sizeByte") Long sizeByte, @Param("newKey") String newKey, @Param("baseKey") String baseKey,
                   @Param("stamp") UpdateStamp stamp);
 
     /** 덮어쓰기 되돌리기 — 감사 보정 없이 이전 값 그대로, 현재 값(size·수정자·수정일)이 그대로일 때만(낙관적 조건) */
