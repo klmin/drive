@@ -14,6 +14,7 @@ import com.thinkfree.drive.storage.condition.ConditionalOnStorageType;
 import com.thinkfree.drive.storage.enums.StorageType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.support.ContextPropagatingTaskDecorator;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.StringUtils;
 
@@ -67,6 +68,8 @@ public class CephDashboardConfig {
         ex.setMaxPoolSize(2);
         ex.setQueueCapacity(8);
         ex.setThreadNamePrefix(THREAD_NAME);
+        // 제출한 스레드의 관측 컨텍스트(trace·MDC)를 넘긴다 — 토큰 발급 호출이 갱신을 시작시킨 요청 트레이스에 붙는다
+        ex.setTaskDecorator(new ContextPropagatingTaskDecorator());
         ex.setAllowCoreThreadTimeOut(true);
         ex.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         ex.initialize();

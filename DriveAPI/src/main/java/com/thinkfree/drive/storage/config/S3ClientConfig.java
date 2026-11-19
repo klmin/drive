@@ -82,7 +82,12 @@ public class S3ClientConfig {
         var builder = S3Client.builder()
                               .credentialsProvider(credentials)
                               .region(resolveRegion())
-                              .overrideConfiguration(o -> observation.ifAvailable(o::addExecutionInterceptor));
+                              .overrideConfiguration(o -> {
+                                  // 비동기 클라이언트와 같은 STANDARD — 지정하지 않으면 LEGACY(최대 4회, 스로틀링 재시도가 토큰을 쓰지 않아
+                                  // 스토리지 과부하(503 SlowDown) 때 재시도가 몰린다). STANDARD 는 최대 3회, 스로틀링도 토큰 버킷으로 제한한다
+                                  o.retryStrategy(RetryMode.STANDARD);
+                                  observation.ifAvailable(o::addExecutionInterceptor);
+                              });
         if (connection.isEndpointBased()) {
             builder.endpointOverride(URI.create(connection.endpoint()))
                    .serviceConfiguration(pathStyle());
