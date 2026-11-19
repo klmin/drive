@@ -1,0 +1,45 @@
+# Security
+
+## 취약점 제보
+보안 취약점을 발견하면 공개 이슈로 올리지 말고, 이 저장소의 **Security 탭 → Report a vulnerability**(비공개 제보)로 알려주세요.
+
+## 보안 리뷰 지침
+AI 리뷰 도구가 PR 의 보안 리뷰를 할 때 참고하는 기준이다. 일반 리뷰 지침·심각도 기준은 `AGENTS.md` 를 따른다.
+
+- 리뷰 코멘트와 요약은 반드시 한국어로 작성
+- 의존성 CVE·시크릿 커밋·일반 taint 패턴은 Dependabot·secret scanning·CodeQL 이 따로 잡으므로, 이 프로젝트 도메인 로직에 집중한다
+- 실제로 악용 가능한 경로가 있는 것만 지적하고, 이론적 가능성·방어 심화 제안은 생략한다
+
+### 프로젝트 맥락
+- Java 21, Spring Boot 3.5, Spring Security(OIDC·SSO·JWT), JPA + jOOQ, PostgreSQL, Redis
+- S3 호환 스토리지(AWS S3, Ceph RGW, RustFS, MinIO)
+- **멀티 테넌트** 구조: 테넌트 간 데이터 노출은 가장 심각한 문제(P0)로 본다
+
+### 체크리스트
+변경된 코드가 아래 항목에 닿으면 반드시 확인한다.
+
+- 권한·테넌트 격리
+  - 컨트롤러·서비스에서 받은 리소스 ID(파일, 폴더, 공유, 업로드 세션 등)를 조회할 때 현재 사용자의 테넌트·소유권·공유 권한을 함께 검증하는지. ID 만으로 조회한 뒤 권한 확인을 빠뜨리면 IDOR(P0)
+  - jOOQ·JPA 쿼리의 WHERE 에 테넌트 조건이 있는지. 관리자·배치·스케줄러(ShedLock) 경로도 의도치 않게 전 테넌트를 대상으로 하지 않는지
+  - Redis 캐시 키·락 키에 테넌트 식별자가 포함되는지
+  - 관리자 전용 API 가 Security 설정에서 실제로 보호되는지(경로 패턴 누락, `permitAll` 추가)
+- 스토리지(S3 호환)
+  - object key·경로를 만들 때 사용자 입력(파일명, 폴더명, 경로)이 그대로 들어가 `../`, 절대경로, 다른 테넌트 prefix 로 벗어날 수 있는지
+  - 다운로드 응답의 `Content-Disposition` 파일명 인코딩, `Content-Type` 을 사용자 입력으로 정해 HTML·SVG 가 인라인 실행될 수 있는지
+  - 업로드 크기·파트 수 상한 검증, 업로드 세션을 다른 사용자·테넌트가 이어 쓸 수 없는지
+- 인젝션
+  - jOOQ `DSL.field(String)`, `DSL.condition(String)`, plain SQL 템플릿에 사용자 입력을 문자열로 이어 붙이는지(바인드 변수 사용 여부)
+  - 정렬 컬럼·방향을 사용자 입력으로 받을 때 화이트리스트 검증 여부
+  - XML 파싱(`DocumentBuilderFactory`, `XMLInputFactory`, Jackson XML) 시 외부 엔티티(XXE) 비활성화 여부
+- 외부 호출(SSRF)
+  - `RestClient`·HTTP 인터페이스가 사용자·테넌트 설정값(URL, 호스트)으로 요청을 보낼 때 허용 호스트 제한, 내부망·메타데이터 주소(169.254.169.254 등) 차단 여부
+- 인증·토큰·세션
+  - JWT·OIDC·SSO 처리에서 서명·발급자·audience·만료 검증 누락, `alg` 혼동
+  - 공유 링크·티켓·업로드 세션 ID 등 추측 가능한 식별자(순차 ID, 짧은 랜덤) 사용 여부와 만료 처리
+  - 비밀번호·TOTP·토큰 비교에 타이밍 안전 비교를 쓰는지
+- 민감정보
+  - 로그·예외 메시지·API 응답에 토큰, 비밀번호, 시크릿 키, 다른 테넌트 정보가 남는지
+  - `application*.yml`·테스트 코드에 실제 키·비밀번호가 들어가는지
+- 프론트엔드(`DriveFront/`)
+  - `dangerouslySetInnerHTML`, 사용자 입력을 그대로 `href`·`window.location` 에 넣는 코드(XSS·오픈 리다이렉트)
+  - 토큰을 `localStorage` 등 스크립트 접근 가능한 저장소에 새로 두는지
