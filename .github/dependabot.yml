@@ -1,0 +1,50 @@
+# 의존성 업데이트 PR.
+# 보안 패치(CVE) PR 은 저장소 설정의 "Dependabot security updates" 가 켜져 있으면 일정과 무관하게 바로 열린다.
+# 아래 일정은 일반 버전 업데이트용이며, 노이즈를 줄이려고 minor/patch 를 묶는다.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /DriveAPI
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    labels: [dependencies, backend]
+    groups:
+      maven-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Spring Boot 메이저 업그레이드는 별도 작업으로 진행
+      - dependency-name: org.springframework.boot:*
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: npm
+    directory: /DriveFront
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    labels: [dependencies, frontend]
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+      - dependency-name: react
+        update-types: [version-update:semver-major]
+      - dependency-name: react-dom
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies, ci]
+    groups:
+      actions:
+        patterns: ['*']
