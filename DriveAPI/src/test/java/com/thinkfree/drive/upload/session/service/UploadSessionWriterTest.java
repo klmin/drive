@@ -107,12 +107,11 @@ class UploadSessionWriterTest {
     }
 
     @Test
-    @DisplayName("32MB 이상 — 멀티파트(파트 16MB), uploadId 기록 뒤 파트 업로드, COMPLETING 뒤 조립")
+    @DisplayName("32MB 이상 — 멀티파트(파트 16MB), uploadId 기록 뒤 파트마다 업로드 + 활동 시각 갱신, COMPLETING 뒤 조립")
     void multipart() {
         long size = 40 * MIB;
-        List<StoragePart> parts = List.of(new StoragePart(1, "e1", 16 * MIB), new StoragePart(2, "e2", 16 * MIB), new StoragePart(3, "e3", 8 * MIB));
         given(storage.createMultipartUpload(eq(KEY), anyString())).willReturn("up-1");
-        given(storage.uploadPartsFromStream(eq(KEY), eq("up-1"), any(), eq(size), eq(16 * MIB))).willReturn(parts);
+        given(storage.uploadPart(eq(KEY), eq("up-1"), anyInt(), any(), anyLong())).willAnswer(inv -> "e" + inv.getArgument(2));
         given(storage.headContentLength(KEY)).willReturn(size);
         given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
 
@@ -120,10 +119,88 @@ class UploadSessionWriterTest {
 
         var order = inOrder(tx, storage);
         order.verify(tx).attachStorage(ID, KEY, "up-1");
-        order.verify(storage).uploadPartsFromStream(eq(KEY), eq("up-1"), any(), eq(size), eq(16 * MIB));
+        order.verify(storage).uploadPart(eq(KEY), eq("up-1"), eq(1), any(), eq(16 * MIB));
+        order.verify(tx).touch(ID);
+        order.verify(storage).uploadPart(eq(KEY), eq("up-1"), eq(2), any(), eq(16 * MIB));
+        order.verify(tx).touch(ID);
+        order.verify(storage).uploadPart(eq(KEY), eq("up-1"), eq(3), any(), eq(8 * MIB));
+        order.verify(tx).touch(ID);
         order.verify(tx).markCompleting(ID, USER);
-        order.verify(storage).completeMultipartUpload(KEY, "up-1", parts);
+        order.verify(storage).completeMultipartUpload(KEY, "up-1", List.of(
+                new StoragePart(1, "e1", 16 * MIB), new StoragePart(2, "e2", 16 * MIB), new StoragePart(3, "e3", 8 * MIB)));
         verify(storage, never()).putObject(anyString(), anyString(), any(), anyLong());
+    }
+
+    @Test
+    @DisplayName("전송 중 세션이 끝나면(스케줄러 만료·취소) 활동 갱신이 실패해 남은 파트를 올리지 않는다 — 정리는 끝낸 쪽이 이미 등록")
+    void stopsWhenSessionEndedDuringTransfer() {
+        given(storage.createMultipartUpload(eq(KEY), anyString())).willReturn("up-1");
+        given(storage.uploadPart(any(), any(), anyInt(), any(), anyLong())).willReturn("e");
+        willThrow(ApiRuntimeException.type(com.thinkfree.drive.upload.session.exception.UploadSessionErrorCode.UPLOAD_SESSION_FAILED))
+                .given(tx).touch(ID);
+        given(tx.fail(any(), any(), any(), any(), any())).willReturn(false);
+
+        assertThatThrownBy(() -> writer.writeDuplicate(streamDto(40 * MIB), USER)).isInstanceOf(ApiRuntimeException.class);
+
+        verify(storage, times(1)).uploadPart(any(), any(), anyInt(), any(), anyLong());
+        verify(tx, never()).markCompleting(any(), anyInt());
+    }
+
+    @Test
+    @DisplayName("5GiB 초과 복사 — 멀티파트 uploadId 를 만든 직후 세션에 남기고, 파트 복사마다 활동 갱신, COMPLETING 뒤 조립")
+    void largeCopyRecordsUploadId() {
+        long sixGiB = 6L * 1024 * MIB;
+        var dto = FileUploadDto.builder().userSeq(USER).fileSize(sixGiB).contentType("video/mp4").originalFileName("v.mp4")
+                .resourceSaveType(ResourceSaveType.DUPLICATE).contentSource(new FileContentSource.StorageCopy("1/src")).build();
+        given(storage.headContentLength("1/src")).willReturn(sixGiB);
+        given(storage.headContentLength(KEY)).willReturn(sixGiB);
+        given(storage.createMultipartUpload(KEY, "video/mp4")).willReturn("up-copy");
+        given(storage.uploadPartCopy(eq("1/src"), eq(KEY), eq("up-copy"), anyInt(), anyLong(), anyLong())).willReturn("e");
+        given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
+
+        writer.writeDuplicate(dto, USER);
+
+        var order = inOrder(tx, storage);
+        order.verify(tx).attachStorage(ID, KEY, "up-copy");
+        order.verify(storage).uploadPartCopy("1/src", KEY, "up-copy", 1, 0, 512 * MIB - 1);
+        order.verify(tx).touch(ID);
+        order.verify(tx).markCompleting(ID, USER);
+        order.verify(storage).completeMultipartUpload(eq(KEY), eq("up-copy"), Mockito.argThat(parts -> parts.size() == 12));
+        verify(storage, never()).copy(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("5GiB 이하 복사 — CopyObject 한 번(uploadId 없음)")
+    void smallCopy() {
+        var dto = FileUploadDto.builder().userSeq(USER).fileSize(40L).contentType("text/plain").originalFileName("a.txt")
+                .resourceSaveType(ResourceSaveType.DUPLICATE).contentSource(new FileContentSource.StorageCopy("1/src")).build();
+        given(storage.headContentLength("1/src")).willReturn(40L);
+        given(storage.headContentLength(KEY)).willReturn(40L);
+        given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
+
+        writer.writeDuplicate(dto, USER);
+
+        verify(tx).attachStorage(ID, KEY, null);
+        verify(storage).copy("1/src", KEY);
+        verify(storage, never()).createMultipartUpload(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Content-Type 이 없으면 확장자로, 모르면 application/octet-stream — 세션·스토리지·커밋에 같은 값")
+    void contentTypeResolved() {
+        assertThat(UploadSessionWriter.resolveContentType(null, "report.pdf")).isEqualTo("application/pdf");
+        assertThat(UploadSessionWriter.resolveContentType(" ", "noext")).isEqualTo("application/octet-stream");
+        assertThat(UploadSessionWriter.resolveContentType("text/plain", "a.pdf")).isEqualTo("text/plain");
+
+        given(storage.headContentLength(KEY)).willReturn(10L);
+        given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
+        var dto = streamDto(10).toBuilder().contentType(null).originalFileName("report.pdf").build();
+
+        writer.writeDuplicate(dto, USER);
+
+        verify(tx).create(Mockito.argThat(q -> "application/pdf".equals(q.contentType())));
+        verify(storage).putObject(eq(KEY), eq("application/pdf"), any(), eq(10L));
+        verify(commit).commitDuplicate(eq(ID), eq(KEY), Mockito.argThat(d -> "application/pdf".equals(d.getContentType())), eq(USER));
     }
 
     @Test
@@ -136,7 +213,7 @@ class UploadSessionWriterTest {
 
         verify(tx).failWithAbort(eq(ID), eq(KEY), eq("up-1"), eq(UploadSessionFailReason.STORAGE_ERROR), anyString());
         verify(tx, never()).fail(any(), any(), any(), any(), any());
-        verify(storage, never()).uploadPartsFromStream(anyString(), anyString(), any(), anyLong(), anyLong());
+        verify(storage, never()).uploadPart(anyString(), anyString(), anyInt(), any(), anyLong());
     }
 
     @Test
@@ -155,7 +232,7 @@ class UploadSessionWriterTest {
     @DisplayName("조립(complete) 실패 — 결과 불명확: COMPLETING 에서 FAILED, ABORT + DELETE")
     void completeFailureIsAmbiguous() {
         given(storage.createMultipartUpload(eq(KEY), anyString())).willReturn("up-1");
-        given(storage.uploadPartsFromStream(any(), any(), any(), anyLong(), anyLong())).willReturn(List.of(new StoragePart(1, "e", 1)));
+        given(storage.uploadPart(any(), any(), anyInt(), any(), anyLong())).willReturn("e");
         willThrow(StorageException.type(StorageErrorCode.MULTIPART_FAILED)).given(storage).completeMultipartUpload(any(), any(), any());
         given(tx.fail(any(), any(), any(), any(), any())).willReturn(true);
 

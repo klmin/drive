@@ -88,7 +88,7 @@ class CopyAndDocumentWriteIntegrationTest {
         java.util.Map<String, Long> stored = new java.util.concurrent.ConcurrentHashMap<>();
         Mockito.doAnswer(inv -> stored.put(inv.getArgument(0), inv.getArgument(3))).when(storageService)
                .putObject(anyString(), anyString(), any(), Mockito.anyLong());
-        Mockito.doAnswer(inv -> stored.put(inv.getArgument(1), 40L)).when(storageService).copyObjectAnySize(anyString(), anyString());
+        Mockito.doAnswer(inv -> stored.put(inv.getArgument(1), 40L)).when(storageService).copy(anyString(), anyString());
         given(storageService.headContentLength(anyString())).willAnswer(inv -> stored.getOrDefault((String) inv.getArgument(0), -1L));
     }
 
@@ -136,12 +136,12 @@ class CopyAndDocumentWriteIntegrationTest {
     @DisplayName("복사 스토리지 실패 — 복사본 행 삭제·사용량 원복, StorageException 전파, 원본 키 → 새 키 복사 호출")
     void copyStorageFailureRollsBack() {
         Resource source = createSource();
-        willThrow(StorageException.type(StorageErrorCode.COPY_FAILED)).given(storageService).copyObjectAnySize(anyString(), anyString());
+        willThrow(StorageException.type(StorageErrorCode.COPY_FAILED)).given(storageService).copy(anyString(), anyString());
 
         assertThatThrownBy(() -> fileUseCase.copy(source.getResourceSeq(), new FileCopyCommand(null, null, null), ADMIN))
                 .isInstanceOf(StorageException.class);
 
-        verify(storageService).copyObjectAnySize(eq(source.getResourceSaveName()), anyString());
+        verify(storageService).copy(eq(source.getResourceSaveName()), anyString());
         assertThat(newRows()).as("원본만 남음").isEqualTo(1);
         assertThat(quota()).isEqualTo(1000L);
     }

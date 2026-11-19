@@ -70,6 +70,18 @@ public class UploadSessionTxService {
     }
 
     /**
+     * 활동 시각 갱신(PENDING 일 때만) — 파트를 올릴 때마다 불러 TTL 이 전송 시간과 무관하게 한다(§2 세션 TTL 은 last_activity 슬라이딩).
+     *
+     * @throws ApiRuntimeException 0행(그 사이 만료·취소로 끝남) UPLOAD_SESSION_FAILED — 정리는 끝낸 쪽이 이미 등록했다
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void touch(UUID uploadSessionId) {
+        if (uploadSessionRepository.touch(uploadSessionId) != 1) {
+            throw ApiRuntimeException.type(UploadSessionErrorCode.UPLOAD_SESSION_FAILED);
+        }
+    }
+
+    /**
      * §6.3 ① — complete 선점(PENDING → COMPLETING).
      *
      * @throws ApiRuntimeException 0행 UPLOAD_SESSION_FAILED

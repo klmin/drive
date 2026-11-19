@@ -7,6 +7,7 @@ import com.thinkfree.drive.quota.service.QuotaService;
 import com.thinkfree.drive.resource.dto.file.FileContentSource;
 import com.thinkfree.drive.resource.dto.file.FileUploadDto;
 import com.thinkfree.drive.resource.result.ResourceSaveResult;
+import com.thinkfree.drive.storage.constants.StorageConstants;
 import com.thinkfree.drive.storage.exception.StorageException;
 import com.thinkfree.drive.storage.result.StoragePart;
 import com.thinkfree.drive.storage.service.StorageService;
@@ -22,12 +23,16 @@ import com.thinkfree.drive.user.service.UserFindService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.TransientDataAccessException;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -67,10 +72,14 @@ public class UploadSessionWriter {
     }
 
     /** DUPLICATE(신규) 쓰기. 내용 출처는 dto 의 contentSource(없으면 업로드 파일). */
-    public ResourceSaveResult writeDuplicate(FileUploadDto dto, int requestUserSeq) {
+    public ResourceSaveResult writeDuplicate(FileUploadDto requested, int requestUserSeq) {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            log.warn("[UploadSessionWriter] called inside a transaction — storage calls will run while it is open. userSeq: {}", dto.getUserSeq());
+            log.warn("[UploadSessionWriter] called inside a transaction — storage calls will run while it is open. userSeq: {}", requested.getUserSeq());
         }
+        // Content-Type 이 없는 요청(파일 파트 헤더 누락)도 받는다 — 세션·스토리지·리소스 행에 같은 값
+        FileUploadDto dto = requested.toBuilder()
+                .contentType(resolveContentType(requested.getContentType(), requested.getOriginalFileName()))
+                .build();
         int userSeq = dto.getUserSeq();
         long size = dto.getFileSize();
         Integer tenantSeq = userFindService.findTenantSeqByUserSeq(userSeq);
@@ -122,8 +131,7 @@ public class UploadSessionWriter {
         long size = dto.getFileSize();
         FileContentSource source = dto.resolveContentSource();
         if (source instanceof FileContentSource.StorageCopy copy) {
-            uploadSessionTxService.attachStorage(id, key, null);
-            storageService.copyObjectAnySize(copy.sourceKey(), key);
+            storeCopy(id, key, copy.sourceKey(), dto.getContentType(), progress);
             return;
         }
         try (InputStream in = open(source, size)) {
@@ -132,21 +140,70 @@ public class UploadSessionWriter {
                 storageService.putObject(key, dto.getContentType(), in, size);
                 return;
             }
-            String uploadId = storageService.createMultipartUpload(key, dto.getContentType());
-            try {
-                uploadSessionTxService.attachStorage(id, key, uploadId);
-            } catch (RuntimeException e) {
-                // uploadId 가 세션에 없으므로 일반 실패 처리로는 abort 가 등록되지 않는다 — 여기서 직접 등록하고 세션도 끝낸다
-                uploadSessionTxService.failWithAbort(id, key, uploadId, UploadSessionFailReason.STORAGE_ERROR, describe(e));
-                progress.status = UploadSessionStatus.FAILED;
-                throw e;
-            }
-            progress.uploadId = uploadId;
+            String uploadId = startMultipart(id, key, dto.getContentType(), progress);
             long partSize = UploadPartPlan.of(size, property.minPartSize().toBytes()).partSize();
-            progress.parts = storageService.uploadPartsFromStream(key, uploadId, in, size, partSize);
+            List<StoragePart> parts = new ArrayList<>();
+            long offset = 0;
+            for (int partNumber = 1; offset < size; partNumber++) {
+                long length = Math.min(partSize, size - offset);
+                parts.add(new StoragePart(partNumber, storageService.uploadPart(key, uploadId, partNumber, in, length), length));
+                offset += length;
+                // 파트마다 활동 시각 갱신 — 전송이 TTL 보다 길어도 스케줄러가 유휴로 보고 끝내지 않게. 이미 끝났으면 여기서 멈춘다
+                uploadSessionTxService.touch(id);
+            }
+            progress.parts = parts;
         } catch (IOException e) {
             throw new IllegalStateException("failed to read upload content", e);
         }
+    }
+
+    /**
+     * 서버측 복사 — 5GiB 이하는 CopyObject 한 번, 넘으면 멀티파트 UploadPartCopy. 멀티파트의 uploadId 는 만든 직후 세션에 남겨
+     * 중간에 프로세스가 죽어도 정리(ABORT)가 등록되게 한다.
+     */
+    private void storeCopy(UUID id, String key, String sourceKey, String contentType, Progress progress) {
+        long sourceSize = storageService.headContentLength(sourceKey);
+        if (sourceSize <= StorageConstants.MAX_SINGLE_COPY_SIZE) {
+            uploadSessionTxService.attachStorage(id, key, null);
+            storageService.copy(sourceKey, key);
+            return;
+        }
+        String uploadId = startMultipart(id, key, contentType, progress);
+        long partSize = Math.max(StorageConstants.DEFAULT_COPY_PART_SIZE,
+                                 (sourceSize + StorageConstants.MAX_PART_COUNT - 1) / StorageConstants.MAX_PART_COUNT);
+        List<StoragePart> parts = new ArrayList<>();
+        long offset = 0;
+        for (int partNumber = 1; offset < sourceSize; partNumber++) {
+            long end = Math.min(offset + partSize, sourceSize) - 1;
+            parts.add(new StoragePart(partNumber, storageService.uploadPartCopy(sourceKey, key, uploadId, partNumber, offset, end), end - offset + 1));
+            offset = end + 1;
+            uploadSessionTxService.touch(id);
+        }
+        progress.parts = parts;
+    }
+
+    /** 멀티파트 시작 + uploadId 기록. 기록에 실패하면 세션 행에 uploadId 가 없어 일반 실패 처리로는 abort 가 안 걸리므로 직접 등록하고 세션도 끝낸다. */
+    private String startMultipart(UUID id, String key, String contentType, Progress progress) {
+        String uploadId = storageService.createMultipartUpload(key, contentType);
+        try {
+            uploadSessionTxService.attachStorage(id, key, uploadId);
+        } catch (RuntimeException e) {
+            uploadSessionTxService.failWithAbort(id, key, uploadId, UploadSessionFailReason.STORAGE_ERROR, describe(e));
+            progress.status = UploadSessionStatus.FAILED;
+            throw e;
+        }
+        progress.uploadId = uploadId;
+        return uploadId;
+    }
+
+    /** 서버가 정하는 Content-Type(규칙 3) — 클라이언트 값이 없으면 파일명 확장자로, 그것도 모르면 application/octet-stream. */
+    static String resolveContentType(String declared, String fileName) {
+        if (StringUtils.hasText(declared)) {
+            return declared;
+        }
+        return MediaTypeFactory.getMediaType(fileName == null ? "" : fileName)
+                               .map(MediaType::toString)
+                               .orElse(MediaType.APPLICATION_OCTET_STREAM_VALUE);
     }
 
     private static InputStream open(FileContentSource source, long declaredSize) throws IOException {
