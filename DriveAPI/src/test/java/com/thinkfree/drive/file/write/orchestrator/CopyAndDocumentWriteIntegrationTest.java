@@ -50,7 +50,7 @@ import static org.mockito.Mockito.verify;
  */
 @SpringBootTest
 @ActiveProfiles("test")
-@DisplayName("복사·문서 생성 — DUPLICATE 오케스트레이터: 스토리지 실패만 원복, 후처리 실패는 저장 유지")
+@DisplayName("복사·문서 생성 — DUPLICATE 업로드 세션: 스토리지 실패면 행·사용량 없음, 후처리 실패는 저장 유지")
 class CopyAndDocumentWriteIntegrationTest {
 
     private static final int ADMIN = 2;
@@ -83,11 +83,23 @@ class CopyAndDocumentWriteIntegrationTest {
         totalQuotaBefore = jdbc.queryForObject("SELECT total_quota_byte FROM tb_user WHERE user_seq = ?", Long.class, ADMIN);
         jdbc.update("UPDATE tb_user SET use_quota_byte = 1000, total_quota_byte = 1073741824 WHERE user_seq = ?", ADMIN);
         loginAs(ADMIN);
+        testStart = Instant.now().minusSeconds(1);
+        // 목 스토리지가 받은 크기를 기억했다가 커밋 전 크기 확인(headContentLength)에 그대로 돌려준다 — 복사는 원본 크기(40)
+        java.util.Map<String, Long> stored = new java.util.concurrent.ConcurrentHashMap<>();
+        Mockito.doAnswer(inv -> stored.put(inv.getArgument(0), inv.getArgument(3))).when(storageService)
+               .putObject(anyString(), anyString(), any(), Mockito.anyLong());
+        Mockito.doAnswer(inv -> stored.put(inv.getArgument(1), 40L)).when(storageService).copyObjectAnySize(anyString(), anyString());
+        given(storageService.headContentLength(anyString())).willAnswer(inv -> stored.getOrDefault((String) inv.getArgument(0), -1L));
     }
+
+    private Instant testStart;
 
     @AfterEach
     void cleanUp() {
         SecurityContextHolder.clearContext();
+        jdbc.update("DELETE FROM tb_storage_deletion WHERE storage_key IN (SELECT storage_key FROM tb_upload_session WHERE user_seq = ? AND create_date >= ?)",
+                ADMIN, java.sql.Timestamp.from(testStart));
+        jdbc.update("DELETE FROM tb_upload_session WHERE user_seq = ? AND create_date >= ?", ADMIN, java.sql.Timestamp.from(testStart));
         jdbc.update("DELETE FROM tb_resource WHERE user_seq = ? AND resource_seq > ?", ADMIN, maxSeqBefore);
         jdbc.update("UPDATE tb_user SET use_quota_byte = ?, total_quota_byte = ? WHERE user_seq = ?", quotaBefore, totalQuotaBefore, ADMIN);
     }
@@ -124,12 +136,12 @@ class CopyAndDocumentWriteIntegrationTest {
     @DisplayName("복사 스토리지 실패 — 복사본 행 삭제·사용량 원복, StorageException 전파, 원본 키 → 새 키 복사 호출")
     void copyStorageFailureRollsBack() {
         Resource source = createSource();
-        willThrow(StorageException.type(StorageErrorCode.COPY_FAILED)).given(storageService).copy(anyString(), anyString());
+        willThrow(StorageException.type(StorageErrorCode.COPY_FAILED)).given(storageService).copyObjectAnySize(anyString(), anyString());
 
         assertThatThrownBy(() -> fileUseCase.copy(source.getResourceSeq(), new FileCopyCommand(null, null, null), ADMIN))
                 .isInstanceOf(StorageException.class);
 
-        verify(storageService).copy(eq(source.getResourceSaveName()), anyString());
+        verify(storageService).copyObjectAnySize(eq(source.getResourceSaveName()), anyString());
         assertThat(newRows()).as("원본만 남음").isEqualTo(1);
         assertThat(quota()).isEqualTo(1000L);
     }
@@ -152,12 +164,12 @@ class CopyAndDocumentWriteIntegrationTest {
     @Test
     @DisplayName("문서 생성 스토리지 실패 — 새 문서 행 없음·사용량 원복, StorageException 전파, 템플릿 스트림 업로드 호출")
     void documentStorageFailureRollsBack() {
-        willThrow(StorageException.type(StorageErrorCode.UPLOAD_FAILED)).given(storageService).upload(any(FileData.class), anyString());
+        willThrow(StorageException.type(StorageErrorCode.UPLOAD_FAILED)).given(storageService).putObject(anyString(), anyString(), any(), Mockito.anyLong());
 
         assertThatThrownBy(() -> documentService.create(DocumentCreateDto.builder().userSeq(ADMIN).ownerSeq(ADMIN).templateType(DocumentTemplateType.WORD).build()))
                 .isInstanceOf(StorageException.class);
 
-        verify(storageService).upload(any(FileData.class), anyString());
+        verify(storageService).putObject(anyString(), anyString(), any(java.io.InputStream.class), Mockito.anyLong());
         assertThat(newRows()).isZero();
         assertThat(quota()).isEqualTo(1000L);
     }

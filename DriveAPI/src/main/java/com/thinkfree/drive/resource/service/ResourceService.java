@@ -25,6 +25,13 @@ public interface ResourceService {
      */
     ResourceDetailData lockActiveUnlocked(long resourceSeq, int ownerSeq, ResourceType type);
     ResourceSaveResult saveWithCopyCheck(FileUploadDto dto);
+    /**
+     * 업로드 세션 커밋(신규) — 이름 넘버링 후 파일 행을 넣고 스토리지 key 를 세션 key 로 둔다.
+     * 호출자가 같은 트랜잭션에서 부모 폴더 행(루트면 사용자 행)을 먼저 잠가 둬야 한다(이름 중복 방지의 유일한 장치, 규칙 9).
+     *
+     * @param parentFolderName 잠근 부모 폴더 이름(결과용, 루트면 null)
+     */
+    ResourceSaveResult saveUploadedFile(FileUploadDto dto, String storageKey, String parentFolderName);
     /** 폴더 생성(복사본 이름 처리) — 저장된 폴더의 식별 값(감사 인자). 경로는 커밋 때 변경 감지 */
     ResourceFolderCreateResult saveFolderWithCopyCheck(FolderUploadDto dto);
     ResourceSaveResult updateWithVersioning(FileUploadDto dto);

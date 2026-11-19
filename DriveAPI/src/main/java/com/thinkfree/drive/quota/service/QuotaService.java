@@ -144,6 +144,11 @@ public class QuotaService {
         log.info("[{}] userSeq : {}, additionalBytes : {}", message, userSeq, additionalBytes);
     }
     
+    /** 용량 초과 알림 — 업로드 세션(시작 사전 검사·커밋 최종 판정)이 IS_FULL 로 끝났을 때 트랜잭션 밖에서 부른다. */
+    public void notifyQuotaExceeded(int userSeq, int actorUserSeq) {
+        quotaExceededNotify(userSeq, actorUserSeq);
+    }
+
     private void quotaExceededNotify(int userSeq, int actorUserSeq){
         var now = Instant.now();
         var notificationQuotaExceededDto = new NotificationQuotaExceededDto(userSeq, actorUserSeq, now);

@@ -7,6 +7,7 @@ import com.thinkfree.drive.resource.enums.ResourceSaveType;
 import com.thinkfree.drive.resource.result.ResourceSaveResult;
 import com.thinkfree.drive.storage.exception.StorageException;
 import com.thinkfree.drive.systemconfig.service.SystemConfigFindService;
+import com.thinkfree.drive.upload.session.service.UploadSessionWriter;
 import com.thinkfree.drive.user.service.UserFindService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -25,8 +26,10 @@ public class FileWriteOrchestrator {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final SystemConfigFindService systemConfigFindService;
     private final UserFindService userFindService;
+    private final UploadSessionWriter uploadSessionWriter;
 
-    public FileWriteOrchestrator(List<FileWriteService> fileWriteServices, ApplicationEventPublisher applicationEventPublisher, SystemConfigFindService systemConfigFindService, UserFindService userFindService){
+    public FileWriteOrchestrator(List<FileWriteService> fileWriteServices, ApplicationEventPublisher applicationEventPublisher, SystemConfigFindService systemConfigFindService, UserFindService userFindService,
+                                 UploadSessionWriter uploadSessionWriter){
 
         EnumMap<ResourceSaveType, FileWriteService> map = new EnumMap<>(ResourceSaveType.class);
 
@@ -45,6 +48,7 @@ public class FileWriteOrchestrator {
         this.applicationEventPublisher = applicationEventPublisher;
         this.systemConfigFindService = systemConfigFindService;
         this.userFindService = userFindService;
+        this.uploadSessionWriter = uploadSessionWriter;
     }
     
     public ResourceSaveResult write(FileUploadDto dto, int requestUserSeq) {
@@ -55,14 +59,20 @@ public class FileWriteOrchestrator {
             throw new IllegalArgumentException("ResourceSaveType must not be null");
         }
         
+        Integer ownerTenantSeq = userFindService.findTenantSeqByUserSeq(dto.getUserSeq());
+        systemConfigFindService.validateFileSizeLimit(ownerTenantSeq, dto.getFileSize());
+
+        // 업로드 세션 재설계 3단계 — 신규(DUPLICATE)는 세션 → 저장 → 커밋 경로. 사용량 알림 이벤트는 커밋 tx 가 발행한다.
+        // VERSION·OVERWRITE 는 다음 단계에서 옮긴 뒤 이 클래스를 지운다(docs/design/upload-session-redesign.md §12)
+        if (saveType.isDuplicate()) {
+            return uploadSessionWriter.writeDuplicate(dto, requestUserSeq);
+        }
+
         FileWriteService handler = handlers.get(saveType);
 
         if (handler == null) {
             throw new IllegalStateException("No FileWriteService found for type: " + saveType);
         }
-
-        Integer ownerTenantSeq = userFindService.findTenantSeqByUserSeq(dto.getUserSeq());
-        systemConfigFindService.validateFileSizeLimit(ownerTenantSeq, dto.getFileSize());
 
         var result = handler.prepareMeta(dto, requestUserSeq);
         
