@@ -85,6 +85,14 @@ public interface StorageService {
     byte[] readRange(String key, long start, long endInclusive);
 
     /**
+     * 멀티파트 파트 하나를 다른 객체의 [start, endInclusive] 범위에서 서버측 복사(UploadPartCopy) — 5GiB 초과 복사를 세션이 직접 나눠 할 때.
+     *
+     * @return 파트 ETag
+     * @throws com.thinkfree.drive.storage.exception.StorageException 업로드가 없으면 NO_SUCH_UPLOAD
+     */
+    String uploadPartCopy(String sourceKey, String targetKey, String uploadId, int partNumber, long start, long endInclusive);
+
+    /**
      * 서버측 복사 — 5GiB 이하는 CopyObject, 넘으면 멀티파트 UploadPartCopy. Content-Type 은 원본 것을 그대로.
      * 대용량 복사 중 실패하면 만든 멀티파트를 바로 abort 한다(세션과 무관한 내부 임시 업로드라 등록할 곳이 없다).
      */

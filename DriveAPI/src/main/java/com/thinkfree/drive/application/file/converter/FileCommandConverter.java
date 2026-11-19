@@ -44,7 +44,7 @@ public interface FileCommandConverter {
         return toCopyUploadDto(parentFolderSeq, userSeq, requestUserSeq, extracted, contentType, fileSize);
     }
 
-    // drive_upload_file용 — 복제와 같은 DUPLICATE 메타에 내용(file)을 함께 싣는다. 중복 넘버링은 DuplicateFileWriteService(saveWithCopyCheck)가 처리
+    // drive_upload_file용 — 복제와 같은 DUPLICATE 메타에 내용(file)을 함께 싣는다. 중복 넘버링은 업로드 세션 커밋(UploadCommitService → saveUploadedFile)이 처리
     @Mapping(target = "contentType", source = "contentType")
     @Mapping(target = "fileSize", source = "fileSize")
     @Mapping(target = "ownerSeq", source = "requestUserSeq")

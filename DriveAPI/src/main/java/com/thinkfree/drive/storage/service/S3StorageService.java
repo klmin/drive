@@ -647,13 +647,8 @@ public class S3StorageService implements StorageService {
             long offset = 0;
             for (int partNumber = 1; offset < size; partNumber++) {
                 long end = Math.min(offset + partSize, size) - 1;
-                final int n = partNumber;
-                final String range = "bytes=" + offset + "-" + end;
-                UploadPartCopyResponse response = s3Client.uploadPartCopy(req -> req
-                        .sourceBucket(connection.bucketName()).sourceKey(sourceKey)
-                        .destinationBucket(connection.bucketName()).destinationKey(targetKey)
-                        .uploadId(uploadId).partNumber(n).copySourceRange(range));
-                parts.add(new StoragePart(n, response.copyPartResult().eTag(), end - offset + 1));
+                String eTag = uploadPartCopy(sourceKey, targetKey, uploadId, partNumber, offset, end);
+                parts.add(new StoragePart(partNumber, eTag, end - offset + 1));
                 offset = end + 1;
             }
             completeMultipartUpload(targetKey, uploadId, parts);
@@ -668,6 +663,20 @@ public class S3StorageService implements StorageService {
                 throw se;
             }
             throw mapAndLog("copyObjectAnySize", targetKey, e, StorageErrorCode.COPY_FAILED);
+        }
+    }
+
+    @Override
+    public String uploadPartCopy(String sourceKey, String targetKey, String uploadId, int partNumber, long start, long endInclusive) {
+        try {
+            String range = "bytes=" + start + "-" + endInclusive;
+            UploadPartCopyResponse response = s3Client.uploadPartCopy(req -> req
+                    .sourceBucket(connection.bucketName()).sourceKey(sourceKey)
+                    .destinationBucket(connection.bucketName()).destinationKey(targetKey)
+                    .uploadId(uploadId).partNumber(partNumber).copySourceRange(range));
+            return response.copyPartResult().eTag();
+        } catch (Exception e) {
+            throw mapMultipartAndLog("uploadPartCopy", targetKey, uploadId, e);
         }
     }
 

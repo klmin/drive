@@ -79,8 +79,12 @@ class UploadWriteIntegrationTest {
     private Long quotaBefore;
     private Long totalQuotaBefore;
 
+    /** 세션 행 시각은 DB now() — 앞뒤 경계를 넉넉히(1초 앞) */
+    private Instant testStart;
+
     @BeforeEach
     void setUp() {
+        testStart = Instant.now().minusSeconds(1);
         maxSeqBefore = jdbc.queryForObject("SELECT COALESCE(MAX(resource_seq), 0) FROM tb_resource", Long.class);
         quotaBefore = jdbc.queryForObject("SELECT use_quota_byte FROM tb_user WHERE user_seq = ?", Long.class, ADMIN);
         totalQuotaBefore = jdbc.queryForObject("SELECT total_quota_byte FROM tb_user WHERE user_seq = ?", Long.class, ADMIN);
@@ -91,6 +95,9 @@ class UploadWriteIntegrationTest {
     @AfterEach
     void cleanUp() {
         SecurityContextHolder.clearContext();
+        jdbc.update("DELETE FROM tb_storage_deletion WHERE storage_key IN (SELECT storage_key FROM tb_upload_session WHERE user_seq = ? AND create_date >= ?)",
+                ADMIN, java.sql.Timestamp.from(testStart));
+        jdbc.update("DELETE FROM tb_upload_session WHERE user_seq = ? AND create_date >= ?", ADMIN, java.sql.Timestamp.from(testStart));
         jdbc.update("DELETE FROM tb_resource WHERE user_seq = ? AND resource_seq > ?", ADMIN, maxSeqBefore);
         jdbc.update("UPDATE tb_user SET use_quota_byte = ?, total_quota_byte = ? WHERE user_seq = ?", quotaBefore, totalQuotaBefore, ADMIN);
     }
@@ -191,31 +198,131 @@ class UploadWriteIntegrationTest {
         assertThat(snapshot(r.getResourceSeq())).isEqualTo(before);
     }
 
+    // ------------------------------------------------------------------ DUPLICATE — 업로드 세션 경로(세션 → 저장 → 커밋)
+
+    private void uploadDuplicate(int size) {
+        fileUseCase.upload(new FileUploadCommand(null, null, null, file(size), ResourceSaveType.DUPLICATE), ADMIN, false, false);
+    }
+
+    /** 이 테스트가 만든 마지막 세션 */
+    private Map<String, Object> lastSession() {
+        return jdbc.queryForMap("SELECT upload_session_id, status, fail_reason, storage_key, result_resource_seq FROM tb_upload_session"
+                + " WHERE user_seq = ? AND create_date >= ? ORDER BY create_date DESC, upload_session_id DESC LIMIT 1", ADMIN, java.sql.Timestamp.from(testStart));
+    }
+
+    private List<String> queuedActions(String storageKey) {
+        return jdbc.queryForList("SELECT action FROM tb_storage_deletion WHERE storage_key = ? ORDER BY storage_deletion_seq", String.class, storageKey);
+    }
+
     @Test
-    @DisplayName("DUPLICATE 업로드 스토리지 실패 — 새 행 없음·사용량 원복, StorageException 전파")
-    void duplicateStorageFailureRollsBack() {
-        willThrow(StorageException.type(StorageErrorCode.UPLOAD_FAILED)).given(storageService).upload(any(MultipartFile.class), anyString());
+    @DisplayName("DUPLICATE 성공 — 세션 key({tenant}/{uuid})에 단일 PUT, 행의 저장 이름 = 세션 key, 사용량 +50, 세션 COMPLETED, 커밋 뒤 사용량 후처리")
+    void duplicateSuccess() {
+        given(storageService.headContentLength(anyString())).willReturn(50L);
 
-        assertThatThrownBy(() -> fileUseCase.upload(new FileUploadCommand(null, null, null, file(50), ResourceSaveType.DUPLICATE), ADMIN, false, false))
-                .isInstanceOf(StorageException.class);
+        uploadDuplicate(50);
 
-        verify(storageService).upload(any(MultipartFile.class), anyString());
+        Map<String, Object> session = lastSession();
+        String key = (String) session.get("storage_key");
+        assertThat(session.get("status")).isEqualTo("COMPLETED");
+        assertThat(key).matches("\\d+/" + session.get("upload_session_id"));
+        verify(storageService).putObject(eq(key), anyString(), any(java.io.InputStream.class), eq(50L));
+        assertThat(newRows()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT resource_save_name FROM tb_resource WHERE resource_seq = ?", String.class, session.get("result_resource_seq")))
+                .isEqualTo(key);
+        assertThat(quota()).isEqualTo(1050L);
+        verify(postProcessingOrchestratorRetry, Mockito.timeout(5000)).processQuotaIncreaseAndNotify(any());
+    }
+
+    @Test
+    @DisplayName("DUPLICATE 스토리지 실패 — 새 행 없음·사용량 그대로, 세션 FAILED(STORAGE_ERROR) + 그 key DELETE 등록, StorageException 전파")
+    void duplicateStorageFailure() {
+        willThrow(StorageException.type(StorageErrorCode.UPLOAD_FAILED)).given(storageService).putObject(anyString(), anyString(), any(), Mockito.anyLong());
+
+        assertThatThrownBy(() -> uploadDuplicate(50)).isInstanceOf(StorageException.class);
+
+        Map<String, Object> session = lastSession();
+        assertThat(session.get("status")).isEqualTo("FAILED");
+        assertThat(session.get("fail_reason")).isEqualTo("STORAGE_ERROR");
+        assertThat(queuedActions((String) session.get("storage_key"))).containsExactly("DELETE");
         assertThat(newRows()).isZero();
         assertThat(quota()).isEqualTo(1000L);
     }
 
     @Test
-    @DisplayName("DUPLICATE 업로드 용량 부족 — IS_FULL 그대로 전파, 용량 초과 알림 1회, 새 행 없음, 스토리지 호출 없음")
-    void duplicateQuotaFullIsNotRetried() {
+    @DisplayName("DUPLICATE 저장된 크기 불일치 — 커밋 안 함, 세션 FAILED(VALIDATION) + DELETE 등록, UPLOAD_SIZE_MISMATCH")
+    void duplicateSizeMismatch() {
+        given(storageService.headContentLength(anyString())).willReturn(49L);
+
+        assertThatThrownBy(() -> uploadDuplicate(50))
+                .isInstanceOfSatisfying(ApiRuntimeException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(com.thinkfree.drive.upload.session.exception.UploadSessionErrorCode.UPLOAD_SIZE_MISMATCH));
+
+        Map<String, Object> session = lastSession();
+        assertThat(session.get("status")).isEqualTo("FAILED");
+        assertThat(session.get("fail_reason")).isEqualTo("VALIDATION");
+        assertThat(queuedActions((String) session.get("storage_key"))).containsExactly("DELETE");
+        assertThat(newRows()).isZero();
+        assertThat(quota()).isEqualTo(1000L);
+    }
+
+    @Test
+    @DisplayName("DUPLICATE 용량 부족 — 세션 시작 사전 검사에서 IS_FULL, 용량 초과 알림 1회, 세션·새 행 없음, 스토리지 호출 없음")
+    void duplicateQuotaFull() {
         jdbc.update("UPDATE tb_user SET use_quota_byte = total_quota_byte WHERE user_seq = ?", ADMIN);
         long full = quota();
 
-        assertThatThrownBy(() -> fileUseCase.upload(new FileUploadCommand(null, null, null, file(50), ResourceSaveType.DUPLICATE), ADMIN, false, false))
+        assertThatThrownBy(() -> uploadDuplicate(50))
                 .isInstanceOfSatisfying(ApiRuntimeException.class, e -> assertThat(e.getCode()).isEqualTo(QuotaErrorCode.IS_FULL));
 
         verify(notificationRetryService, Mockito.times(1)).quotaExceededNotify(any());
-        verify(storageService, never()).upload(any(MultipartFile.class), anyString());
+        verify(storageService, never()).putObject(anyString(), anyString(), any(), Mockito.anyLong());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tb_upload_session WHERE user_seq = ? AND create_date >= ?", Integer.class,
+                ADMIN, java.sql.Timestamp.from(testStart))).isZero();
         assertThat(newRows()).isZero();
         assertThat(quota()).isEqualTo(full);
+    }
+
+    @Test
+    @DisplayName("DUPLICATE 동시 업로드(같은 이름·같은 위치) — 커밋 tx 의 사용자·부모 행 잠금으로 이름 넘버링이 직렬화되어 이름이 모두 다르다")
+    void concurrentSameNameUploadsGetDistinctNames() throws Exception {
+        given(storageService.headContentLength(anyString())).willReturn(50L);
+        int threads = 6;
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(threads);
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try {
+            List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+            for (int i = 0; i < threads; i++) {
+                futures.add(pool.submit(() -> {
+                    loginAs(ADMIN);
+                    start.await();
+                    uploadDuplicate(50);
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (var f : futures) {
+                f.get(60, java.util.concurrent.TimeUnit.SECONDS);
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+
+        List<String> names = jdbc.queryForList("SELECT resource_name FROM tb_resource WHERE user_seq = ? AND resource_seq > ?", String.class, ADMIN, maxSeqBefore);
+        assertThat(names).hasSize(threads).doesNotHaveDuplicates();
+        assertThat(quota()).isEqualTo(1000L + 50L * threads);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tb_upload_session WHERE user_seq = ? AND create_date >= ? AND status = 'COMPLETED'",
+                Integer.class, ADMIN, java.sql.Timestamp.from(testStart))).isEqualTo(threads);
+    }
+
+    @Test
+    @DisplayName("DUPLICATE 진행 중 업로드가 용량을 잡고 있으면 사전 검사에서 막힌다(확정 + 진행 중 + 신고 크기)")
+    void duplicateBlockedByInProgressSessions() {
+        jdbc.update("UPDATE tb_user SET use_quota_byte = 1000, total_quota_byte = 1100 WHERE user_seq = ?", ADMIN);
+        jdbc.update("INSERT INTO tb_upload_session (user_seq, request_user_seq, save_type, file_name, content_type, size_byte) VALUES (?, ?, 'DUPLICATE', 'x', 'text/plain', 80)",
+                ADMIN, ADMIN);
+
+        assertThatThrownBy(() -> uploadDuplicate(50))
+                .isInstanceOfSatisfying(ApiRuntimeException.class, e -> assertThat(e.getCode()).isEqualTo(QuotaErrorCode.IS_FULL));
+        verify(storageService, never()).putObject(anyString(), anyString(), any(), Mockito.anyLong());
     }
 }

@@ -107,6 +107,11 @@ public class Resource extends BaseAuditEntity {
         DriveAssert.throwIfAnyNull("userSeq or resourceSeq is null", userSeq, resourceSeq);
         this.resourceSaveName = userSeq + PATH_SEPARATOR + resourceSeq;
     }
+    /** 업로드 세션이 정한 불변 스토리지 key({tenantSeq}/{세션 uuid}) — 계산하지 않고 받은 값 그대로 저장한다. */
+    public void applyResourceSaveName(String storageKey) {
+        DriveAssert.throwIfAnyNull("storageKey is null", storageKey);
+        this.resourceSaveName = storageKey;
+    }
     public void changeCopyResource(String baseFilename, String originalFileName, int copyNumber) {
         DriveAssert.throwIfAnyNoText("baseFilename or originalFileName is empty", baseFilename, originalFileName);
         this.resourceName = baseFilename;

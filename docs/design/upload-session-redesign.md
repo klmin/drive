@@ -399,7 +399,13 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
   - 세션 정리 스케줄러: `SchedulerService.cleanupUploadSessions`(10분, ShedLock `upload_session_cleanup`) → `UploadSessionCleanupProcessor`.
   - 버킷 lifecycle: `S3BucketInitializer` 가 기존 규칙에 병합(위 §14 MinIO 메모).
   - `fail_reason` 에 `STORAGE_ERROR`(세션 생성 중 스토리지 준비 실패, §6.1 ②) 추가.
-- **미착수**: 단계 3(기존 쓰기 경로를 세션 → 저장 → 커밋으로 교체, 이름 결정 경로 잠금 통일), 단계 4(청크 API·프론트), 지표(§13).
+- **단계 3-1 (신규 DUPLICATE)** — 브랜치 `feat/upload-session-commit`:
+  - `FileWriteOrchestrator.write` 가 DUPLICATE 를 `UploadSessionWriter.writeDuplicate` 로 보낸다 → 웹 업로드·MCP 업로드·파일 복사·템플릿 문서 생성이 모두 세션 경로. `DuplicateFileWriteService` 제거.
+  - `UploadSessionWriter`(tx 없음): 세션 생성 → key `{tenantSeq}/{세션 ID}` → 32MB 미만 단일 PUT / 이상 멀티파트(16MB) / 복사는 `copyObjectAnySize` → COMPLETING → (조립) → 크기 확인 → 커밋(일시적 DB 오류 3회 재시도). 실패는 진행 위치에 맞춰 FAILED + 정리 등록, uploadId 기록 실패는 `failWithAbort`, 커밋 뒤 예외는 세션이 COMPLETED 면 저장 결과 반환.
+  - `UploadSessionTxService`(각 단계 REQUIRES_NEW), `UploadCommitService.commitDuplicate`(사용자 행 → 부모 폴더 행 `FOR NO KEY UPDATE`, 용량 최종 판정·증가, `saveUploadedFile`, COMPLETED, `FileUploadedEvent` 를 tx 안에서 발행), `UploadLockRepository`.
+  - 용량 사전 필터는 확정 + 진행 중 + 신고 크기. IS_FULL 이면 트랜잭션 밖에서 알림(`QuotaService.notifyQuotaExceeded`).
+  - 아직 아님: 커밋 tx 의 권한 재확인(호출부 검사만), 확장자 기반 Content-Type·매직바이트 검사(규칙 3), 감사 로그 발행 시점(호출부 그대로).
+- **미착수**: 단계 3-2 이후(VERSION·OVERWRITE·복원·웹오피스, 옛 코드 제거, 이름 결정 경로 잠금 통일), 단계 4(청크 API·프론트), 지표(§13).
 
 ---
 

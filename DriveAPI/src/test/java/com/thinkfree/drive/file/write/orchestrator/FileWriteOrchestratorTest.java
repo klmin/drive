@@ -48,7 +48,7 @@ class FileWriteOrchestratorTest {
     @BeforeEach
     void setUp() {
         given(handler.supports()).willReturn(ResourceSaveType.VERSION);
-        orchestrator = new FileWriteOrchestrator(List.of(handler), publisher, systemConfigFindService, userFindService);
+        orchestrator = new FileWriteOrchestrator(List.of(handler), publisher, systemConfigFindService, userFindService, Mockito.mock(com.thinkfree.drive.upload.session.service.UploadSessionWriter.class));
         dto = FileUploadDto.builder().resourceSeq(10L).userSeq(2).fileSize(30L).resourceSaveType(ResourceSaveType.VERSION).build();
         result = new ResourceSaveResult(10L, 2, null, null, null, "doc.docx", null, null, null,
                 null, null, null, null, null, null, null, null, null, null);

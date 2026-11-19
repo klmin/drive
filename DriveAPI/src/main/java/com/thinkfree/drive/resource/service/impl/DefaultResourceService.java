@@ -326,6 +326,25 @@ public class DefaultResourceService implements ResourceService {
 
     }
     
+    @Override
+    public ResourceSaveResult saveUploadedFile(FileUploadDto dto, String storageKey, String parentFolderName){
+
+        var resource = resourceConverter.toUploadResource(dto);
+
+        var resourceLockQuery = resourceConverter.toResourceLockQuery(null, resource.getUserSeq(), resource.getResourceType(), resource.getParentFolderSeq(), resource.getOriginalFileName(), resource.getIsDelete());
+        var resourceCopyNumbers = resourcerepository.lockMaxCopyNumbers(resourceLockQuery);
+
+        var numberedNameRequestDto = new NumberedNameRequestDto(dto.isCopyFile(), dto.getOriginalFileName(), dto.getBaseFileName(), dto.getCopyNumber(), dto.getExt(), dto.getOriginalFileNameWithoutExt());
+        applyCopyNameToResource(resource, resourceCopyNumbers, numberedNameRequestDto);
+        resource.applyShareToken(resourceShareTokenService.createNewToken());
+
+        var saved = resourcerepository.save(resource);
+        // resource_save_name 은 insertable=false — 저장 뒤 값을 두면 커밋 때 변경 감지 UPDATE(같은 tx)
+        saved.applyResourceSaveName(storageKey);
+
+        return resourceConverter.toSaveResult(resource, null, null, null, resource.getSizeByte(), null, parentFolderName, resource.getRegisterDate(), null, null, null);
+    }
+
     private ResourceDetailData validateParentFolderExists(Long parentFolderSeq, int userSeq){
         if(parentFolderSeq != null) {
             var parentFineQuery = resourceConverter.toFindQuery(parentFolderSeq, userSeq, ResourceType.FOLDER, false);
