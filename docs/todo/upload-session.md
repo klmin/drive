@@ -1,14 +1,10 @@
 # 업로드 세션 — 남은 작업
 
-> 기준: 2026-11-19. 끝난 것 = 단계 0·1(MinIO)·2·3(PR #9·#19·#22 머지). **진행 중 = PR #27(이름 결정 경로 잠금, 브랜치 `fix/name-lock-parent-folder`) — Codex 리뷰 P1 3건 반영 후 재리뷰 대기.** 이 PR 이 머지되면 아래 "진행 중" 항목을 지운다.
+> 기준: 2026-11-19. 끝난 것 = 단계 0·1(MinIO)·2·3(PR #9·#19·#22·#27 머지).
 > 지금 구조는 [현재 구현 문서](../design/upload-session-as-built.md), 결정 이유는 [설계 문서](../design/upload-session-redesign.md)(§ 번호는 이 문서 기준).
 > 우선순위: **A** 다음에 할 것 / **B** 운영 전 필요 / **C** 여유 있을 때.
 
 ---
-
-## 진행 중
-
-- [ ] **PR #27 머지** — 이름 결정 경로(폴더 생성·이름 변경·이동·복원)가 소유자 사용자 행 → 이름 자리(부모 폴더) → 대상 순으로 잠금, 영구 삭제도 사용자 행 먼저. 남은 Codex 지적이 있으면 반영 후 머지
 
 ## A. 단계 4 — 청크 업로드 API + 프론트 (설계 §5.3·§5.4·§6.2·§6.3·§10)
 
@@ -37,6 +33,7 @@
 - [ ] **지표·알림**(설계 §13) — Micrometer: 상태별 세션 수, 가장 오래된 PENDING/COMPLETING 나이, 삭제 대기 적체·최고령·최종 실패 수. 알림: COMPLETING 30분 초과(`UploadSessionCleanupProcessor` 가 지금 WARN 로그만), 삭제 최종 실패 행(`REFERENCED` 포함)
 - [ ] **Ceph·RustFS 계약 테스트**(단계 1 나머지) — `S3StorageServiceMultipartContractTest` 를 이미지만 바꿔 실행. 확인할 것: abort 직후 동작, NoSuchUpload 코드, `AbortIncompleteMultipartUpload` lifecycle 지원(MinIO 는 미지원), 파트 체크섬·`If-None-Match`
 - [ ] **운영 버킷 lifecycle 확인** — 기동 시 자동 병합 PUT 이 운영 버킷 정책과 충돌하지 않는지, 권한 없는 설치처는 `drive.upload.manage-bucket-lifecycle=false` + 수동 설정 안내(DriveInstaller 문서)
+- [ ] **CodeQL 결과 업로드 실패** — 저장소가 private 으로 바뀐 뒤(2026-11-19) Code scanning 업로드가 거부돼 모든 PR 의 CodeQL(Java·JS) 체크가 실패한다(분석 자체는 성공, 필수 체크 아님). 결정 필요: `codeql-action/analyze` 에 `upload: false` + SARIF 아티팩트(무료) / GitHub Code Security 유료 애드온 / public 전환 / CodeQL 끄기. 결정 전까지 이 체크 실패는 코드 문제가 아니다
 - [ ] **`tb_resource_version.resource_save_name` 인덱스 생성 잠금**(V6) — 큰 설치처면 배포 시 쓰기 잠금. 이미 배포된 곳이 없으면 그대로, 있으면 `CREATE INDEX CONCURRENTLY` 별도 마이그레이션 검토
 
 ## C. 정리·후속
@@ -46,7 +43,7 @@
   - 주의: `cleanVersionIfExists` 는 커밋 tx 안에서 S3 HEAD(저장 마커 조회)를 한다 — 옛 PENDING 행이 있을 때만
 - [ ] **호출부 없는 코드 제거** — `ResourceRepository.revertOverwrite`(+JPQL·`ResourceRevertOverWriteQuery`·`OVERWRITE_REVERT_FAIL`·`DefaultResourceService.revertOverwrite`), `StorageService.uploadPartsFromStream`·`copyObjectAnySize`(계약 테스트만 사용 — 청크 API 에서 쓸지 보고 결정), `QuotaService.reserveQuota/reserveQuotaInTx`(다른 호출부 확인 후)
 - [ ] **`FileWriteOrchestrator` 이름** — 지금은 크기 정책 확인 후 `UploadSessionWriter` 로 넘기기만 한다. 호출부 6곳을 `UploadSessionWriter`(또는 파사드)로 바꾸고 클래스 제거 검토
-- [ ] **설계 문서 규칙 8 갱신** — "사용자 행(루트면)" → "사용자 행 항상 먼저"(PR #27). [as-built §4](../design/upload-session-as-built.md) 에는 반영됨
+- [x] **설계 문서 규칙 8 갱신**(PR #31) — "사용자 행(루트면)" → "사용자 행 항상 먼저"(PR #27). [as-built §4](../design/upload-session-as-built.md) 에는 반영됨
 - [ ] **교착 남은 조합 점검** — 사용자 행을 먼저 잡지 않으면서 리소스 행 뒤에 사용자 행을 잡는 경로가 새로 생기면 교착이 된다(PR #27 리뷰에서 3건). 새 쓰기 경로를 만들 때 as-built §4 순서를 지키고, 관리자 사용자 삭제(`UserPermanentDeletionService`)·테넌트 정리처럼 아직 검증 안 한 경로는 동시성 테스트로 확인
 - [ ] **관리자 용량 축소 시 진행 중 세션 중단**(단계 5 선택) — 축소 tx 에서 `확정 + 진행 중 > 새 한도` 면 PENDING 세션을 최근 순으로 `FAILED(QUOTA_EXCEEDED)` + ABORT
 - [ ] **presigned 직접 업로드 옵션**(단계 5 선택) — `upload.mode = PROXY | PRESIGNED`, 버킷 CORS `ExposeHeaders: ETag`

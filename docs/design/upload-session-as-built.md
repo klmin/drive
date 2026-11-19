@@ -1,6 +1,6 @@
 # 업로드 세션 — 현재 구현 (as-built)
 
-> 기준: 2026-11-19. 단계 0~3 의 PR #9·#19·#22 는 `main` 에 머지됨. **§4 잠금 순서는 PR #27(리뷰 중, 브랜치 `fix/name-lock-parent-folder`) 기준** — 머지 전이면 `main` 에는 아직 없다. 지금 코드가 **실제로 어떻게 동작하는지**를 정리한 문서.
+> 기준: 2026-11-19. 단계 0~3(PR #9·#19·#22·#27)이 모두 `main` 에 머지된 상태. 지금 코드가 **실제로 어떻게 동작하는지**를 정리한 문서.
 > 설계 결정의 이유·검토한 대안은 [upload-session-redesign.md](upload-session-redesign.md), 남은 일은 [../todo/upload-session.md](../todo/upload-session.md).
 > 코드가 바뀌면 이 문서를 같은 PR 에서 고친다.
 
