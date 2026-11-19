@@ -13,18 +13,19 @@
 ```
 FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 넘김(진입점, 호출부 무변경)
   └─ UploadSessionWriter.write        트랜잭션 없음 — 아래 단계를 순서대로
-       1. 세션 생성        UploadSessionTxService.create         (짧은 tx, REQUIRES_NEW)
+       1. 세션 생성        open → UploadSessionTxService.create  (짧은 tx, REQUIRES_NEW)
        2. 스토리지 저장    StorageService                       (tx 밖)
        3. COMPLETING 선점  UploadSessionTxService.markCompleting (짧은 tx)
-       4. (멀티파트면) 조립 → 저장 크기 확인
-       5. 커밋             UploadCommitService.commit*           (짧은 tx, 일시적 DB 오류 3회 재시도)
-       실패 시             UploadSessionTxService.fail           (FAILED + 정리 등록, 같은 tx)
+       4. (멀티파트면) 조립 → 저장 크기 확인     ┐ finishClaimed
+       5. 커밋             UploadCommitService.commit*           │ (짧은 tx, 일시적 DB 오류 3회 재시도)
+       실패 시             UploadSessionTxService.fail           ┘ (FAILED + 정리 등록, 같은 tx)
 ```
+청크 업로드 API(`/api/v1/uploads`, §3.5)는 1(`open`)과 4~5(`finishClaimed`)를 같은 코드로 쓰고, 2·3 만 요청 단위로 나눈다(파트 PUT, complete 선점).
 
 - **불변 key**: 새 내용은 항상 새 key `{tenantSeq}/{세션 uuidv7}`(테넌트 없으면 `0/`). key 는 세션 생성 때 한 번 계산하고, 이후 조회·삭제는 DB 에 저장된 값으로만 한다. 버전·덮어쓰기는 S3 복사 없이 **DB 포인터만** 바꾼다.
 - **사용량(`tb_user.use_quota_byte`)은 커밋 tx 에서만** 바뀐다. 실패하면 되돌릴 것이 없다(보상 로직 없음).
 - **정리는 상태를 끝내는 쪽이 같은 tx 에서 등록**한다(`tb_storage_deletion`). 실제 S3 abort·delete 는 삭제 워커가 한다.
-- 청크 업로드 API(브라우저가 파트를 직접 보내는 경로)는 **아직 없다** — 지금은 서버가 내용을 한 번에 받고 내부에서만 세션을 쓴다.
+- 큰 파일은 청크 업로드 API 로 브라우저가 파트를 하나씩 보내고 이어 올릴 수 있다(백엔드만 — 프론트 연결은 아직, todo A). 32MB 미만과 다른 진입점(MCP·복사·웹오피스 등)은 서버가 내용을 한 번에 받는다.
 
 ---
 
@@ -93,12 +94,30 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 | 위치 | 기대 상태 | 정리 등록(`UploadSessionStorageCleanup`) |
 |---|---|---|
 | 조립 전(PUT·파트·복사 중) | PENDING | 멀티파트 ABORT, 단일 요청이면 DELETE |
+| 조립 전(complete 의 파트 검증) | COMPLETING | ABORT |
 | 조립 중(complete 결과 불명확) | COMPLETING | ABORT + DELETE |
 | 조립 후(크기 확인·커밋) | COMPLETING | DELETE |
 
 - 조건부 UPDATE 가 0행이면 커밋이 실제로는 성공했을 수 있다(커밋 뒤 예외·응답 유실) — 세션을 다시 읽어 COMPLETED 면 저장된 결과를 돌려준다(**DB 상태가 정본**).
 - 실패 기록조차 못 하면 세션은 PENDING/COMPLETING 으로 남고 스케줄러가 정리한다.
-- `fail_reason`: `QUOTA_EXCEEDED`(IS_FULL), `VALIDATION`(그 밖의 업무 오류), `STORAGE_ERROR`(조립 전 스토리지 오류), `COMMIT_ERROR`(그 외).
+- `fail_reason`: `QUOTA_EXCEEDED`(IS_FULL), `VALIDATION`(그 밖의 업무 오류), `STORAGE_ERROR`(조립 전 스토리지 오류), `COMMIT_ERROR`(그 외), 청크 API 에서 `CANCELED`(취소)·`NO_SUCH_UPLOAD`(파트 PUT 중 스토리지 업로드 사라짐).
+
+### 3.5 청크 업로드 API (`/api/v1/uploads`)
+`UploadSessionController` → `UploadSessionUseCase`(권한·감사) → `UploadChunkService`(트랜잭션 없음). 로그인 사용자(USER)만, 익명 불가.
+
+| 요청 | 동작 |
+|---|---|
+| `POST /api/v1/uploads` `{sharedByUserSeq?, parentFolderSeq?, resourceSeq?, fileName, size, saveType?}` | 권한(신규 = 부모 폴더 UPLOAD, 그 외 = 대상 EDIT) → 32MB 미만 400 `UPLOAD_008` → 절대 상한·테넌트 크기 정책 → `open`(용량 사전 필터·세션 수, 파트 계획을 `part_size`·`part_count` 에 저장) → `createMultipartUpload` → uploadId 기록. 응답 `{sessionId, partSize, partCount, maxConcurrentParts}` |
+| `PUT /{id}/parts/{n}` (octet-stream) | PENDING 아니면 409 `UPLOAD_001`, `Content-Length` 없으면 411, 번호 범위 밖·크기 다르면 400 `UPLOAD_008` → 요청 스트림을 `uploadPart` 로 그대로 → `touch`(0행 409). `NoSuchUpload` 면 FAILED(NO_SUCH_UPLOAD) + 409 |
+| `GET /{id}` | 상태 + PENDING 이면 ListParts 에서 기대 크기와 같은 파트 번호(`uploadedParts`) |
+| `GET /?status=PENDING` | 내 청크 세션 목록(최근 순, 최대 50) — 스토리지 호출 없음 |
+| `POST /{id}/complete` | (PENDING 이면) 권한 재확인 → 선점. 0행이면 COMPLETED = 이전 결과(감사 기록 안 함), COMPLETING = 409 `UPLOAD_005`, FAILED = 410 `UPLOAD_006` → ListParts 검증(개수·1..N·각 크기, 실패 시 400 `UPLOAD_009` + FAILED(VALIDATION) + ABORT) → `finishClaimed` → 감사(FILE_UPLOAD, 덮어쓰기면 FILE_EDIT) |
+| `DELETE /{id}` | PENDING 이면 FAILED(CANCELED) + ABORT. 이미 끝났으면 그 상태로 성공(멱등) |
+
+- 모든 조회는 `request_user_seq = 로그인 사용자`, 남의 세션은 404 `UPLOAD_003`.
+- **청크 API 세션 = `part_count` 가 있는 세션.** 서버 내부 쓰기 세션은 같은 요청자라도 이 API 로 조회·complete·취소할 수 없다(진행 중인 내부 쓰기를 가로채지 못하게).
+- 32MB 미만을 받지 않는 이유: 단일 객체 PUT 은 complete 뒤 늦게 도착한 PUT 이 커밋된 객체를 덮어쓸 수 있다(멀티파트는 complete 뒤 파트 PUT 이 NoSuchUpload 로 실패). 작은 파일은 기존 `POST /api/v1/files`.
+- 파트 계획은 세션에 저장된 값을 쓴다 — 설정(`min-part-size`)이 바뀌어도 진행 중 세션은 시작 때 계획 그대로.
 
 ---
 
@@ -149,7 +168,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 | `min-part-size` | 16MB |
 | `single-request-threshold` | 32MB |
 | `absolute-max-size` | 5TB |
-| `max-concurrent-parts-per-session` | 4 (청크 API 용, 아직 미사용) |
+| `max-concurrent-parts-per-session` | 4 (청크 API 세션 생성 응답 `maxConcurrentParts` 로 안내만 — 서버가 막지는 않는다) |
 | `max-active-sessions-per-user` | 50 |
 | `cleanup-batch-size` | 500 |
 | `manage-bucket-lifecycle` | true |
@@ -162,7 +181,8 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 | 역할 | 위치 |
 |---|---|
 | 진입점 | `file/write/orchestrator/FileWriteOrchestrator` |
-| 쓰기 흐름 | `upload/session/service/UploadSessionWriter` |
+| 쓰기 흐름 | `upload/session/service/UploadSessionWriter`(`open`·`finishClaimed` 는 청크 API 와 공유) |
+| 청크 업로드 API | `api/v1/upload/controller/UploadSessionController`, `application/upload/UploadSessionUseCase`, `upload/session/service/UploadChunkService` |
 | 세션 상태 tx | `upload/session/service/UploadSessionTxService` |
 | 커밋 tx | `upload/session/service/UploadCommitService` |
 | 정리 등록 | `upload/session/service/UploadSessionStorageCleanup` |
@@ -178,6 +198,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 ### 주요 테스트
 - `UploadSessionWriterTest` — 단계 순서·실패 분기·유형별 커밋 선택(단위)
 - `UploadWriteIntegrationTest` — DUPLICATE·VERSION·한도·복원·OVERWRITE(충돌 포함)·용량·동시 업로드(PG)
+- `UploadChunkIntegrationTest` — 청크 API: 끊긴 뒤 빠진 파트만 다시 보내고 complete, complete 재요청 멱등, 동시 complete, 취소(후 파트 PUT 409·재취소 성공), 스케줄러 만료 후 409·410, 빠진 파트 complete, 파트 검증(411·400), NoSuchUpload, 다른 사용자 404, 32MB 미만 거절(PG + 메모리 멀티파트 가짜)
 - `CopyAndDocumentWriteIntegrationTest`, `VersionRestoreConcurrencyIntegrationTest`, `WebOfficeSaveAuditIntegrationTest`
 - `ResourceNamingLockConcurrencyIntegrationTest` — 동시 같은 이름 생성·이름 변경·이동, 교착 회귀(부모·자식 이름 변경, 루트 폴더 이름 변경 + 자식 루트 이동, 복원 + 영구 삭제, 이름 변경 + 직접 영구 삭제). 각 교착 테스트는 해당 선행 잠금을 끄면 `deadlock detected` 로 실패하는 것을 확인함
 - `DefaultUploadSessionRepositoryTest` — 상태 전이·정리 배치(PG), `StorageDeletionProcessorTest`
@@ -186,8 +207,9 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 ---
 
 ## 8. 알려진 한계 (자세한 내용은 todo)
-- 청크 업로드 API·이어 올리기·프론트 미구현 — 큰 파일도 서버가 한 요청으로 받는다.
-- 커밋 tx 에서 권한 재확인 안 함(호출부 검사만), 매직바이트 검사 없음, 감사 로그 발행 시점은 호출부 그대로.
+- 청크 API 는 백엔드만 — 프론트(Uppy)·`uploadingByte`·앞단 프록시 설정 문서는 아직. 그 전까지 웹 화면은 큰 파일도 한 요청으로 보낸다.
+- 커밋 tx 에서 권한 재확인 안 함(호출부 검사만 — 청크 API 는 complete 선점 전에 한 번 더), 매직바이트 검사 없음, 감사 로그 발행 시점은 호출부 그대로.
+- 청크 API 는 외부 API(`/api/public`, API Key)로 내보내지 않았다(내부 웹 API 만).
 - 옛 흐름 호환 코드 남음: `cleanVersionIfExists`(옛 PENDING 버전 정리, 저장 마커 조회 = tx 안 S3 HEAD), `ResourceRepository.revertOverwrite`(호출부 없음), 미사용 `uploadPartsFromStream`·`copyObjectAnySize`.
 - Ceph·RustFS 계약 테스트 미실행(MinIO 만).
 - 지표(Micrometer) 없음.

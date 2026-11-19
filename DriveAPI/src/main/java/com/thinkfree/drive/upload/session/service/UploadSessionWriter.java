@@ -14,6 +14,7 @@ import com.thinkfree.drive.storage.constants.StorageConstants;
 import com.thinkfree.drive.storage.exception.StorageException;
 import com.thinkfree.drive.storage.result.StoragePart;
 import com.thinkfree.drive.storage.service.StorageService;
+import com.thinkfree.drive.upload.session.data.UploadSessionData;
 import com.thinkfree.drive.upload.session.enums.UploadSaveType;
 import com.thinkfree.drive.upload.session.enums.UploadSessionFailReason;
 import com.thinkfree.drive.upload.session.enums.UploadSessionStatus;
@@ -86,13 +87,42 @@ public class UploadSessionWriter {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             log.warn("[UploadSessionWriter] called inside a transaction — storage calls will run while it is open. userSeq: {}", requested.getUserSeq());
         }
+        OpenedSession session = open(requested, requestUserSeq, null, null);
+        Progress progress = new Progress();
+        try {
+            store(session.id(), session.key(), session.dto(), progress);
+            uploadSessionTxService.markCompleting(session.id(), requestUserSeq);
+        } catch (RuntimeException e) {
+            return recoverOrThrow(session, requestUserSeq, progress, e);
+        }
+        List<StoragePart> parts = progress.parts;
+        return finishClaimed(session, requestUserSeq, progress.uploadId, () -> parts);
+    }
+
+    /**
+     * 세션을 연 결과 — 저장·완료 단계가 쓰는 값. dto 의 Content-Type 은 서버가 정한 값으로 바뀌어 있다.
+     *
+     * @param key            세션 key({tenantSeq}/{id}) — 스토리지 준비 때 세션에 기록한다
+     * @param baseStorageKey OVERWRITE 충돌 감지 기준(그 외 null)
+     */
+    public record OpenedSession(UUID id, String key, UploadSaveType saveType, String baseStorageKey, FileUploadDto dto) {
+    }
+
+    /**
+     * §6.1 ① — Content-Type 결정·덮어쓰기 기준 key·복원 잠김 사전 확인 → 세션 INSERT(PENDING). 스토리지는 아직 준비하지 않는다.
+     * 내부 쓰기와 청크 업로드 API(세션 생성)가 함께 쓴다. 권한·크기 정책은 호출자가 먼저 확인한다.
+     *
+     * @param partSize  파트 크기(청크 API 세션만, 그 외 null)
+     * @param partCount 파트 수(청크 API 세션만, 그 외 null)
+     * @throws ApiRuntimeException 대상 없음 NOT_FOUND, 잠김 RESOURCE_LOCKED, 용량 부족 IS_FULL(알림 발송), 세션 수 초과 UPLOAD_SESSION_LIMIT
+     */
+    public OpenedSession open(FileUploadDto requested, int requestUserSeq, Long partSize, Integer partCount) {
         UploadSaveType saveType = saveTypeOf(requested);
-        // Content-Type 이 없는 요청(파일 파트 헤더 누락)도 받는다 — 세션·스토리지·리소스 행에 같은 값
+        // Content-Type 이 없는 요청(파일 파트 헤더 누락·청크 API)도 받는다 — 세션·스토리지·리소스 행에 같은 값
         FileUploadDto dto = requested.toBuilder()
                 .contentType(resolveContentType(requested.getContentType(), requested.getOriginalFileName()))
                 .build();
         int userSeq = dto.getUserSeq();
-        long size = dto.getFileSize();
         Integer tenantSeq = userFindService.findTenantSeqByUserSeq(userSeq);
         // 덮어쓰기 충돌 감지 기준 — 세션 시작 시 대상의 현재 key(불변 key 라 커밋 때 같으면 그 사이 내용이 안 바뀐 것, §4.3)
         String baseStorageKey = saveType == UploadSaveType.OVERWRITE
@@ -108,36 +138,65 @@ public class UploadSessionWriter {
         UUID id;
         try {
             id = uploadSessionTxService.create(new UploadSessionCreateQuery(tenantSeq, userSeq, requestUserSeq, saveType,
-                    dto.getParentFolderSeq(), dto.getResourceSeq(), null, baseStorageKey, fileName, dto.getContentType(), size, null, null));
+                    dto.getParentFolderSeq(), dto.getResourceSeq(), null, baseStorageKey, fileName, dto.getContentType(), dto.getFileSize(),
+                    partSize, partCount));
         } catch (ApiRuntimeException e) {
             notifyIfQuotaExceeded(e, userSeq, requestUserSeq);
             throw e;
         }
-        String key = storageKey(tenantSeq, id);
-        Progress progress = new Progress();
+        return new OpenedSession(id, storageKey(tenantSeq, id), saveType, baseStorageKey, dto);
+    }
 
+    /** complete 단계에서 조립할 파트를 정한다(COMPLETING 선점 뒤, 조립 전에 불림). null = 조립 없음(단일 PUT·CopyObject 로 이미 객체가 있다). */
+    @FunctionalInterface
+    public interface PartsResolver {
+        List<StoragePart> resolve();
+    }
+
+    /**
+     * §6.3 ②~⑦ — COMPLETING 선점이 끝난 세션을 (멀티파트면) 조립 → 저장 크기 확인 → 커밋. 실패하면 진행 위치에 맞게 FAILED + 정리 등록.
+     * 내부 쓰기와 청크 업로드 API(complete)가 함께 쓴다 — 실패 처리 표(조립 전/중/후)가 한 곳에만 있도록.
+     *
+     * @param uploadId 멀티파트 uploadId(단일 요청이면 null)
+     * @param parts    조립할 파트 — 여기서 던지는 예외는 조립 전 실패(멀티파트 ABORT / 단일 DELETE 등록)
+     */
+    public ResourceSaveResult finishClaimed(OpenedSession session, int requestUserSeq, String uploadId, PartsResolver parts) {
+        Progress progress = new Progress();
+        progress.status = UploadSessionStatus.COMPLETING;
+        progress.uploadId = uploadId;
+        long size = session.dto().getFileSize();
         try {
-            store(id, key, dto, progress);
-            uploadSessionTxService.markCompleting(id, requestUserSeq);
-            progress.status = UploadSessionStatus.COMPLETING;
-            if (progress.parts != null) {
+            List<StoragePart> resolved = parts.resolve();
+            if (resolved != null) {
                 progress.phase = CleanupPhase.AMBIGUOUS;
-                storageService.completeMultipartUpload(key, progress.uploadId, progress.parts);
+                storageService.completeMultipartUpload(session.key(), uploadId, resolved);
             }
             progress.phase = CleanupPhase.AFTER_ASSEMBLE;
-            long stored = storageService.headContentLength(key);
+            long stored = storageService.headContentLength(session.key());
             if (stored != size) {
                 throw ApiRuntimeException.type(UploadSessionErrorCode.UPLOAD_SIZE_MISMATCH).with("expected", size).with("stored", stored);
             }
-            return commitWithRetry(saveType, id, key, baseStorageKey, dto, requestUserSeq);
+            return commitWithRetry(session.saveType(), session.id(), session.key(), session.baseStorageKey(), session.dto(), requestUserSeq);
         } catch (RuntimeException e) {
-            ResourceSaveResult committed = failOrRecover(id, userSeq, requestUserSeq, progress, e);
-            if (committed != null) {
-                return committed;
-            }
-            notifyIfQuotaExceeded(e, userSeq, requestUserSeq);
-            throw e;
+            return recoverOrThrow(session, requestUserSeq, progress, e);
         }
+    }
+
+    /** 실패 처리 후 다시 던진다 — 단, 실제로는 커밋이 끝나 있었으면 그 결과를 돌려준다. */
+    private ResourceSaveResult recoverOrThrow(OpenedSession session, int requestUserSeq, Progress progress, RuntimeException e) {
+        int userSeq = session.dto().getUserSeq();
+        ResourceSaveResult committed = failOrRecover(session.id(), userSeq, requestUserSeq, progress, e);
+        if (committed != null) {
+            return committed;
+        }
+        notifyIfQuotaExceeded(e, userSeq, requestUserSeq);
+        throw e;
+    }
+
+    /** COMPLETED 세션에 남긴 결과 — 커밋 뒤 예외 복구·complete 재요청 멱등 응답용. */
+    public static ResourceSaveResult storedResult(UploadSessionData session) {
+        return new ResourceSaveResult(session.resultResourceSeq(), session.userSeq(), null, null, null, session.resultName(), session.storageKey(),
+                null, null, null, session.sizeByte(), session.sizeByte(), Instant.now(), null, null, null, null, null, null);
     }
 
     /** 진행 위치 — 실패 시 기대 상태·정리 방식을 정한다. */
@@ -297,8 +356,7 @@ public class UploadSessionWriter {
             var session = uploadSessionTxService.find(id, requestUserSeq).orElse(null);
             if (session != null && session.status() == UploadSessionStatus.COMPLETED) {
                 log.warn("[UploadSessionWriter] commit succeeded despite error — returning stored result. id: {}", id, cause);
-                return new ResourceSaveResult(session.resultResourceSeq(), userSeq, null, null, null, session.resultName(), session.storageKey(),
-                        null, null, null, session.sizeByte(), session.sizeByte(), Instant.now(), null, null, null, null, null, null);
+                return storedResult(session);
             }
         } catch (RuntimeException failError) {
             // 실패 기록조차 못 함 — 세션은 PENDING/COMPLETING 으로 남고 스케줄러가 TTL·30분 뒤 FAILED + 정리 등록
