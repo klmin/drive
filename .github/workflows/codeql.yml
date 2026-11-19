@@ -64,8 +64,8 @@ jobs:
       - name: Build DriveAPI
         if: matrix.language == 'java-kotlin'
         working-directory: DriveAPI
-        # .mvn/wrapper 가 커밋돼 있지 않아 mvnw 대신 runner 에 설치된 mvn 을 쓴다.
-        run: mvn -B -q -DskipTests compile
+        # .mvn/wrapper 가 커밋돼 있지 않아 mvnw 대신 runner 의 mvn 을 쓴다. 프론트는 JS 분석에서 따로 보므로 npm 빌드는 건너뛴다.
+        run: mvn -B -q -DskipTests -Dfrontend.skip=true compile
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
