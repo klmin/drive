@@ -1,5 +1,11 @@
 # CodeQL 정적 분석 (SQLi, path traversal, SSRF 등 데이터 흐름 기반 취약점)
-# 결과는 Security 탭 > Code scanning 에 쌓이고, PR 에는 새로 생긴 경고만 코멘트된다.
+#
+# 저장소가 private 이라 Code scanning(Security 탭) 업로드는 유료 기능(GitHub Code Security)이다 — 업로드하면 거부돼 체크가 실패한다.
+# 그래서 분석만 하고 결과는 업로드하지 않는다(upload: never):
+#   - 결과 = 이 실행의 Summary 화면(발견 목록) + 아티팩트 codeql-sarif-<언어>(SARIF 원본)
+#   - 안 되는 것 = Security 탭 경고 목록, PR 코드 줄 경고 표시, "이번 PR 에서 새로 생긴 경고만" 구분, 오탐으로 닫기
+#   - 발견이 있어도 지금은 체크를 실패시키지 않는다(기존 경고 확인 전). 실패시키려면 env FAIL_ON_FINDINGS 를 'true' 로
+# public 으로 돌리거나 유료 기능을 켜면: analyze 의 upload·output 두 줄과 아래 두 단계를 지우고 security-events: write 권한을 다시 넣는다.
 name: CodeQL
 
 on:
@@ -24,8 +30,9 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
-      security-events: write
       actions: read
+    env:
+      FAIL_ON_FINDINGS: 'false'
     strategy:
       fail-fast: false
       matrix:
@@ -71,3 +78,44 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:${{ matrix.language }}
+          # private 저장소 — Code scanning 업로드 없이 SARIF 파일로만 남긴다(위 설명)
+          upload: never
+          output: sarif-results
+
+      - name: Upload SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Summarize findings
+        if: always()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(sarif-results/*.sarif)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "SARIF 결과 파일이 없습니다(분석 단계 실패)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          count=$(jq '[.runs[].results[]?] | length' "${files[@]}" | awk '{s+=$1} END {print s+0}')
+          {
+            echo "## CodeQL (${{ matrix.language }}) — 발견 ${count}건"
+            echo
+            echo "결과 원본: 이 실행의 아티팩트 \`codeql-sarif-${{ matrix.language }}\`"
+            if [ "$count" -gt 0 ]; then
+              echo
+              echo "| 규칙 | 수준 | 위치 | 내용 |"
+              echo "|---|---|---|---|"
+              jq -r '.runs[].results[]? |
+                "| \(.ruleId) | \(.level // "warning") | \(.locations[0].physicalLocation.artifactLocation.uri // "-"):\(.locations[0].physicalLocation.region.startLine // "-") | \(.message.text | gsub("\n"; " ") | gsub("\\|"; "/") | .[0:200]) |"' "${files[@]}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "CodeQL findings: $count"
+          if [ "$count" -gt 0 ] && [ "$FAIL_ON_FINDINGS" = "true" ]; then
+            echo "::error::CodeQL 발견 ${count}건 — Summary 참고"
+            exit 1
+          fi
