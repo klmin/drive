@@ -22,7 +22,9 @@ import com.thinkfree.drive.resource.model.NumberedResourceName;
 import com.thinkfree.drive.resource.model.ResourceMoveContext;
 import com.thinkfree.drive.resource.model.ResourceVersionHierarchyStats;
 import com.thinkfree.drive.resource.query.*;
+import com.thinkfree.drive.resource.repository.ResourceNamingLockRepository;
 import com.thinkfree.drive.resource.repository.ResourceRepository;
+import com.thinkfree.drive.user.exception.UserErrorCode;
 import com.thinkfree.drive.resource.result.*;
 import com.thinkfree.drive.resource.service.ResourceFindService;
 import com.thinkfree.drive.resource.service.ResourceLockUnlockService;
@@ -49,6 +51,7 @@ import java.util.*;
 public class DefaultResourceService implements ResourceService {
 
     private final ResourceRepository resourcerepository;
+    private final ResourceNamingLockRepository resourceNamingLockRepository;
     private final ResourceConverter resourceConverter;
     private final ResourceVersionConverter resourceVersionConverter;
     private final ResourceFindService resourceFindService;
@@ -310,6 +313,18 @@ public class DefaultResourceService implements ResourceService {
         return resourceConverter.toSaveResult(resource, null, null, null, resource.getSizeByte(), null, parentFolderName, resource.getRegisterDate(), null, null, null);
     }
 
+
+    /**
+     * 이름을 정할 자리 잠금(규칙 9, §8.2) — 부모 폴더 행, 루트면 사용자 행을 FOR NO KEY UPDATE. 이름 넘버링·중복 검사 전에, 대상 행 잠금 뒤에 부른다.
+     * 이름 유니크 인덱스가 없어 이 잠금이 같은 위치의 동시 이름 결정(같은 이름 두 개)을 막는 유일한 장치다. 부모가 살아 있는 폴더가 아니면 NOT_FOUND.
+     */
+    private void lockNamingScope(Long parentFolderSeq, int userSeq) {
+        if (parentFolderSeq == null) {
+            DriveAssert.throwIfFalse(resourceNamingLockRepository.lockUser(userSeq), UserErrorCode.USER_NOT_FOUND);
+            return;
+        }
+        DriveAssert.throwIfFalse(resourceNamingLockRepository.lockLiveFolder(userSeq, parentFolderSeq), ResourceErrorCode.NOT_FOUND);
+    }
     private ResourceDetailData validateParentFolderExists(Long parentFolderSeq, int userSeq){
         if(parentFolderSeq != null) {
             var parentFineQuery = resourceConverter.toFindQuery(parentFolderSeq, userSeq, ResourceType.FOLDER, false);
@@ -390,6 +405,8 @@ public class DefaultResourceService implements ResourceService {
 
         var resource = resourceConverter.toFolderResource(dto);
         
+        // 이름 정할 자리(부모 폴더·루트면 사용자 행) 잠금 — 같은 위치 동시 생성의 같은 이름 방지(규칙 9)
+        lockNamingScope(resource.getParentFolderSeq(), resource.getUserSeq());
         var parentFolderResource = validateParentFolderExists(resource.getParentFolderSeq(), resource.getUserSeq());
         
         if(parentFolderResource != null){
@@ -428,6 +445,8 @@ public class DefaultResourceService implements ResourceService {
                 : lockForChangeUnlocked(resourceSeq, userSeq, null, false);
         var beforeName = entity.getResourceName();
         var parentFolderSeq = entity.getParentFolderSeq();
+        // 이름 정할 자리 잠금(대상 행 다음, 규칙 8·9) — 같은 폴더의 동시 이름 변경이 둘 다 중복 검사를 통과하지 않게
+        lockNamingScope(parentFolderSeq, userSeq);
 
         switch (nameConflictPolicy){
             case NONE -> {
@@ -468,6 +487,8 @@ public class DefaultResourceService implements ResourceService {
         // 고칠 행 = 관리 엔티티(W10 — 구 detach 엔티티 수정 + 리포 재로드·flush·detach), 첫 로드에서 잠금(10-14 — 이동과 동시에 오면 옛 경로로
         // 자기 경로를 덮어쓰고 하위 치환(LIKE 옛경로%)이 0행이 되던 것: 늦은 쪽은 앞선 커밋까지 기다린 뒤 새 경로를 읽는다)
         var entity = lockForChange(dto.getResourceSeq(), dto.getUserSeq(), dto.getResourceType(), dto.getIsDelete());
+        // 이름 정할 자리 잠금(대상 행 다음, 규칙 8·9)
+        lockNamingScope(entity.getParentFolderSeq(), dto.getUserSeq());
 
         // 중복 검사 위치 = 잠근 행의 실제 부모, 대상 자신 제외(기존 이름 그대로 제출해도 성공)
         resourceFindService.existsResourceName(resourceConverter.toExistsQuery(dto, entity.getParentFolderSeq()));
@@ -505,6 +526,8 @@ public class DefaultResourceService implements ResourceService {
         int userSeq = userChanged ? targetUserSeq : resource.getUserSeq();
         Long resourceSeq = userChanged ? null : resource.getResourceSeq();
 
+        // 이름 정할 자리(목적지 폴더·루트면 받는 사용자 행) 잠금 — 이동·복원의 넘버링 직렬화 + 목적지 휴지통 이동과의 경합 차단(규칙 9)
+        lockNamingScope(parentFolderSeq, userSeq);
         validateParentFolderExists(parentFolderSeq, userSeq);
 
         ResourceLockQuery resourceLockQuery = resourceConverter.toResourceLockQuery(resourceSeq, userSeq, resource.getResourceType(), parentFolderSeq, resourceName, isDelete);
