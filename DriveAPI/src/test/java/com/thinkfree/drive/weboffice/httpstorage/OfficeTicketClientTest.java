@@ -79,6 +79,32 @@ class OfficeTicketClientTest {
         assertEquals("POST", call.getLowCardinalityKeyValue("method").getValue());
         assertEquals("200", call.getLowCardinalityKeyValue("status").getValue());
     }
+    /** 관측이 기록한 오류(원인 포함)의 메시지 전부 — 트레이스에 예외 이벤트로 남는 내용 */
+    String observedErrorText() {
+        var stopped = new java.util.concurrent.CopyOnWriteArrayList<io.micrometer.observation.Observation.Context>();
+        var registry = io.micrometer.observation.ObservationRegistry.create();
+        registry.observationConfig().observationHandler(new io.micrometer.observation.ObservationHandler<>() {
+            @Override public void onStop(io.micrometer.observation.Observation.Context c) { stopped.add(c); }
+            @Override public boolean supportsContext(io.micrometer.observation.Observation.Context c) { return true; }
+        });
+        var error = assertThrows(HttpStorageException.class, () -> new OfficeTicketClient(properties,
+                org.springframework.web.client.RestClient.builder().observationRegistry(registry)).issue(officeBase,
+                "drive-local", "documents/2-3/a.docx", Map.of("app", "WORD_EDITOR", "docId", "2-3"),
+                Map.of("tenantId", "drive:1", "userId", "2"), "browser-session", serviceToken));
+        assertFalse(String.valueOf(error.getMessage()).contains("secret"));
+        var call = stopped.stream().filter(c -> "http.client.requests".equals(c.getName())).findFirst().orElseThrow();
+        var text = new StringBuilder();
+        for (Throwable t = call.getError(); t != null; t = t.getCause()) text.append(t).append('\n');
+        return text.toString();
+    }
+    @Test void providerErrorBodyIsNotRecordedInObservation() {
+        status = 401; response = "secret upstream error";
+        assertFalse(observedErrorText().contains("secret"));
+    }
+    @Test void malformedSuccessBodyIsNotRecordedInObservation() {
+        response = "secret-not-json";
+        assertFalse(observedErrorText().contains("secret"));
+    }
     @Test void invalidBaseUrlDoesNotSendCredential() {
         officeBase = "http://user:password@localhost/";
         assertThrows(HttpStorageException.class, this::issue); assertNull(body.get());

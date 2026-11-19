@@ -1,8 +1,10 @@
 package com.thinkfree.drive.weboffice.httpstorage;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -16,6 +18,7 @@ import java.util.Map;
 /** TFO issues and consumes tickets. Drive never signs tickets or exposes the service credential. */
 @Component
 public class OfficeTicketClient {
+    private static final ObjectMapper JSON = new ObjectMapper();
     private final HttpStorageProperties properties;
     private final RestClient client;
 
@@ -31,7 +34,13 @@ public class OfficeTicketClient {
                 .followRedirects(HttpClient.Redirect.NEVER).version(HttpClient.Version.HTTP_1_1).build();
         var factory = new JdkClientHttpRequestFactory(transport);
         factory.setReadTimeout(Duration.ofSeconds(10));
-        client = restClientBuilder.clone().requestFactory(factory).build();
+        client = restClientBuilder.clone().requestFactory(factory)
+                // 기본 처리기는 오류 응답 본문을 예외 메시지에 넣고, 관측이 그 예외를 트레이스에 기록한다.
+                //   본문에 서비스 토큰·일회용 URL 이 있을 수 있으므로 본문을 읽지 않는 예외로 바꾼다
+                .defaultStatusHandler(HttpStatusCode::isError, (request, response) -> {
+                    throw new HttpStorageException(HttpStatus.BAD_GATEWAY);
+                })
+                .build();
     }
 
     public record Issued(String url, long expiresAt) {}
@@ -45,14 +54,16 @@ public class OfficeTicketClient {
             long ttl = properties.getOpenTtl().toSeconds();
             if (credential == null || credential.isBlank() || ttl < 1 || ttl > 43200)
                 throw new IllegalStateException();
-            JsonNode response = client.post().uri(base + "/api/open-tickets")
+            String body = client.post().uri(base + "/api/open-tickets")
                     .headers(h -> h.setBearerAuth(credential))
                     .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                     .body(Map.of("adapter", adapter, "documentPath", documentPath, "params", params,
                             "principal", principal, "context", Map.of("clientSessionId", clientSessionId,
                                     "clientType", "BROWSER", "documentSourceType", "STORAGE"),
                             "openTtlSeconds", ttl))
-                    .retrieve().body(JsonNode.class);
+                    .retrieve().body(String.class);
+            // JSON 파싱 오류 메시지에는 본문 일부가 들어간다 — 관측 밖에서 파싱해 트레이스에 남지 않게 한다
+            JsonNode response = body == null ? null : JSON.readTree(body);
             if (response == null || !response.path("ticket").isTextual()
                     || response.path("ticket").asText().isBlank() || response.path("ticket").asText().length() > 16384
                     || !response.path("openExpiresAt").canConvertToLong()
