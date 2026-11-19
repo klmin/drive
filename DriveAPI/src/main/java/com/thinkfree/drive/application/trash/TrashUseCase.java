@@ -126,6 +126,8 @@ public class TrashUseCase {
     @Transactional
     @AuditLog
     public void deleteActivePermanently(Long resourceSeq, int userSeq, String userName, ResourceType type) {
+        // 잠금 순서 1 — 소유자 사용자 행(업로드·이름 변경·이동·복원·버전 삭제와 같게). 아래 사용량 감소가 리소스 행 뒤에 사용자 행을 잡아 복원·이름 변경과 순환하던 것 방지
+        userService.lockUserBySeq(userSeq);
         var resource = resourceService.lockActiveUnlocked(resourceSeq, userSeq, type);
         if (resource.getResourceType() == ResourceType.FOLDER) {
             moveFolderToTrashInternal(resource, userSeq);
@@ -264,6 +266,8 @@ public class TrashUseCase {
     // deletePermanently(통합)와 deleteFile/Folder(웹)가 본문을 공유 — 같은 클래스 내 public 호출은 프록시를
     // 우회해 @Transactional·@AuditLog가 안 걸리므로, 애노테이션 없는 private으로 내려 공유한다
     private void deleteFileInternal(Long resourceSeq, int userSeq, String userName) {
+        // 잠금 순서 1 — 소유자 사용자 행(업로드·이름 변경·이동·복원·버전 삭제와 같게). 아래 사용량 감소가 리소스 행 뒤에 사용자 행을 잡아 복원·이름 변경과 순환하던 것 방지
+        userService.lockUserBySeq(userSeq);
 
         var result = resourceService.deleteResourceAndVersions(resourceSeq, userSeq);
 
@@ -285,6 +289,8 @@ public class TrashUseCase {
     }
 
     private void deleteFolderInternal(Long resourceSeq, int userSeq, String userName) {
+        // 잠금 순서 1 — 소유자 사용자 행(업로드·이름 변경·이동·복원·버전 삭제와 같게). 아래 사용량 감소가 리소스 행 뒤에 사용자 행을 잡아 복원·이름 변경과 순환하던 것 방지
+        userService.lockUserBySeq(userSeq);
 
         var result = resourceService.deleteResourcesAndVersions(resourceSeq, userSeq);
 
