@@ -17,7 +17,7 @@ public class GuardedDnsResolver implements DnsResolver {
 
     @Override
     public InetAddress[] resolve(String host) throws UnknownHostException {
-        return guard.resolveAndVerify(host);
+        return guard.resolveAllowed(host);
     }
 
     @Override
