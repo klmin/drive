@@ -1,18 +1,32 @@
 # 다음 세션 시작점 (인계)
 
-> 작성: 2026-11-20(11-19 판을 갱신). 긴 세션을 끊고 새 컨텍스트에서 이어가기 위한 문서. 새 세션은 **이 파일부터** 읽는다.
-> 다 읽고 이어갔으면 이 파일의 "진행 상태"·"다음 할 일"만 고쳐 두고, 오래되면 지운다(내용은 아래 링크 문서에 다 있음).
+> 작성: 2026-11-20 저녁(같은 날 오전 판을 갱신). 긴 세션을 끊고 새 컨텍스트에서 이어가기 위한 문서. 새 세션은 **이 파일부터** 읽는다.
+> 다 읽고 이어갔으면 이 파일의 §2 "진행 상태"·§3 "다음 할 일"만 고쳐 두고, 오래되면 지운다(내용은 아래 링크 문서에 다 있음).
 
 ## 1. 읽는 순서
-1. 이 파일의 **§3 다음 할 일**: 무엇부터 할지 이미 정해 두었다
+1. 이 파일의 **§3 다음 할 일**: 무엇부터 할지 정해 두었다
 2. [upload-session.md](upload-session.md): **남은 작업 전체**(A 단계 4 / B 운영 전 / C 정리), 항목마다 왜·어디·완료 기준
 3. [../design/upload-session-as-built.md](../design/upload-session-as-built.md): **지금 코드가 실제로 어떻게 동작하는지**(흐름·잠금 순서·정리·설정·코드 위치·테스트)
 4. [../design/upload-session-redesign.md](../design/upload-session-redesign.md): 확정 설계·결정 이유(필요한 절만)
 5. `AGENTS.md`: 리뷰 기준(한국어, P0~P2)
 
 ## 2. 진행 상태 (2026-11-20 기준, 모두 main 에 머지)
-업로드 세션 재설계 **단계 0~4 와 B 의 보안 항목까지 끝났다.** 기능은 다 만들었고 관련 테스트는 통과한다.
-남은 것은 옛 코드 정리, 작은 개선 하나, 실제 환경 확인, 운영 대비다.
+업로드 세션 재설계는 **단계 0~4, B 의 보안 항목, 지표·알림, 운영 버킷 lifecycle 점검까지 끝났다.** 기능은 다 만들었고 관련 테스트는 PR CI 에서 통과한다.
+남은 것은 **실제 환경 확인(1GB 측정)**, k8s ingress 설정, 선택적인 정리·개선이다.
+
+### 2-1. 2026-11-20 이 세션에서 한 것
+
+| PR | 내용 |
+|---|---|
+| #64 | **다운로드 멈춤 수정**: 스트림 전용 풀 `DriveStream-`(대기열 없음, 포화 시 503), `spring.mvc.async.request-timeout` 해제, 커밋 후 실패 시 연결 끊기(`CommittedResponseExceptionResolver`). 리뷰 반영: 거절 시 이미 연 S3 응답을 `abort()` 후 닫기(`PendingDownloadStreams`), 503 전에 다운로드 헤더(Content-Length 등) 제거, 로그 값 `LogSafe`(CodeQL 2건) |
+| #66 | 문서: 지표·알림 항목을 실제 구현과 맞춤, #59·#64·#65 반영 |
+| #67 | **업로드 중 대상 삭제 조기 실패**: 파트 PUT 때 대상(신규는 부모 폴더, 버전·덮어쓰기는 대상 파일)이 휴지통·삭제면 FAILED(`TARGET_DELETED`) + ABORT + 409 `UPLOAD_001` |
+| #68 | **COMPLETING 시간 초과 알림**: 시간 초과 사유를 `COMMIT_ERROR` 에서 `COMPLETING_TIMEOUT` 으로 분리. 알림 `drive-upload-completing-timeout`(15분 안에 시간 초과 발생), `drive-upload-completing-stale`(45분 넘게 남음 = 정리 스케줄러 정지). PG 지표 `drive_upload_active_oldest_completing_seconds` |
+| #69 | **운영 버킷 lifecycle 점검**: 운영자의 버킷 전체 abort 규칙이 같거나 짧으면 겹치는 규칙을 더하지 않음, 예전 형식(Prefix) 규칙은 Filter 로 바꿔 다시 씀, 객체 만료 규칙은 경고. 수동 설정 문서 `DriveInstaller/docs/storage-bucket-lifecycle.md` |
+
+같은 날 다른 세션에서 머지된 것: #59(통합 테스트 test 프로필 고정 + 백엔드 테스트 CI `backend-test.yml`), #65(`DriveFixtures` 로 꺼 둔 16건 다시 켬).
+
+### 2-2. 그 전까지 한 것
 
 | PR | 내용 |
 |---|---|
@@ -27,81 +41,84 @@
 | #43 | 덮어쓰기 세션은 사전 용량 검사에 증가분만(V7 `reserve_byte`) |
 | #45 | 프론트 청크 업로더(직접 구현 `utils/chunkUpload.js`, 32MB 이상만 청크, 이어 올리기·취소·진행 중 목록) |
 | #49 | 앞단 프록시 문서(본문 상한·타임아웃), 번들 Apache `ProxyTimeout 300` |
+| #50·#56 | 업로드 세션·삭제 대기열 DB 지표(`drive_upload_active_*`, `drive_storage_deletion_*`)와 정리 알림 |
 | #51 | 커밋 tx 권한 재확인(청크 complete 만, 실패 = `PERMISSION_DENIED`) |
 | #53 | 매직바이트 검사(Tika, 실행 파일 차단, 415 `UPLOAD_010`) |
 | #55 | Content-Type 은 서버가 확장자로 결정 |
 | #57 | CodeQL 발견 32건 정리(`LogSafe` 로 로그 줄바꿈 제거 등) + `FAIL_ON_FINDINGS: 'true'` |
 | #60 | 프론트 423 잠금·QUOTA_003 분기 수정(오류 응답에 `status` 가 없음), MCP 요청·응답 본문 로그는 DEBUG 에서만 |
 | #63 | 옛 흐름 호환 코드 제거(`cleanVersionIfExists`·저장 마커·PENDING 만료 판정·`VERSION_PROCESSING`·버전 롤백 쿼리) |
-| #59 | 통합 테스트를 test 프로필(`@DriveIntegrationTest`)로 고정해 항상 Testcontainers 사용, 백엔드 테스트 CI(`backend-test.yml`, `DriveAPI/**` PR·main push) 추가, CI(리눅스·UTC)에서만 나던 실패 수정 |
-| #65 | `DriveFixtures`(테스트 tx 안에서만 동작) 로 #59 에서 dev DB 의존으로 끈 16건을 다시 켬 |
-| #67 | 청크 업로드 중 대상(부모 폴더·대상 파일) 삭제 시 다음 파트 PUT 에서 FAILED(`TARGET_DELETED`) + 409 |
-| #64 | 다운로드 멈춤 수정: 스트림 전용 풀 `DriveStream-`(대기열 없음, 포화 시 503)·`spring.mvc.async.request-timeout` 해제·커밋 후 실패 시 연결 끊기(`CommittedResponseExceptionResolver`), 거절 시 열린 S3 응답 abort·닫기(`PendingDownloadStreams`)·503 전에 다운로드 헤더 제거, 감사 로그 CSV 는 요청 스레드에서 직접 씀 |
 
 **업로드 경로 정리**
 - 웹 화면의 신규·덮어쓰기·새 버전은 모두 `UploadDialog` 한 곳에서 처리한다. 32MB 이상은 청크 API, 미만은 기존 단일 요청(`POST /files`)이다.
 - 두 방식 모두 서버에서는 같은 세션 흐름(`UploadSessionWriter`)을 거친다. 그래서 커밋 시 용량 확정·매직바이트·Content-Type·실패 정리가 똑같이 적용된다.
 - 웹오피스 저장·MCP·API Key 업로드·복사·복원은 청크 대상이 아니다(서버 내부 처리, 또는 청크 API 를 외부에 공개하지 않음).
 
-## 3. 다음 할 일 (2026-11-20 결정)
-**배포된 설치처가 아직 없다.** 이 전제로 다른 세션의 검토 결과(옛 3분 만료·대상 삭제·타임아웃 등)를 코드와 대조해 정했다.
+### 2-3. 만들었지만 실제 환경에서 확인하지 못한 것
+이 PC 에 Docker·Grafana·PostgreSQL·실제 버킷이 없어서, 단위 테스트와 PR CI 까지만 확인했다.
+- **#68 알림 규칙·PG 쿼리**: Grafana 에 실제로 로드되는지, `drive_upload_active_oldest_completing_seconds` 가 나오는지. 관측 스택을 띄울 때 Alerting 화면에서 두 규칙(업로드 완료 처리 시간 초과·정리 안 됨)을 확인한다.
+- **#69 lifecycle 병합**: 실제 AWS S3·Ceph RGW 버킷에서 기존 규칙과 합쳐 PUT 되는지. 특히 예전 형식(Prefix) 규칙 변환.
+- **#64 다운로드 풀 포화**: 503·S3 응답 abort 를 실제 부하(k6 다운로드 시나리오)로 본 적은 없다.
 
-1. ~~**옛 흐름 호환 코드 제거**~~ — **완료(PR #63)**. 아래는 기록용.
-   - 함께 지운 것: 저장 마커(`findSaveMarker`·`SAVE_MARKER_METADATA_KEY`), `existsAliveVersion`·`findExpiredVersion`(3분 판정), `finalizeAfterStorageUpload`·`rollbackResourceVersionMetadata`, `ResourceRepository.rollbackResourceVersionData`·`ResourceVersionRollbackQuery`, `VERSION_PROCESSING`(RESOURCE_VERSION_004). `ResourceVersionStatus.PENDING` 은 `pushCurrentAsVersion` 이 같은 tx 안에서 INSERT 할 때 쓰므로(DB 기본값) 남겼고, `DELETE` 값도 enum 에 남겼다(쓰는 곳 없음).
-   - 배포된 곳이 없으니 옛 흐름이 만든 PENDING·DELETE 버전 행이 운영 DB 에 없다. 기다릴 이유가 없으므로 지금 지운다.
-   - 지우면 아래 두 문제가 함께 사라진다.
-     - 롤링 배포 중 옛 서버의 3분 만료 좀비 시나리오
-     - 커밋 tx 의 행 락 안에서 S3 HEAD 를 부르는 문제
-   - 현재 위치: `DefaultResourceService.java` 의 `replaceWithVersioning`·`overwriteContent`·`deleteVersion` 이 `cleanVersionIfExists` 를 부른다.
-   - 완료 기준: 관련 통합 테스트 통과, `existsAliveVersion`(VERSION_PROCESSING 거절)도 함께 정리
-2. ~~**업로드 중 대상 삭제 조기 실패**~~ — **완료(PR #67)**. 파트 PUT 때 대상이 살아 있는지 조회하고, 없으면 FAILED(`TARGET_DELETED`) + ABORT + 409 를 준다. 아래는 기록용.
-   - 문제: `UploadChunkService.uploadPart` 는 세션 상태·파트 크기만 본다. 그래서 그 사이 대상 파일·부모 폴더가 삭제돼도 수 GB 를 다 올린 뒤 complete 에서야 실패한다(데이터는 안전).
-   - 수정: 파트 PUT 때 대상이 살아 있는지 가볍게 조회하고, 없으면 세션을 FAILED 로 끝내고 409 를 준다.
-   - 완료 기준: `UploadChunkIntegrationTest` 에 "업로드 중 대상 삭제 → 다음 파트 409" 1~2건
-3. **실제 MinIO 로 1GB 이어 올리기 확인**(배포 전 필수)
-   - 브라우저에서 1GB 를 올리다 끊고 이어 올린 뒤 complete 한다.
-   - **조립(complete multipart) 시간도 잰다.** COMPLETING 30분을 넘기면 정리 스케줄러가 FAILED + 객체 삭제를 하므로(`UploadSessionCleanupService.java:35`), 여유가 있는지 숫자로 확인한다.
-   - 로컬 백엔드 실행 설정(`.env`)이 필요하다. 이전 PC 에는 없었다.
+## 3. 다음 할 일
+**배포된 설치처는 아직 없다.** 위에서부터 한다.
+
+1. **실제 MinIO 로 1GB 이어 올리기 확인**(배포 전 필수)
+   - 브라우저에서 1GB 를 올리다 끊고, 이어 올린 뒤 complete 한다.
+   - **조립(complete multipart) 시간도 잰다.** COMPLETING 이 30분(`drive.upload.completing-timeout`)을 넘기면 정리 스케줄러가 FAILED(`COMPLETING_TIMEOUT`) + 객체 삭제를 한다. 여유가 있는지 숫자로 확인한다.
+   - 측정 결과로 정할 것: COMPLETING 30분과 세션 TTL 1시간을 그대로 둘지. 바꾸면 #68 알림 기준(45분)과 as-built 의 정리 표도 같이 고친다.
+   - 필요한 것: 로컬 백엔드 실행 설정(`.env`)과 MinIO. 이 PC 에는 둘 다 없다(Docker 없음).
+   - 하는 김에 2-3 의 #68 알림 로드도 같은 관측 스택에서 확인한다.
+2. **Developers 저장소 k8s ingress 본문 크기·타임아웃**
+   - 청크 파트(최소 16MB)가 ingress 본문 상한에 걸리지 않게, 파트 PUT·다운로드가 ingress 타임아웃에 끊기지 않게 한다. 번들 Apache 쪽 기준은 #49 문서(앞단 프록시)에 있다.
+3. 그 다음 후보(선택, [upload-session.md](upload-session.md) 에 항목별 설명)
+   - B: 감사 로그 발행 시점(커밋 tx 안 + `AFTER_COMMIT`) 검토
+   - B: Ceph·RustFS 계약 테스트 — 그 스토리지를 쓰는 설치처가 생길 때
+   - A: 청크 API 외부 공개(API Key·MCP 로 큰 파일) — 필요해질 때
+   - C: 호출부 없는 코드 제거, `FileWriteOrchestrator` 정리, 교착 남은 조합 점검(관리자 사용자 삭제·테넌트 정리)
+   - C(단계 5 선택): 관리자 용량 축소 시 진행 중 세션 중단, presigned 직접 업로드, 대용량 복원·복사 비동기, 다운로드 Range
 
 **하지 않기로 한 것**
-- 세션 TTL 1h·COMPLETING 30m 숫자 변경: 3번 측정 전에는 근거가 없다. 파트마다 `touch` 로 연장되고 동시 4개라, 16MB 파트 하나가 1시간을 넘기려면 초당 약 4.5KB 수준의 회선이어야 한다.
+- 세션 TTL 1h·COMPLETING 30m 숫자 변경: 1번 측정 전에는 근거가 없다. 파트마다 `touch` 로 연장되고 동시 4개라, 16MB 파트 하나가 1시간을 넘기려면 초당 약 4.5KB 수준의 회선이어야 한다.
 - 단일 요청·내부 쓰기의 커밋 tx 권한 재확인: 의도한 설계다. 요청 안에서 확인과 커밋이 바로 이어지고, 오래 걸리는 청크만 다시 확인한다.
 - V6 인덱스 `CONCURRENTLY`: 배포된 곳이 없으니 그대로 둔다.
 
-4. ~~**테스트 기반 정리**~~ — **완료(PR #59·#65)**. 통합 테스트는 이제 test 프로필·Testcontainers 로만 돌고, PR CI(`backend-test.yml`)가 전체 백엔드 테스트를 돌린다. Docker 없는 PC 에서는 컴파일·단위 테스트만 하고 통합 테스트는 PR CI 로 확인한다.
-5. ~~**다운로드 전송 멈춤**~~ — **완료(PR #64)**. Codex 지적 3건(거절 시 S3 응답 정리, 정리는 close 대신 abort, 503 전 Content-Length 제거)과 CodeQL log-injection 2건까지 반영했다.
-
-그 다음 후보(운영 전): Developers 저장소 k8s ingress 본문 크기·타임아웃. Ceph·RustFS 계약 테스트는 그 스토리지를 쓰는 설치처가 생길 때 한다.
-
 ## 4. 바로 알아야 할 것
-- **작업 폴더**: `C:\intelliJProject\klmin-drive` 는 다른 세션들도 같이 쓴다. 브랜치가 중간에 바뀐 적이 있다. 작업은 `git worktree add ../wt-<이름> -b <브랜치> origin/main` 으로 따로 만들고, 끝나면 `git worktree remove` 로 지운다.
-- **Codex 리뷰**: PR 을 열거나 push 하면 자동이다(`codex-review-on-push.yml`). **`@codex review` 를 직접 달지 않는다**(중복이 생긴다). Codex 가 "We couldn't complete this review" 라고 했을 때만 직접 단다. 끝났는지는 PR 의 `codex-review-state` 코멘트(`"status":"completed"`, `has_any_findings`)로 본다. 지적은 직접 고친다(`@codex address that feedback` 은 환경 미설정이라 안 된다).
-- **머지**: 사용자가 그 PR 에 대해 머지를 승인했을 때만 한다(PR 마다 따로 승인).
-- **CodeQL**: 이제 발견이 1건이라도 있으면 PR 체크가 실패한다. 사용자 입력(헤더·URI·요청 값)을 로그에 넣을 때는 `com.thinkfree.drive.util.LogSafe.of(...)` 로 감싼다. CSRF 규칙은 오탐이라 제외했다(쿠키 인증은 `X-Drive-Role` 헤더가 있어야 동작).
-- **프론트 오류 응답 모양**: `api.js` 는 오류 때 서버 본문(`ApiExceptionResponse`: `result, code, errorCode, message`)을 돌려준다. HTTP 상태는 `res.code` 로 보고, **`res.status` 는 없다**. 예외로 로그인 페이지는 reject 된 axios 오류를 받는다.
+- **작업 폴더**: `C:\intelliJProject\klmin-drive` 는 다른 세션들도 같이 쓴다. 작업은 `git worktree add ../wt-<이름> -b <브랜치> origin/main` 으로 따로 만들고, 끝나면 `git worktree remove` 로 지운다.
+- **Codex 리뷰**: PR 을 열거나 push 하면 자동이다(`codex-review-on-push.yml`). **`@codex review` 를 직접 달지 않는다**(중복이 생긴다). Codex 가 "We couldn't complete this review" 라고 했을 때만 직접 단다.
+  - 끝났는지는 PR 의 `codex-review-state` 코멘트로 본다: `code_review.commit_sha` 가 최신 커밋이고 `"status":"completed"`, `has_any_findings:false` 면 통과.
+  - push 할 때마다 새 커밋을 다시 리뷰하고, 새 지적을 낼 수 있다(#64 는 수정 커밋에서 abort 지적이 하나 더 나왔다). 지적은 직접 고친다(`@codex address that feedback` 은 환경 미설정이라 안 된다).
+  - 문서에 "PR #N 완료"라고 쓰면, #N 이 아직 main 에 없을 때 Codex 가 지적한다(#66). 코드 PR 을 먼저 머지하고 문서 브랜치를 그 위로 올린다.
+- **머지**: 사용자가 그 PR 에 대해 머지를 승인했을 때만 한다(PR 마다 따로 승인). "리뷰 통과하면 머지"로 승인받았으면 Codex 지적 0건 + CI 전부 성공일 때만 머지한다.
+- **CI 체크**: `mvn test`(백엔드 전체, `DriveAPI/**` 바꿀 때만), `Analyze (java-kotlin)`·`Analyze (javascript-typescript)`(CodeQL), `request-review`(Codex 요청).
+- **CodeQL**: 발견이 1건이라도 있으면 PR 체크가 실패한다. 결과는 Actions 실행의 SARIF 아티팩트(`codeql-sarif-java-kotlin`)로 본다(`gh run download <run> -D <dir>`). 사용자 입력(헤더·URI·요청 값·예외 문자열)을 로그에 넣을 때는 `com.thinkfree.drive.util.LogSafe.of(...)` 로 감싼다. CSRF 규칙은 오탐이라 제외했다.
+- **프론트 오류 응답 모양**: `api.js` 는 오류 때 서버 본문(`ApiExceptionResponse`: `result, code, errorCode, message`)을 돌려준다. HTTP 상태는 `res.code` 로 보고, **`res.status` 는 없다**.
 - **잠금 순서 규칙**(쓰기 경로를 새로 만들면 반드시): 소유자 사용자 행 → 이름 정할 자리(부모 폴더) → 대상 → 하위. 리소스 행 뒤에 사용자 행을 잡으면 교착이 생긴다(PR #27). as-built §4.
-- **스토리지 호출은 트랜잭션 밖**(AGENTS·as-built 규칙). 예외로 남아 있던 `cleanVersionIfExists`(커밋 tx 안 S3 HEAD)는 PR #63 에서 지웠다.
+- **스토리지 호출은 트랜잭션 밖**(AGENTS·as-built 규칙).
+- **업로드 실패 사유**(`fail_reason`, varchar 라 값 추가에 마이그레이션 불필요): 지표 `drive_upload_session_ended_total{reason}` 은 enum 값을 모두 미리 만든다. 새 사유를 넣으면 as-built 의 목록도 고친다.
 - **커밋·PR 서식**: 커밋 메시지 끝에 `Co-Authored-By` 줄, PR 본문 끝에 Claude Code 표시. 응답·리뷰는 한국어로 한다.
 - **로컬 stash**: `stash@{0}` 은 이미 main 에 머지된 PR #8(관측) 작업본 사본이다. 필요 없으면 `git stash drop`.
 
 ## 5. 로컬 환경 메모 (Windows)
-- **PC 마다 다르다.** 2026-11-20 두 번째 PC 의 상태는 다음과 같다.
+**PC 마다 다르다.**
+- 두 번째 PC(2026-11-20 저녁 작업)
   - 기본 `java` 가 25 라서 `JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot` 로 21 을 지정한다.
-  - Maven 3.9.11 은 PATH 에 있다. 이 PC 는 처음에 `-o` 로 돌리면 surefire 플러그인이 없어 실패하니, 한 번은 온라인으로 돌린다.
-  - Docker 가 없어서 통합 테스트는 PR CI 로 확인한다.
-- Maven: PATH 에 없다. `~/.m2/wrapper/dists/apache-maven-3.9.11/<hash>/bin/mvn` 을 쓴다(리포에 `.mvn/wrapper` 없음). 빌드·테스트는 `-o -Dfrontend.skip=true`
+  - Maven 3.9.11 은 PATH 에 있다. 처음에 `-o` 로 돌리면 surefire 플러그인이 없어 실패하니 한 번은 온라인으로 돌린다. 그 뒤로는 `-o` 가 된다.
+  - 예: `JAVA_HOME=... mvn -q -o test -Dfrontend.skip=true -Dtest='S3BucketInitializerTest'`
+  - Docker·Python 이 없다. 통합 테스트는 PR CI 로, YAML 은 눈으로 확인했다.
+- 첫 번째 PC: Maven 이 PATH 에 없어 `~/.m2/wrapper/dists/apache-maven-3.9.11/<hash>/bin/mvn` 을 썼다(리포에 `.mvn/wrapper` 없음).
   - 예: `M=$(find ~/.m2/wrapper/dists/apache-maven-3.9.11* -name mvn -path "*/bin/*" | head -1); "$M" -q -o test -Dfrontend.skip=true -Dtest='UploadChunkIntegrationTest'`
 - 업로드 관련 주요 테스트:
-  - 백엔드: `UploadChunkIntegrationTest`, `UploadWriteIntegrationTest`, `UploadSessionWriterTest`, `UploadContentInspectorTest`
+  - 백엔드: `UploadChunkIntegrationTest`, `UploadWriteIntegrationTest`, `UploadSessionWriterTest`, `UploadContentInspectorTest`, `DefaultUploadSessionRepositoryTest`
+  - 다운로드: `ApiGlobalExceptionHandlerTaskRejectedTest`, `CommittedResponseExceptionResolverTest`, `StreamingAsyncConfigTest`(Docker 없이 돈다)
+  - 스토리지 초기화: `S3BucketInitializerTest`(Docker 없이 돈다)
   - 프론트: `DriveFront` 에서 `node --test tests/scripts/chunk-upload.test.mjs`(가짜 서버 22건)
-- 테스트는 Testcontainers(PG 18·MinIO)를 쓰므로 Docker 가 필요하다.
-- **전체 테스트**: PR #59 부터 PR CI(`backend-test.yml`, 리눅스)가 전체를 돌린다. 이전 오류 140건(test 프로필 없는 클래스의 컨텍스트 실패)은 #59 로 사라졌고, 그때 끈 16건은 #65 에서 다시 켰다.
+- 통합 테스트는 Testcontainers(PG 18·MinIO)를 쓰므로 Docker 가 필요하다. 전체 테스트는 PR CI(`backend-test.yml`, 리눅스)가 돌린다.
   - 예전에 전체 실행에서만 흔들리던 `StorageDeletionSchedulerTimingIntegrationTest` 는 CI 결과로 계속 지켜본다.
-  - 그 밖의 기존 원인은 [upload-session.md](upload-session.md) 맨 아래에 있다. 관련 테스트만 골라 돌린다.
 - jOOQ 재생성: `docker-maven-plugin` 이 Docker 29 와 맞지 않는다. PG 18 컨테이너를 직접 띄우고 `-Pjooq-codegen -Ddocker.skip=true -Djooq-codegen.pg-port=<port>` 로 돌린다. 생성물의 `"this-escape"` 토큰은 지워 diff 를 줄인다.
 - 동시성(교착) 회귀 테스트 패턴: `ResourceNamingLockConcurrencyIntegrationTest` 의 `race()`. 수정을 잠시 끄고 실패하는지 확인한 뒤 원복하는 식으로 검증해 왔다.
-- Windows CRLF 파일은 `sed` 여러 줄 치환이 잘 안 된다. Edit 도구나 node 스크립트로 고친다.
+- Windows CRLF 파일은 `sed` 여러 줄 치환이 잘 안 된다. Edit 도구나 node 스크립트로 고친다(node 에서는 줄바꿈을 `String.fromCharCode(13,10)` 로 맞춘다).
 
 ## 6. 작업 방식(지금까지)
-- 단계마다 worktree·브랜치 → 관련 테스트 → 커밋(작업 파일만) → PR → Codex 리뷰·CodeQL 확인·반영 → 사용자 승인 후 머지 → worktree 제거
+- 단계마다 worktree·브랜치 → 관련 테스트 → 커밋(작업 파일만) → PR → Codex 리뷰·CodeQL·CI 확인·반영 → 사용자 승인 후 머지 → worktree·브랜치 제거
 - 문서는 코드와 같은 PR 에서 as-built·todo 를 고친다(끝난 todo 는 `[x]` + PR 번호). 이 인계 파일의 §2·§3 도 함께 고친다.
