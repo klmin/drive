@@ -36,7 +36,15 @@ class ManagedSingleQuotaIntegrationTest {
     @MockitoBean com.thinkfree.drive.storage.config.S3BucketInitializer bucketInitializer;
     @MockitoBean com.thinkfree.drive.postprocess.orchestrator.PostProcessingOrchestratorRetry postprocessing;
 
+    // 테넌트 1·사용자 2·용량 설정은 다른 테스트와 같은 DB 를 쓰는 공용 픽스처 — 바꾼 값을 커밋하므로 끝나면 되돌린다
+    private Map<String,Object> savedTenant;
+    private Map<String,Object> savedUser;
+    private List<String> savedTenantQuota;
+
     @BeforeEach void setup() {
+        savedTenant=jdbc.queryForMap("SELECT tenant_name, tenant_type, user_mode, domain, subdomain, base_domain_seq, update_user_seq, update_date FROM tb_tenant WHERE tenant_seq=1");
+        savedUser=jdbc.queryForMap("SELECT total_quota_byte, use_quota_byte FROM tb_user WHERE user_seq=2");
+        savedTenantQuota=jdbc.queryForList("SELECT value_text FROM tb_system_config WHERE tenant_seq=1 AND setting_key='tenant_total_quota_byte'",String.class);
         TenantContext.set(1);
         var actor=mock(CustomUserDetails.class);when(actor.getUserSeq()).thenReturn(1);
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(actor,null,List.of()));
@@ -46,7 +54,16 @@ class ManagedSingleQuotaIntegrationTest {
         when(capacity.canIncrease(anyLong())).thenReturn(true);
         when(domains.findByBaseDomainSeqOrThrow(1)).thenReturn(new BaseDomainData(1,"example.invalid"));
     }
-    @AfterEach void clear(){TenantContext.clear();SecurityContextHolder.clearContext();}
+    @AfterEach void clear(){
+        TenantContext.clear();SecurityContextHolder.clearContext();
+        jdbc.update("UPDATE tb_tenant SET tenant_name=?, tenant_type=?, user_mode=?, domain=?, subdomain=?, base_domain_seq=?, update_user_seq=?, update_date=? WHERE tenant_seq=1",
+                savedTenant.get("tenant_name"),savedTenant.get("tenant_type"),savedTenant.get("user_mode"),savedTenant.get("domain"),savedTenant.get("subdomain"),
+                savedTenant.get("base_domain_seq"),savedTenant.get("update_user_seq"),savedTenant.get("update_date"));
+        jdbc.update("UPDATE tb_user SET total_quota_byte=?, use_quota_byte=? WHERE user_seq=2",savedUser.get("total_quota_byte"),savedUser.get("use_quota_byte"));
+        if(!savedTenantQuota.isEmpty()){
+            jdbc.update("UPDATE tb_system_config SET value_text=? WHERE tenant_seq=1 AND setting_key='tenant_total_quota_byte'",savedTenantQuota.get(0));
+        }
+    }
     void update(long bytes) { tenants.update(1,new SuperAdminTenantUpdateRequest("quota-test","quota-test",1,bytes,List.of()),1); }
     long userQuota(){return jdbc.queryForObject("SELECT total_quota_byte FROM tb_user WHERE user_seq=2",Long.class);}
     void assertQuotas(long expected){assertThat(config.findTenantTotalQuotaByte(1)).isEqualTo(expected);assertThat(userQuota()).isEqualTo(expected);}
