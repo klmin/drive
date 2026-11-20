@@ -1,11 +1,14 @@
 package com.thinkfree.drive.global.security;
 
-import org.junit.jupiter.api.Disabled;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
+import com.thinkfree.drive.apikey.enums.ApiKeyScope;
 import com.thinkfree.drive.apikey.exception.ApiKeyErrorCode;
 import com.thinkfree.drive.auth.exception.AuthErrorCode;
+import com.thinkfree.drive.common.DriveFixtures;
 import com.thinkfree.drive.config.security.WithMockUserCustom;
+import com.thinkfree.drive.user.enums.RoleType;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -15,19 +18,33 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumSet;
+
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * 유효한 키는 테스트마다 기본 테넌트에 일반 사용자(USER 역할)를 만들고 그 명의로 새로 만든다.
+ * 클래스 전체를 @Transactional 로 묶어(@Nested 도 물려받음) 키 행과 인증 성공 때의 last_used_date 갱신을 되돌린다.
+ */
 @Slf4j
 @DisplayName("SecurityFilterChain 라우팅 및 인증 테스트")
+@Transactional
 class ApiKeyAuthenticationFilterTest extends AbstractMvcTest {
 
-    private static final String VALID_API_KEY = "B6u6gFwHhyBum9Js_LRrcISG54dEC-HpZ45E4gtlvsQ";
+    private String validApiKey;
 
     @Autowired
     private JdbcTemplate jdbc;
-    
+
+    @BeforeEach
+    void issueValidApiKey() {
+        var fixtures = DriveFixtures.of(jdbc);
+        int user = fixtures.user(DriveFixtures.DEFAULT_TENANT, RoleType.USER, "키 사용자");
+        validApiKey = fixtures.apiKey(DriveFixtures.DEFAULT_TENANT, user, RoleType.USER, EnumSet.of(ApiKeyScope.READ));
+    }
+
     @Nested
     @DisplayName("External API - ApiKeyAuthenticationEntryPoint (401)")
     class EntryPointTest {
@@ -90,10 +107,9 @@ class ApiKeyAuthenticationFilterTest extends AbstractMvcTest {
         @Test
         @Transactional
         @DisplayName("유효한 ApiKey → 200")
-        @Disabled("dev DB 데이터 의존 — 유효한 API 키 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
         void validApiKey_returns200() throws Exception {
             mockMvc.perform(withHost(MockMvcRequestBuilders.get(EXTERNAL_URL))
-                            .header("Authorization", "Bearer " + VALID_API_KEY)
+                            .header("Authorization", "Bearer " + validApiKey)
                             .contentType(MediaType.APPLICATION_JSON))
                     .andDo(print())
                     .andExpect(status().isOk());
@@ -141,7 +157,7 @@ class ApiKeyAuthenticationFilterTest extends AbstractMvcTest {
         @WithMockUserCustom
         void cookieAuthenticated_validUserApiKey_keepsCookieAccount() throws Exception {
             mockMvc.perform(withHost(MockMvcRequestBuilders.get("/api/v1/admins/system-config/shares/exists"))
-                            .header("Authorization", "Bearer " + VALID_API_KEY)
+                            .header("Authorization", "Bearer " + validApiKey)
                             .contentType(MediaType.APPLICATION_JSON))
                     .andDo(print())
                     .andExpect(status().isOk());
@@ -161,10 +177,9 @@ class ApiKeyAuthenticationFilterTest extends AbstractMvcTest {
         @Test
         @Transactional
         @DisplayName("인증 필요 경로 + 유효한 ApiKey → 200 (내부 체인 API Key 인증)")
-        @Disabled("dev DB 데이터 의존 — 유효한 API 키 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
         void protectedPath_validApiKey_returns200() throws Exception {
             mockMvc.perform(withHost(MockMvcRequestBuilders.get("/api/v1/users"))
-                            .header("Authorization", "Bearer " + VALID_API_KEY)
+                            .header("Authorization", "Bearer " + validApiKey)
                             .contentType(MediaType.APPLICATION_JSON))
                     .andDo(print())
                     .andExpect(status().isOk());
@@ -173,10 +188,9 @@ class ApiKeyAuthenticationFilterTest extends AbstractMvcTest {
         @Test
         @Transactional
         @DisplayName("유효한 ApiKey + 키 역할과 같은 X-Drive-Role → 200")
-        @Disabled("dev DB 데이터 의존 — 유효한 API 키 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
         void protectedPath_validApiKeyWithSameRoleHeader_returns200() throws Exception {
             mockMvc.perform(withHost(MockMvcRequestBuilders.get("/api/v1/users"))
-                            .header("Authorization", "Bearer " + VALID_API_KEY)
+                            .header("Authorization", "Bearer " + validApiKey)
                             .header("X-Drive-Role", "USER")
                             .contentType(MediaType.APPLICATION_JSON))
                     .andDo(print())
@@ -187,7 +201,7 @@ class ApiKeyAuthenticationFilterTest extends AbstractMvcTest {
         @DisplayName("유효한 ApiKey + 키 역할과 다른 X-Drive-Role → 401 + API_KEY_INVALID")
         void protectedPath_validApiKeyWithOtherRoleHeader_returns401() throws Exception {
             mockMvc.perform(withHost(MockMvcRequestBuilders.get("/api/v1/users"))
-                            .header("Authorization", "Bearer " + VALID_API_KEY)
+                            .header("Authorization", "Bearer " + validApiKey)
                             .header("X-Drive-Role", "ADMIN")
                             .contentType(MediaType.APPLICATION_JSON))
                     .andDo(print())
@@ -207,7 +221,7 @@ class ApiKeyAuthenticationFilterTest extends AbstractMvcTest {
             setTestTenant(slug);
             try {
                 mockMvc.perform(withHost(MockMvcRequestBuilders.get("/api/v1/users"))
-                                .header("Authorization", "Bearer " + VALID_API_KEY)
+                                .header("Authorization", "Bearer " + validApiKey)
                                 .contentType(MediaType.APPLICATION_JSON))
                         .andDo(print())
                         .andExpect(status().isUnauthorized())

@@ -22,6 +22,12 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
+import com.thinkfree.drive.common.DriveFixtures;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.MultiValueMap;
 
@@ -38,8 +44,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Slf4j
 @WithMockUserCustom(roles = "ROLE_USER")
 class ResourceControllerTest extends AbstractMvcTest {
-    
-    
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @BeforeAll
     static void setUp() {
         initBaseUrl("/api/v1/resources");
@@ -185,21 +196,27 @@ class ResourceControllerTest extends AbstractMvcTest {
         
     }
     
-    @WithMockUserCustom(roles = "ROLE_USER", userSeq = 669)
+    /** 소유자(V1 시드 admin)가 자기 잠긴 파일을 푼다(ss 없음 = 내 리소스). 테스트 트랜잭션으로 되돌린다 */
+    @WithMockUserCustom(roles = "ROLE_USER", userSeq = DriveFixtures.ADMIN, tenantSeq = DriveFixtures.DEFAULT_TENANT)
     @Test
-    @Disabled("dev DB 데이터 의존 — 잠긴 리소스 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
+    @Transactional
     void unlock(){
-        
-        Long resourceSeq = 25285L;
+        var fixtures = DriveFixtures.of(jdbc);
+        long resourceSeq = fixtures.file(DriveFixtures.ADMIN, null, "locked.txt");
+        fixtures.lock(DriveFixtures.ADMIN, resourceSeq);
+
         Integer ss = null;
         var request = new ResourceSharedByUserRequest(resourceSeq, ss);
         String url = StringUtil.buildUrl(resourceSeq, "unlock");
-        
+
         ApiResponse<Void> response = patchForObject(url, request, new TypeReference<>() {}, status().isOk());
-        
+
         Assertions.assertEquals(OK.value(), response.getCode());
         Assertions.assertEquals(OK.getReasonPhrase(), response.getMessage());
-        
+        // 응답 뒤 JPA 변경 감지가 아직 flush 되지 않았을 수 있어 같은 트랜잭션에서 flush 후 확인한다
+        entityManager.flush();
+        Assertions.assertEquals("N", jdbc.queryForObject(
+                "SELECT is_locked FROM tb_resource WHERE user_seq = ? AND resource_seq = ?", String.class, DriveFixtures.ADMIN, resourceSeq));
     }
     
     @WithMockUserCustom(roles = "ROLE_USER", userSeq = 876, tenantSeq = 5)

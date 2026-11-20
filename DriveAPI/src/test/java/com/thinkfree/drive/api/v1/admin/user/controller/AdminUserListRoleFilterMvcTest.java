@@ -1,13 +1,17 @@
 package com.thinkfree.drive.api.v1.admin.user.controller;
 
-import org.junit.jupiter.api.Disabled;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
+import com.thinkfree.drive.common.DriveFixtures;
 import com.thinkfree.drive.config.security.WithMockUserCustom;
+import com.thinkfree.drive.user.enums.RoleType;
 import com.thinkfree.drive.user.exception.UserErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.transaction.annotation.Transactional;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
@@ -18,16 +22,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 계정 목록 통합(⑦-1) — {@code GET /admins/users} 의 역할 필터 rt(보유 기준, 쉼표 구분)와 응답 roles,
- * 삭제된 {@code GET /admins}. dev DB(기본 테스트 호스트 테넌트)의 기존 계정으로 확인한다.
+ * 삭제된 {@code GET /admins}. 기본 테넌트의 V1 시드 관리자(admin)와 테스트마다 만드는 일반 사용자(USER)로 확인한다(트랜잭션 롤백).
  */
 @DisplayName("계정 목록 — rt 역할 필터·roles 응답")
 @WithMockUserCustom(roles = "ROLE_ADMIN")
+@Transactional
 class AdminUserListRoleFilterMvcTest extends AbstractMvcTest {
 
     private static final String LIST = "/api/v1/admins/users";
 
+    @Autowired
+    private JdbcTemplate jdbc;
+
     @BeforeEach
     void pinTestHost() {
+        DriveFixtures.of(jdbc).user(DriveFixtures.DEFAULT_TENANT, RoleType.USER, "일반 사용자");
         setTestHost(DEFAULT_TEST_HOST);
     }
 
@@ -44,7 +53,6 @@ class AdminUserListRoleFilterMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("rt=USER — 항목 전부 roles 에 USER")
-    @Disabled("dev DB 데이터 의존 — USER 역할 사용자 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void userFilter() throws Exception {
         mockMvc.perform(withHost(MockMvcRequestBuilders.get(LIST).param("rt", "USER").param("ps", "100")))
                 .andExpect(status().isOk())
@@ -54,7 +62,6 @@ class AdminUserListRoleFilterMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("rt 생략·rt=USER,ADMIN — 사용자·관리자 모두(관리자 포함 확인)")
-    @Disabled("dev DB 데이터 의존 — USER 역할 사용자 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void allRoles() throws Exception {
         mockMvc.perform(withHost(MockMvcRequestBuilders.get(LIST).param("ps", "1000")))
                 .andExpect(status().isOk())
