@@ -78,7 +78,11 @@ spring:
 
   mvc:
     async:
-      request-timeout: 300000
+      # MVC 비동기 응답 시간 제한 — 이 앱에서 비동기 응답은 StreamingResponseBody 다운로드뿐이다(StreamingAsyncConfig).
+      # 다운로드는 크기·회선에 따라 얼마든지 길어지므로 제한하지 않는다(-1). 값을 두면 그 시간에 전송이 끊기는데,
+      # Tomcat 비동기 타임아웃은 이미 보내기 시작한 응답의 연결을 닫지 못해 클라이언트가 받다 만 채로 멈춘다.
+      # 멈춘 클라이언트는 Tomcat 쓰기 타임아웃이 끊고, 동시 전송 수는 drive.download.stream.max-threads 가 막는다
+      request-timeout: -1
   web:
     resources:
       # StaticResourceConfig에서 /** 경로를 직접 처리하므로

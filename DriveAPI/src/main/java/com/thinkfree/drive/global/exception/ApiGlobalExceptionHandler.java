@@ -8,12 +8,16 @@ import com.thinkfree.drive.restclient.exception.ExternalApiException;
 import com.thinkfree.drive.storage.exception.StorageException;
 import com.thinkfree.drive.weboffice.exception.WebOfficeException;
 import io.swagger.v3.oas.annotations.Hidden;
+import com.thinkfree.drive.util.PendingDownloadStreams;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -25,9 +29,12 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /*
@@ -209,6 +216,44 @@ public class ApiGlobalExceptionHandler {
     public ResponseEntity<ApiExceptionResponse> httpMediaTypeNotSupportedException(HttpMediaTypeNotSupportedException e) {
         log.error("# HttpRequestMethodNotSupportedException # ", e);
         return ApiExceptionResponse.error(GlobalErrorCode.NOT_SUPPORTED_MEDIA_TYPE_ERROR);
+    }
+
+    /**
+     * 실행기 포화로 작업을 넘기지 못함 — 다운로드 스트리밍 스레드(StreamingAsyncConfig)가 모두 사용 중일 때 등. 잠시 뒤 다시 시도할 수 있는 상태라 503
+     */
+    @ExceptionHandler(TaskRejectedException.class)
+    public ResponseEntity<ApiExceptionResponse> handleTaskRejectedException(TaskRejectedException e,
+                                                                            HttpServletRequest request,
+                                                                            HttpServletResponse response) {
+        log.warn("# TaskRejectedException # {}", e.getMessage());
+        // 다운로드 본문이 실행되지 못했다 — 요청 스레드가 미리 연 스토리지 스트림을 닫는다
+        PendingDownloadStreams.closeAll(new ServletRequestAttributes(request));
+        clearDownloadHeaders(response);
+        return ApiExceptionResponse.error(GlobalErrorCode.SERVICE_UNAVAILABLE);
+    }
+
+    /** 다운로드 응답에서 쓰려던 본문 관련 헤더 — 오류 JSON 에 남으면 길이·형식이 어긋난다 */
+    private static final Set<String> DOWNLOAD_ENTITY_HEADERS = Set.of(
+            "content-length", "content-type", "content-disposition", "content-range", "content-encoding",
+            "accept-ranges", "etag", "last-modified");
+
+    /**
+     * StreamingResponseBody 반환 처리기는 작업 제출 전에 파일의 Content-Length·Content-Disposition 등을 응답에 이미 써 둔다.
+     * 그대로 두면 오류 JSON 보다 큰 Content-Length 때문에 클라이언트가 오지 않을 바이트를 기다리거나, 작은 값이면 JSON 이 잘린다.
+     * 아직 커밋 전이면 본문 관련 헤더만 빼고 나머지(CORS 등 필터가 단 헤더)는 되살린다.
+     */
+    static void clearDownloadHeaders(HttpServletResponse response) {
+        if (response.isCommitted()) {
+            return;
+        }
+        Map<String, List<String>> kept = new LinkedHashMap<>();
+        for (String name : response.getHeaderNames()) {
+            if (!DOWNLOAD_ENTITY_HEADERS.contains(name.toLowerCase(Locale.ROOT))) {
+                kept.putIfAbsent(name, List.copyOf(response.getHeaders(name)));
+            }
+        }
+        response.reset();
+        kept.forEach((name, values) -> values.forEach(value -> response.addHeader(name, value)));
     }
 
     /**

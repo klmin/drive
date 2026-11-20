@@ -92,8 +92,12 @@ public class ResourceUtil {
     }
     
     public static StreamingResponseBody createFileStream(FileData fileData){
+        InputStream content = fileData.content();
+        // 스트림은 이미 열려 있다 — 본문이 실행되지 못하고 거절되면(503) 처리기가 닫도록 요청에 기록
+        PendingDownloadStreams.Handle pending = PendingDownloadStreams.register(content);
         return outputStream -> {
-                try (InputStream fileStream = fileData.content()) {
+                pending.claim();
+                try (InputStream fileStream = content) {
                     fileStream.transferTo(outputStream);
                 } catch (IOException e) {
                     log.error("[createFileStream Exception]", e);
