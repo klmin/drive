@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import software.amazon.awssdk.http.Abortable;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -35,9 +36,10 @@ class ApiGlobalExceptionHandlerTaskRejectedTest {
         }
     }
 
-    /** close 여부를 기록하는 스토리지 응답 대역 */
-    static class TrackingStream extends ByteArrayInputStream {
+    /** close·abort 여부를 기록하는 스토리지 응답 대역(S3 ResponseInputStream 처럼 Abortable) */
+    static class TrackingStream extends ByteArrayInputStream implements Abortable {
         final AtomicBoolean closed = new AtomicBoolean();
+        final AtomicBoolean aborted = new AtomicBoolean();
 
         TrackingStream(byte[] data) {
             super(data);
@@ -46,6 +48,11 @@ class ApiGlobalExceptionHandlerTaskRejectedTest {
         @Override
         public void close() {
             closed.set(true);
+        }
+
+        @Override
+        public void abort() {
+            aborted.set(true);
         }
     }
 
@@ -77,6 +84,7 @@ class ApiGlobalExceptionHandlerTaskRejectedTest {
         new ApiGlobalExceptionHandler().handleTaskRejectedException(
                 new TaskRejectedException("busy"), request, new MockHttpServletResponse());
 
+        assertThat(storage.aborted).as("남은 본문을 읽지 않고 연결을 끊는다").isTrue();
         assertThat(storage.closed).isTrue();
     }
 
@@ -94,6 +102,7 @@ class ApiGlobalExceptionHandlerTaskRejectedTest {
                 new TaskRejectedException("busy"), request, new MockHttpServletResponse());
 
         assertThat(storage.closed).isFalse();
+        assertThat(storage.aborted).isFalse();
     }
 
     @Test

@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
+import software.amazon.awssdk.http.Abortable;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -46,6 +47,11 @@ public final class PendingDownloadStreams {
             }
             claimed = true;
             try {
+                // S3 ResponseInputStream: Apache 클라이언트에서 close() 는 연결 재사용을 위해 남은 본문을 끝까지 읽는다.
+                // 아직 한 바이트도 보내지 않은 응답이라 abort() 로 연결을 바로 끊는다(대용량 파일을 503 전에 다 읽지 않게)
+                if (stream instanceof Abortable abortable) {
+                    abortable.abort();
+                }
                 stream.close();
             } catch (IOException | RuntimeException e) {
                 log.debug("Failed to close pending download stream", e);
