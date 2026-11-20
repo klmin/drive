@@ -41,7 +41,7 @@ import static org.jooq.impl.DSL.*;
  * <p>
  * 시작 CTE {@code resource_data} = 리소스 자신(단건은 PK, N건은 (user_seq, resource_seq) 행값 IN; isDelete 가 있을 때만 is_delete 조건; 소유 계정 노출 가능).
  * 권한 2종은 {@link PermissionJooq} 의 조상 재귀 → 가장 가까운 링크/대상 공유 → 24컬럼 SELECT. 링크 공유 조건은 "소유자 본인이면 모든 공유, 남이면 공개/조직 링크만".
- * 사슬 2종은 조상 재귀 + 각 조상의 공유·요청자 대상·부모 폴더·대상 폴더 LEFT JOIN, depth 순 → 리소스별로 묶는다(구 resultMap collection — 리소스 첫 등장 순, 사슬은 depth 순).
+ * 사슬 2종은 조상 재귀 + 각 조상의 공유·요청자 대상·부모 폴더·대상 폴더 LEFT JOIN, depth, (user_seq, resource_seq) 순 → 리소스별로 묶는다(구 resultMap collection — 리소스는 (user_seq, resource_seq) 순, 사슬은 depth 순). 권한 N건도 (user_seq, resource_seq) 순 — 정렬 기준이 없으면 실행마다 순서가 달라진다.
  * 권한 Y/N 은 NULL 도 false(구 BooleanTypeHandler 와 동일). 단건이 여러 행이면 구 JdbcClient {@code optional()} 처럼 IncorrectResultSizeDataAccessException.
  */
 @Repository
@@ -89,6 +89,7 @@ public class DefaultResourcePermissionQueryRepository implements ResourcePermiss
         return PermissionJooq.permissionFrom(dsl.withRecursive(seed(key, isDelete), recursive(isDelete), PermissionJooq.nearestLink(userSeq, true), PermissionJooq.nearestTarget(userSeq))
                         .select(PermissionJooq.columns())
                         .from(table(name(RESOURCE_DATA)).as("r")))
+                .orderBy(col("r", "user_seq", SQLDataType.INTEGER), col("r", "resource_seq", SQLDataType.BIGINT))
                 .fetch(rec -> {
                     PermissionJooq.Row r = PermissionJooq.read(rec);
                     return ResourcePermissionData.builder()
@@ -130,7 +131,7 @@ public class DefaultResourcePermissionQueryRepository implements ResourcePermiss
                 .leftJoin(t).on(eq(t.USER_SEQ, userSeq).and(t.SHARE_SEQ.eq(s.SHARE_SEQ)).and(t.RESOURCE_SEQ.eq(s.RESOURCE_SEQ)))
                 .leftJoin(p).on(p.USER_SEQ.eq(rUser).and(p.RESOURCE_SEQ.eq(parentFolderSeq)).and(p.RESOURCE_TYPE.eq(inline(ResourceType.FOLDER, p.RESOURCE_TYPE))))
                 .leftJoin(f).on(f.USER_SEQ.eq(rUser).and(f.RESOURCE_SEQ.eq(t.RESOURCE_SEQ)).and(f.RESOURCE_TYPE.eq(inline(ResourceType.FOLDER, f.RESOURCE_TYPE))))
-                .orderBy(depth)
+                .orderBy(depth, rUser, resourceSeq)
                 .fetch(rec -> ResourceShareChainItem.builder()
                         .userSeq(rec.get(rUser))
                         .resourceSeq(rec.get(resourceSeq))
