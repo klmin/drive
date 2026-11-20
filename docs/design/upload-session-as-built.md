@@ -212,7 +212,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 ---
 
 ## 8. 알려진 한계 (자세한 내용은 todo)
-- 앞단 프록시 설정 문서(`client_max_body_size` > 16MB)는 아직 — 없으면 프록시가 파트 PUT 을 413 으로 막는다. 실제 MinIO·브라우저로 1GB 끊었다 이어 올리기는 아직 확인 안 함(업로더 로직은 가짜 서버 테스트만).
+- 앞단 프록시: 설정 안내는 `DriveInstaller/thinkfree/TFD/template/httpd/README.md`(본문 상한 1GiB·응답 대기 300초). 번들 Apache 외 프록시(nginx 기본 1MB 등)는 설치처가 맞춰야 하고, 안 맞추면 파트 PUT 이 413 으로 막힌다. Developers 저장소 k8s ingress 는 아직. 실제 MinIO·브라우저로 1GB 끊었다 이어 올리기는 아직 확인 안 함(업로더 로직은 가짜 서버 테스트만).
 - 커밋 tx 에서 권한 재확인 안 함(호출부 검사만 — 청크 API 는 complete 선점 전에 한 번 더), 매직바이트 검사 없음, 감사 로그 발행 시점은 호출부 그대로.
 - 청크 API 는 외부 API(`/api/public`, API Key)로 내보내지 않았다(내부 웹 API 만).
 - 옛 흐름 호환 코드 남음: `cleanVersionIfExists`(옛 PENDING 버전 정리, 저장 마커 조회 = tx 안 S3 HEAD), `ResourceRepository.revertOverwrite`(호출부 없음), 미사용 `uploadPartsFromStream`·`copyObjectAnySize`.
