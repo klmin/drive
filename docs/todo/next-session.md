@@ -35,7 +35,7 @@
 | #63 | 옛 흐름 호환 코드 제거(`cleanVersionIfExists`·저장 마커·PENDING 만료 판정·`VERSION_PROCESSING`·버전 롤백 쿼리) |
 | #59 | 통합 테스트를 test 프로필(`@DriveIntegrationTest`)로 고정해 항상 Testcontainers 사용, 백엔드 테스트 CI(`backend-test.yml`, `DriveAPI/**` PR·main push) 추가, CI(리눅스·UTC)에서만 나던 실패 수정 |
 | #65 | `DriveFixtures`(테스트 tx 안에서만 동작) 로 #59 에서 dev DB 의존으로 끈 16건을 다시 켬 |
-| #64 | 다운로드 멈춤 수정: 스트림 전용 풀 `DriveStream-`(대기열 없음, 포화 시 503)·`spring.mvc.async.request-timeout` 해제·커밋 후 실패 시 연결 끊기(`CommittedResponseExceptionResolver`), 거절 시 열린 S3 응답 닫기(`PendingDownloadStreams`)·503 전에 다운로드 헤더 제거, 감사 로그 CSV 는 요청 스레드에서 직접 씀 |
+| #64 | 다운로드 멈춤 수정: 스트림 전용 풀 `DriveStream-`(대기열 없음, 포화 시 503)·`spring.mvc.async.request-timeout` 해제·커밋 후 실패 시 연결 끊기(`CommittedResponseExceptionResolver`), 거절 시 열린 S3 응답 abort·닫기(`PendingDownloadStreams`)·503 전에 다운로드 헤더 제거, 감사 로그 CSV 는 요청 스레드에서 직접 씀 |
 
 **업로드 경로 정리**
 - 웹 화면의 신규·덮어쓰기·새 버전은 모두 `UploadDialog` 한 곳에서 처리한다. 32MB 이상은 청크 API, 미만은 기존 단일 요청(`POST /files`)이다.
@@ -68,7 +68,7 @@
 - V6 인덱스 `CONCURRENTLY`: 배포된 곳이 없으니 그대로 둔다.
 
 4. ~~**테스트 기반 정리**~~ — **완료(PR #59·#65)**. 통합 테스트는 이제 test 프로필·Testcontainers 로만 돌고, PR CI(`backend-test.yml`)가 전체 백엔드 테스트를 돌린다. Docker 없는 PC 에서는 컴파일·단위 테스트만 하고 통합 테스트는 PR CI 로 확인한다.
-5. ~~**다운로드 전송 멈춤**~~ — **완료(PR #64)**. Codex 지적 2건(거절 시 S3 응답 정리, 503 전 Content-Length 제거)과 CodeQL log-injection 2건까지 반영했다.
+5. ~~**다운로드 전송 멈춤**~~ — **완료(PR #64)**. Codex 지적 3건(거절 시 S3 응답 정리, 정리는 close 대신 abort, 503 전 Content-Length 제거)과 CodeQL log-injection 2건까지 반영했다.
 
 그 다음 후보(운영 전): COMPLETING 30분 초과 알림(3번 측정 뒤 기준 결정, 업로드 세션·삭제 대기열 지표와 나머지 알림은 이미 있음 — [upload-session.md](upload-session.md) B), 운영 버킷 lifecycle 확인, Developers 저장소 k8s ingress 본문 크기·타임아웃. Ceph·RustFS 계약 테스트는 그 스토리지를 쓰는 설치처가 생길 때 한다.
 
