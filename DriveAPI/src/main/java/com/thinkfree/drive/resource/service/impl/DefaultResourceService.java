@@ -237,10 +237,6 @@ public class DefaultResourceService implements ResourceService {
         return matched;
     }
 
-    private void rollbackResourceVersionData(ResourceVersionRollbackQuery query){
-        var result = resourcerepository.rollbackResourceVersionData(query);
-        DriveAssert.throwIfZero(result, ResourceErrorCode.UPDATE_FAIL);
-    }
     private void updateFullPathForChildFolders(ResourcePathUpdateQuery query){
         var result = resourcerepository.updateFullPathForChildFolders(query);
         log.info("""
@@ -370,10 +366,7 @@ public class DefaultResourceService implements ResourceService {
             resourceLockUnlockService.checkLockedResource(resourceSeq, dto.getUserSeq());
         }
 
-        // 옛 저장 흐름(FileWriteOrchestrator 버전 핸들러)이 남긴 미완료 버전(PENDING·DELETE) 정리 — 새 흐름은 PENDING 을 남기지 않는다. 전환 기간 뒤 제거
-        cleanVersionIfExists(lockResource);
-
-        // 고칠 행 = 관리 엔티티 — 잠금(DTO)·정리 뒤의 첫 JPA 로드라 DB 현재 값
+        // 고칠 행 = 관리 엔티티 — 잠금(DTO) 뒤의 첫 JPA 로드라 DB 현재 값
         var resource = loadForChange(resourceSeq, lockResource.getUserSeq(), ResourceType.FILE, false);
         var versionRegisterUserSeq = dto.getVersionRegisterUserSeq();
         var currentVersionNumber = resource.getCurrentVersionNumber();
@@ -399,9 +392,7 @@ public class DefaultResourceService implements ResourceService {
         var lockResource = lockResourceForVersioning(dto.getResourceSeq(), dto.getUserSeq());
         var resourceSeq = lockResource.getResourceSeq();
 
-        cleanVersionIfExists(lockResource);
-
-        // 정리(JdbcClient) 뒤 DB 현재 값을 DTO 로 — 덮어쓰기는 @Modifying 이라 관리 엔티티를 쥘 이유가 없다
+        // 잠근 행의 DB 현재 값을 DTO 로 — 덮어쓰기는 @Modifying 이라 관리 엔티티를 쥘 이유가 없다
         var findQuery = resourceConverter.toFindQuery(resourceSeq, lockResource.getUserSeq(), ResourceType.FILE, false);
         var before = resourceFindService.findDetail(findQuery);
         if (!Objects.equals(baseKey, before.getResourceSaveName())) {
@@ -414,16 +405,6 @@ public class DefaultResourceService implements ResourceService {
             return null;
         }
         return resourceConverter.toOverwriteResult(before, newFileSize, stamp, newFileSize - before.getSizeByte());
-    }
-
-    private void cleanVersionIfExists(ResourceDetailData resource){
-        var userSeq = resource.getUserSeq();
-        var resourceSeq = resource.getResourceSeq();
-        var cleanResourceVersion = resourceVersionService.cleanVersionIfExists(userSeq, resourceSeq, resource.getSizeByte(), resource.getResourceSaveName());
-        if(cleanResourceVersion != null){
-            var rollbackQuery = resourceConverter.toVersionRollbackQuery(cleanResourceVersion);
-            rollbackResourceVersionData(rollbackQuery);
-        }
     }
     
     @Override
@@ -843,11 +824,9 @@ public class DefaultResourceService implements ResourceService {
     @Override
     public ResourceDeleteVersionResult deleteVersion(long resourceSeq, long resourceVersionSeq, int userSeq){
         
-        var lockResource = lockResourceForVersioning(resourceSeq, userSeq);
+        lockResourceForVersioning(resourceSeq, userSeq);
 
-        cleanVersionIfExists(lockResource);
-
-        // 고칠 행 = 관리 엔티티 — 잠금(DTO)·정리(JdbcClient) 뒤의 첫 JPA 로드(W10 R2, H1)
+        // 고칠 행 = 관리 엔티티 — 잠금(DTO) 뒤의 첫 JPA 로드(W10 R2, H1)
         var resource = loadForChange(resourceSeq, userSeq, ResourceType.FILE, false);
 
         var result = resourceVersionService.deleteVersion(resourceSeq, resourceVersionSeq, userSeq);

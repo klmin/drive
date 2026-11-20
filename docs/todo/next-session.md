@@ -32,6 +32,7 @@
 | #55 | Content-Type 은 서버가 확장자로 결정 |
 | #57 | CodeQL 발견 32건 정리(`LogSafe` 로 로그 줄바꿈 제거 등) + `FAIL_ON_FINDINGS: 'true'` |
 | #60 | 프론트 423 잠금·QUOTA_003 분기 수정(오류 응답에 `status` 가 없음), MCP 요청·응답 본문 로그는 DEBUG 에서만 |
+| #63 | 옛 흐름 호환 코드 제거(`cleanVersionIfExists`·저장 마커·PENDING 만료 판정·`VERSION_PROCESSING`·버전 롤백 쿼리) |
 
 **업로드 경로 정리**
 - 웹 화면의 신규·덮어쓰기·새 버전은 모두 `UploadDialog` 한 곳에서 처리한다. 32MB 이상은 청크 API, 미만은 기존 단일 요청(`POST /files`)이다.
@@ -41,7 +42,8 @@
 ## 3. 다음 할 일 (2026-11-20 결정)
 **배포된 설치처가 아직 없다.** 이 전제로 다른 세션의 검토 결과(옛 3분 만료·대상 삭제·타임아웃 등)를 코드와 대조해 정했다.
 
-1. **옛 흐름 호환 코드 제거**([upload-session.md](upload-session.md) C 첫 항목)
+1. ~~**옛 흐름 호환 코드 제거**~~ — **완료(PR #63)**. 아래는 기록용.
+   - 함께 지운 것: 저장 마커(`findSaveMarker`·`SAVE_MARKER_METADATA_KEY`), `existsAliveVersion`·`findExpiredVersion`(3분 판정), `finalizeAfterStorageUpload`·`rollbackResourceVersionMetadata`, `ResourceRepository.rollbackResourceVersionData`·`ResourceVersionRollbackQuery`, `VERSION_PROCESSING`(RESOURCE_VERSION_004). `ResourceVersionStatus.PENDING` 은 `pushCurrentAsVersion` 이 같은 tx 안에서 INSERT 할 때 쓰므로(DB 기본값) 남겼고, `DELETE` 값도 enum 에 남겼다(쓰는 곳 없음).
    - 배포된 곳이 없으니 옛 흐름이 만든 PENDING·DELETE 버전 행이 운영 DB 에 없다. 기다릴 이유가 없으므로 지금 지운다.
    - 지우면 아래 두 문제가 함께 사라진다.
      - 롤링 배포 중 옛 서버의 3분 만료 좀비 시나리오
@@ -71,7 +73,7 @@
 - **CodeQL**: 이제 발견이 1건이라도 있으면 PR 체크가 실패한다. 사용자 입력(헤더·URI·요청 값)을 로그에 넣을 때는 `com.thinkfree.drive.util.LogSafe.of(...)` 로 감싼다. CSRF 규칙은 오탐이라 제외했다(쿠키 인증은 `X-Drive-Role` 헤더가 있어야 동작).
 - **프론트 오류 응답 모양**: `api.js` 는 오류 때 서버 본문(`ApiExceptionResponse`: `result, code, errorCode, message`)을 돌려준다. HTTP 상태는 `res.code` 로 보고, **`res.status` 는 없다**. 예외로 로그인 페이지는 reject 된 axios 오류를 받는다.
 - **잠금 순서 규칙**(쓰기 경로를 새로 만들면 반드시): 소유자 사용자 행 → 이름 정할 자리(부모 폴더) → 대상 → 하위. 리소스 행 뒤에 사용자 행을 잡으면 교착이 생긴다(PR #27). as-built §4.
-- **스토리지 호출은 트랜잭션 밖**(AGENTS·as-built 규칙). 위 §3-1 이 바로 이 규칙의 예외로 남은 곳이다.
+- **스토리지 호출은 트랜잭션 밖**(AGENTS·as-built 규칙). 예외로 남아 있던 `cleanVersionIfExists`(커밋 tx 안 S3 HEAD)는 PR #63 에서 지웠다.
 - **커밋·PR 서식**: 커밋 메시지 끝에 `Co-Authored-By` 줄, PR 본문 끝에 Claude Code 표시. 응답·리뷰는 한국어로 한다.
 - **로컬 stash**: `stash@{0}` 은 이미 main 에 머지된 PR #8(관측) 작업본 사본이다. 필요 없으면 `git stash drop`.
 

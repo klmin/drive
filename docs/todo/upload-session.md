@@ -43,7 +43,7 @@
 
 ## C. 정리·후속
 
-- [ ] **옛 흐름 호환 코드 제거 — 다음 작업 1순위** — 새 흐름은 PENDING 버전 행·저장 마커를 남기지 않는다. **배포된 설치처가 없으므로(2026-11-20) 기다리지 않고 지금 제거한다.** 남겨 두면 롤링 배포 중 옛 서버의 3분 만료 PENDING 이 좀비 시나리오(옛 서버가 원본 key 를 덮어씀)와 커밋 tx 안 S3 HEAD 를 다시 만든다. 대상:
+- [x] **옛 흐름 호환 코드 제거**(PR #63) — 새 흐름은 PENDING 버전 행·저장 마커를 남기지 않는다. **배포된 설치처가 없으므로(2026-11-20) 기다리지 않고 지금 제거한다.** 남겨 두면 롤링 배포 중 옛 서버의 3분 만료 PENDING 이 좀비 시나리오(옛 서버가 원본 key 를 덮어씀)와 커밋 tx 안 S3 HEAD 를 다시 만든다. 대상:
   `DefaultResourceService.cleanVersionIfExists`, `DefaultResourceVersionService.cleanVersionIfExists/finalizeAfterStorageUpload/rollbackResourceVersionMetadata`, `StorageService.findSaveMarker`, `StorageConstants.SAVE_MARKER_METADATA_KEY`, `S3StorageServiceSaveMarkerTest`, `ResourceVersionStatus.PENDING·DELETE` 사용처, PENDING 만료 판정(`ResourceVersionRepository.existsAliveVersion/findExpiredVersion` 의 threshold)
   - 호출부: `DefaultResourceService` 의 `replaceWithVersioning`·`overwriteContent`·`deleteVersion`(커밋 tx 안). `existsAliveVersion` 이 3분 안 PENDING 이면 `VERSION_PROCESSING` 으로 거절하는 분기도 함께 정리
   - 완료 기준: 위 코드·테스트를 제거한 뒤 업로드·버전 관련 통합 테스트 통과, as-built 의 호환 코드 언급 정리

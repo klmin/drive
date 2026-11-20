@@ -21,7 +21,5 @@ public class StorageConstants {
     public static final long MIN_PART_SIZE = 5L * 1024 * 1024;
     /** UploadPartCopy 기본 파트 크기(512MiB) — 5TiB / 10,000 파트도 이 크기 안쪽이다 */
     public static final long DEFAULT_COPY_PART_SIZE = 512L * 1024 * 1024;
-    /** 버전 저장이 원본 키에 올린 내용의 저장 마커(사용자 메타데이터 키, x-amz-meta- 접두사 제외·소문자) — 값 = 그 저장의 버전 seq */
-    public static final String SAVE_MARKER_METADATA_KEY = "drive-version-seq";
     
 }

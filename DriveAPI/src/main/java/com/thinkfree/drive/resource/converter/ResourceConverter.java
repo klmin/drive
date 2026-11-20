@@ -53,16 +53,6 @@ public interface ResourceConverter {
     
     ResourceDeleteSeqListQuery toDeleteSeqListQuery(List<Long> resourceSeqList, Integer userSeq);
     
-    // 버전 저장 실패 롤백 — 저장 전 수정자·수정일(NULL 포함)을 그대로 복원
-    @Mapping(target = "restoreUpdateMetadata", constant = "true")
-    ResourceVersionRollbackQuery toVersionRollbackQuery(ResourceSaveResult result);
-    
-    @Mapping(target = "currentVersionNumber", source = "resourceVersion.versionNumber")
-    @Mapping(target = "versionRegisterDate", source = "resourceVersion.versionRegisterDate")
-    @Mapping(target = "latestOwnerSeq", source = "resourceVersion.ownerSeq")
-    @Mapping(target = "restoreUpdateMetadata", ignore = true)
-    ResourceVersionRollbackQuery toVersionRollbackQuery(ResourceVersionRowData resourceVersion);
-    
     @Mapping(target = "resourceSeq", source = "resource.resourceSeq")
     @Mapping(target = "userSeq", source = "resource.userSeq")
     @Mapping(target = "resourceVersionSeq", source = "resourceVersionSeq")

@@ -460,7 +460,7 @@ class DefaultResourceRepositoryTest extends RepositoryTest {
         }
 
         @Test
-        @DisplayName("버전 — 버전 갱신·현재 버전(관리 엔티티 변경 감지, W10)·rollbackResourceVersionData(<set> 조건)·overwrite/revertOverwrite(낙관적 조건)")
+        @DisplayName("버전 — 버전 갱신·현재 버전(관리 엔티티 변경 감지, W10)·overwrite/revertOverwrite(낙관적 조건)")
         void versions() {
             Resource f = file(ADMIN, "ver.txt", null, 10L, "txt");
             Instant vDate = DriveTime.toInstant(LocalDateTime.of(2026, 2, 2, 2, 2, 2));
@@ -476,23 +476,6 @@ class DefaultResourceRepositoryTest extends RepositoryTest {
             repository.flush();
             assertThat(col(f.getResourceSeq(), "current_version_number", Integer.class)).isEqualTo(1);
             assertThat(col(f.getResourceSeq(), "update_user_seq", Integer.class)).as("비면 컨텍스트 ADMIN").isEqualTo(ADMIN);
-
-            jdbc.update("UPDATE tb_resource SET update_user_seq = NULL, update_date = NULL WHERE resource_seq = ?", f.getResourceSeq());
-            assertThat(repository.rollbackResourceVersionData(ResourceVersionRollbackQuery.builder().resourceSeq(f.getResourceSeq()).userSeq(ADMIN).latestOwnerSeq(ADMIN)
-                    .currentVersionNumber(3).versionRegisterDate(vDate).sizeByte(5L).build())).isEqualTo(1);
-            assertThat(col(f.getResourceSeq(), "current_version_number", Integer.class)).isEqualTo(3);
-            assertThat(col(f.getResourceSeq(), "update_user_seq", Integer.class)).as("updateUserSeq null 이면 SET 안 함").isNull();
-            assertThat(repository.rollbackResourceVersionData(ResourceVersionRollbackQuery.builder().resourceSeq(f.getResourceSeq()).userSeq(ADMIN).latestOwnerSeq(ADMIN)
-                    .currentVersionNumber(3).versionRegisterDate(vDate).sizeByte(5L).updateUserSeq(SUPER_ADMIN).updateDate(vDate).build())).isEqualTo(1);
-            assertThat(col(f.getResourceSeq(), "update_user_seq", Integer.class)).isEqualTo(SUPER_ADMIN);
-            assertThat(repository.rollbackResourceVersionData(ResourceVersionRollbackQuery.builder().resourceSeq(f.getResourceSeq()).userSeq(ADMIN).latestOwnerSeq(ADMIN)
-                    .currentVersionNumber(3).versionRegisterDate(vDate).sizeByte(5L).restoreUpdateMetadata(true).build())).isEqualTo(1);
-            assertThat(col(f.getResourceSeq(), "update_user_seq", Integer.class)).as("저장 실패 롤백은 저장 전 NULL 도 그대로 복원").isNull();
-            assertThat(col(f.getResourceSeq(), "update_date", Object.class)).isNull();
-            assertThat(repository.rollbackResourceVersionData(ResourceVersionRollbackQuery.builder().resourceSeq(f.getResourceSeq()).userSeq(SUPER_ADMIN).latestOwnerSeq(ADMIN)
-                    .currentVersionNumber(9).versionRegisterDate(vDate).sizeByte(5L).build())).as("5차 패스 D5 — WHERE 에 파티션 키 user_seq, 다른 소유자는 0").isZero();
-            assertThat(repository.rollbackResourceVersionData(ResourceVersionRollbackQuery.builder().resourceSeq(f.getResourceSeq()).userSeq(ADMIN).latestOwnerSeq(ADMIN)
-                    .currentVersionNumber(3).versionRegisterDate(vDate).sizeByte(5L).updateUserSeq(SUPER_ADMIN).updateDate(vDate).build())).isEqualTo(1);
 
             Instant before = queryRepository.findDetail(find(f.getResourceSeq(), ADMIN, null, null)).getUpdateDate();
             String baseKey = col(f.getResourceSeq(), "resource_save_name", String.class);
@@ -666,17 +649,6 @@ class DefaultResourceRepositoryTest extends RepositoryTest {
             assertThat(col(d2f.getResourceSeq(), "update_user_seq", Integer.class)).isEqualTo(ADMIN);
             assertThat(col(dGone.getResourceSeq(), "is_delete", String.class)).as("delete_parent 가 다르면 복원 안 됨").isEqualTo("Y");
             assertThat(col(d.getResourceSeq(), "is_delete", String.class)).as("자기 행은 대상 아님(변경 감지)").isEqualTo("Y");
-
-            // 롤백(미완료 버전 정리) — 수정일만 있으면 수정자는 그대로
-            Resource v = file(ADMIN, "v.txt", null, 1L, "txt");
-            Instant vDate = DriveTime.toInstant(LocalDateTime.of(2026, 3, 3, 3, 3, 3));
-            jdbc.update("UPDATE tb_resource SET update_user_seq = 7 WHERE resource_seq = ?", v.getResourceSeq());
-            entityManager.clear();
-            assertThat(repository.rollbackResourceVersionData(ResourceVersionRollbackQuery.builder().resourceSeq(v.getResourceSeq()).userSeq(ADMIN).latestOwnerSeq(ADMIN)
-                    .currentVersionNumber(4).versionRegisterDate(vDate).sizeByte(8L).updateDate(vDate).build())).isEqualTo(1);
-            assertThat(col(v.getResourceSeq(), "update_user_seq", Integer.class)).isEqualTo(7);
-            assertThat(col(v.getResourceSeq(), "update_date", java.sql.Timestamp.class).toInstant()).isEqualTo(vDate);
-            assertThat(col(v.getResourceSeq(), "size_byte", Long.class)).isEqualTo(8L);
         }
 
         @Test

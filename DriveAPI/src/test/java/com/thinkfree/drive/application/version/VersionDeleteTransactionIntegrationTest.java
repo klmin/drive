@@ -139,9 +139,9 @@ class VersionDeleteTransactionIntegrationTest {
     // ------------------------------------------------------------------ 2-a
 
     @Test
-    @DisplayName("2-a 버전 삭제 첫 시도 일시 실패(VERSION_PROCESSING) — 새 트랜잭션으로 재시도해 성공(구: 합류 재시도 성공 → 커밋 UnexpectedRollbackException)")
+    @DisplayName("2-a 버전 삭제 첫 시도 일시 실패(UPDATE_FAIL) — 새 트랜잭션으로 재시도해 성공(구: 합류 재시도 성공 → 커밋 UnexpectedRollbackException)")
     void deleteVersion_transientFailure_retriesWholeTransaction() {
-        willThrow(ApiRuntimeException.type(ResourceVersionErrorCode.VERSION_PROCESSING)).willCallRealMethod()
+        willThrow(ApiRuntimeException.type(ResourceVersionErrorCode.UPDATE_FAIL)).willCallRealMethod()
                 .given(resourceService).deleteVersion(anyLong(), anyLong(), anyInt());
 
         versionUseCase.deleteVersion(resourceSeq, resourceVersionSeq, ADMIN);

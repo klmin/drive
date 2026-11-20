@@ -221,6 +221,6 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 - 앞단 프록시: 설정 안내는 `DriveInstaller/thinkfree/TFD/template/httpd/README.md`(본문 상한 1GiB·응답 대기 300초). 번들 Apache 외 프록시(nginx 기본 1MB 등)는 설치처가 맞춰야 하고, 안 맞추면 파트 PUT 이 413 으로 막힌다. Developers 저장소 k8s ingress 는 아직. 실제 MinIO·브라우저로 1GB 끊었다 이어 올리기는 아직 확인 안 함(업로더 로직은 가짜 서버 테스트만).
 - 커밋 tx 권한 재확인은 청크 업로드만(서버 내부 쓰기는 호출부 검사만 — 업로드가 짧고 세션에 익명·공유 링크 맥락이 없다), 매직바이트는 형식 계열만(텍스트·HTML·SVG 등은 내용으로 판별 불가 — 통과, 다운로드는 `attachment`·`nosniff` 로 막는다), 감사 로그 발행 시점은 호출부 그대로.
 - 청크 API 는 외부 API(`/api/public`, API Key)로 내보내지 않았다(내부 웹 API 만).
-- 옛 흐름 호환 코드 남음: `cleanVersionIfExists`(옛 PENDING 버전 정리, 저장 마커 조회 = tx 안 S3 HEAD), `ResourceRepository.revertOverwrite`(호출부 없음), 미사용 `uploadPartsFromStream`·`copyObjectAnySize`.
+- 호출부 없는 코드 남음: `ResourceRepository.revertOverwrite`, 미사용 `uploadPartsFromStream`·`copyObjectAnySize`. 옛 흐름 호환 코드(`cleanVersionIfExists`·저장 마커·PENDING 만료 판정·`VERSION_PROCESSING`)는 PR #63 에서 제거했다 — 버전 작업 커밋 tx 안에서 스토리지를 부르지 않는다.
 - Ceph·RustFS 계약 테스트 미실행(MinIO 만).
 - 지표(Micrometer) 없음.

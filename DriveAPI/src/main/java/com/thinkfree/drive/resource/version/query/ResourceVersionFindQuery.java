@@ -11,7 +11,6 @@ public class ResourceVersionFindQuery {
     private Long resourceVersionSeq;
     private Long resourceSeq;
     private Integer userSeq;
-    private Integer minute;
     private ResourceVersionStatus status;
 
 }

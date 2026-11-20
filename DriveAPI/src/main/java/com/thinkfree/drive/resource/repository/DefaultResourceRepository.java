@@ -109,8 +109,7 @@ public class DefaultResourceRepository implements ResourceRepository {
     }
 
     /**
-     * 버전 작업 전 미삭제 리소스 행 잠금 — {@code @Lock} JPQL 생성자 식(W10, 구 JdbcClient FOR UPDATE + 부분 엔티티). 값으로 돌려준다: 잠금 직후 같은 행을
-     * 벌크 JPQL 로 되돌리는 경로({@link #rollbackResourceVersionData} — 1차 캐시를 안 고침)가 있어 관리 엔티티로 쥐면 캐시가 옛 값이 된다. 고칠 엔티티는 그 뒤에 따로 로드한다.
+     * 버전 작업 전 미삭제 리소스 행 잠금 — {@code @Lock} JPQL 생성자 식(W10, 구 JdbcClient FOR UPDATE + 부분 엔티티). 값으로 돌려주고, 고칠 엔티티는 그 뒤에 따로 로드한다.
      * (구 (parent, name, type) 잠금 분기는 main 호출부가 전부 resourceSeq 를 넘겨 삭제 — W10 결정 K)
      */
     @Override
@@ -185,21 +184,6 @@ public class DefaultResourceRepository implements ResourceRepository {
     public int updateIsDeleteByFullPathSeq(ResourceDeleteStateQuery q) {
         return jpaRepository.updateIsDeleteByFullPathSeq(q.getUserSeq(), q.getResourceSeq(), q.getFullPathSeq(), q.getIsDelete(), Boolean.FALSE,
                 UpdateStamp.of(q.getUpdateUserSeq(), q.getUpdateDate()));
-    }
-
-    /**
-     * 버전 데이터 되돌리기(감사 보정 없음 — 넘어온 값 그대로).
-     * 저장 실패 롤백({@code restoreUpdateMetadata})은 수정자·수정일을 NULL 포함 저장 전 값으로 복원하고,
-     * 미완료 버전 정리는 값이 있을 때만 바꾼다(구 XML {@code <set>} — JPQL 은 coalesce).
-     */
-    @Override
-    public int rollbackResourceVersionData(ResourceVersionRollbackQuery q) {
-        if (q.isRestoreUpdateMetadata()) {
-            return jpaRepository.rollbackVersionDataRestoringUpdate(q.getUserSeq(), q.getResourceSeq(), q.getLatestOwnerSeq(), q.getCurrentVersionNumber(),
-                    q.getVersionRegisterDate(), q.getSizeByte(), q.getUpdateUserSeq(), q.getUpdateDate());
-        }
-        return jpaRepository.rollbackVersionData(q.getUserSeq(), q.getResourceSeq(), q.getLatestOwnerSeq(), q.getCurrentVersionNumber(),
-                q.getVersionRegisterDate(), q.getSizeByte(), q.getUpdateUserSeq(), q.getUpdateDate());
     }
 
     /** 폴더 이동/이름변경 후 하위 경로 치환 — full_path 는 항상, full_path_seq 는 새/옛 seq 경로가 둘 다 있을 때, user_seq 는 changeUserSeq 가 있을 때. 자기 행은 제외(자기는 변경 감지). */

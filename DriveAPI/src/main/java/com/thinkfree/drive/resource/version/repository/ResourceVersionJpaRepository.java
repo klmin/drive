@@ -8,7 +8,6 @@ import com.thinkfree.drive.resource.version.data.ResourceVersionWithResourceData
 import com.thinkfree.drive.resource.version.entity.ResourceVersion;
 import com.thinkfree.drive.resource.version.enums.ResourceVersionStatus;
 import jakarta.persistence.LockModeType;
-import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -16,7 +15,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -27,7 +25,6 @@ import java.util.Optional;
  * <p>
  * 조회는 DTO·스칼라(생성자 식)라 영속성 컨텍스트에 안 올린다 — 엔티티를 돌려주는 것은 고칠 행 로드 {@link #findByUserSeqAndResourceVersionSeq} 하나(관리 엔티티, W8).
  * 남은 UPDATE(번호 이동·소유자 이전 — 조건부 다건)는 리스너를 타지 않는 JPQL {@code @Modifying} 이라 감사 값은 호출부(Default 리포)가 {@link UpdateStamp}({@code JdbcAudit} 규칙)로 정해 넘기고 SpEL 로 꺼낸다.
- * 구 SQL 의 {@code NOW() ± make_interval(mins => …)} 는 애플리케이션 시각 기준 경계({@code threshold})로 바꿨다(register_date 도 애플리케이션 시각으로 들어간다).
  */
 interface ResourceVersionJpaRepository extends JpaRepository<ResourceVersion, Long> {
 
@@ -66,7 +63,7 @@ interface ResourceVersionJpaRepository extends JpaRepository<ResourceVersion, Lo
     Optional<ResourceVersionWithResourceData> findWithResource(@Param("resourceVersionSeq") Long resourceVersionSeq, @Param("resourceSeq") Long resourceSeq,
                                                                @Param("userSeq") Integer userSeq, @Param("status") ResourceVersionStatus status);
 
-    /** 버전 행 값 선택 머리 — 쓰기 흐름의 잠금·만료 판정 결과(엔티티를 영속성 컨텍스트에 올리지 않음 — detach 불필요, W8) */
+    /** 버전 행 값 선택 머리 — 쓰기 흐름의 잠금 결과(엔티티를 영속성 컨텍스트에 올리지 않음 — detach 불필요, W8) */
     String SELECT_ROW_DATA = "select new com.thinkfree.drive.resource.version.data.ResourceVersionRowData(v.resourceVersionSeq, v.userSeq, v.ownerSeq, v.resourceSeq, "
             + "v.resourceSaveName, v.versionNumber, v.sizeByte, v.status, v.versionRegisterDate, v.updateUserSeq, v.updateDate) from ResourceVersion v ";
 
@@ -74,17 +71,6 @@ interface ResourceVersionJpaRepository extends JpaRepository<ResourceVersion, Lo
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query(SELECT_ROW_DATA + "where v.userSeq = :userSeq and v.resourceSeq = :resourceSeq order by v.versionNumber")
     List<ResourceVersionRowData> lockAllByResource(@Param("userSeq") Integer userSeq, @Param("resourceSeq") Long resourceSeq);
-
-    /** 지정 상태가 아닌 버전이 threshold 이후 등록됐는지(업로드 처리 중 판정) */
-    @Transactional(readOnly = true)
-    @Query("select case when count(v) > 0 then true else false end from ResourceVersion v where v.resourceSeq = :resourceSeq and v.userSeq = :userSeq and v.status <> :status and v.registerDate >= :threshold")
-    boolean existsAlive(@Param("resourceSeq") Long resourceSeq, @Param("userSeq") Integer userSeq, @Param("status") ResourceVersionStatus status, @Param("threshold") Instant threshold);
-
-    /** 지정 상태로 threshold 전에 등록된 버전 중 version_number 가 가장 큰 것 */
-    @Transactional(readOnly = true)
-    @Query(SELECT_ROW_DATA + "where v.resourceSeq = :resourceSeq and v.userSeq = :userSeq and v.status = :status and v.registerDate < :threshold order by v.versionNumber desc")
-    List<ResourceVersionRowData> findExpired(@Param("resourceSeq") Long resourceSeq, @Param("userSeq") Integer userSeq, @Param("status") ResourceVersionStatus status, @Param("threshold") Instant threshold,
-                                      Limit limit);
 
     // ------------------------------------------------------------------ UPDATE
 

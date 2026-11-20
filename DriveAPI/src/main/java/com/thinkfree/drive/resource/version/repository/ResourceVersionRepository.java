@@ -7,7 +7,7 @@ import com.thinkfree.drive.resource.version.query.*;
 import java.util.List;
 
 /**
- * 쓰기 전용(Service 가 주입) + 쓰기 흐름 안의 읽기(잠금·처리 중/만료 판정·고칠 행 로드). 목록·단건 등 읽기는 {@link ResourceVersionQueryRepository}.
+ * 쓰기 전용(Service 가 주입) + 쓰기 흐름 안의 읽기(잠금·고칠 행 로드). 목록·단건 등 읽기는 {@link ResourceVersionQueryRepository}.
  * 단건 변경은 {@link #findByUserSeqAndResourceVersionSeq} 관리 엔티티 + {@link ResourceVersion} 변경 메서드(커밋 때 변경 감지 — W8). 잠금·판정 결과는 값({@link ResourceVersionRowData}).
  */
 public interface ResourceVersionRepository {
@@ -24,8 +24,6 @@ public interface ResourceVersionRepository {
     int decreaseAllVersionNumbers(ResourceVersionNumberQuery query);
     int temporaryVersionNumber(ResourceVersionNumberQuery query);
     int increaseAllVersionNumbers(ResourceVersionNumberQuery query);
-    ResourceVersionRowData findExpiredVersion(ResourceVersionFindQuery query);
-    boolean existsAliveVersion(ResourceVersionFindQuery query);
     int updateUserSeqForResource(ResourceVersionUserUpdateQuery query);
     int updateUserSeqForResources(ResourcesVersionUserUpdateQuery query);
     int deleteByUserSeqList(List<Integer> userSeqList);
