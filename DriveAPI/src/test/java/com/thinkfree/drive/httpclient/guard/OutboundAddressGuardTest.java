@@ -75,4 +75,22 @@ class OutboundAddressGuardTest {
                     .isInstanceOf(OutboundAddressGuard.BlockedAddressException.class);
         }
     }
+
+    @Nested
+    @DisplayName("resolveAllowed — 허용된 IP 만 남김(HTTP 연결용)")
+    class ResolveAllowed {
+        @org.junit.jupiter.api.Test
+        @DisplayName("localhost 가 127.0.0.1·::1 로 조회돼도 127.0.0.0/8 만 허용하면 IPv4 만 남기고 통과")
+        void keepsOnlyAllowedFamily() throws Exception {
+            var addresses = guard(true, "127.0.0.0/8").resolveAllowed("localhost");
+            org.assertj.core.api.Assertions.assertThat(addresses).isNotEmpty()
+                    .allSatisfy(a -> org.assertj.core.api.Assertions.assertThat(a.getHostAddress()).startsWith("127."));
+        }
+
+        @org.junit.jupiter.api.Test
+        @DisplayName("허용된 IP 가 하나도 없으면 차단")
+        void blocksWhenNoneAllowed() {
+            assertThatThrownBy(() -> guard(true).resolveAllowed("localhost")).isInstanceOf(OutboundAddressGuard.BlockedAddressException.class);
+        }
+    }
 }

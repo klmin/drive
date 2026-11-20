@@ -8,6 +8,7 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -36,7 +37,25 @@ public class OutboundAddressGuard {
         this.allowed = properties.allowedCidrs().stream().map(IpAddressMatcher::new).toList();
     }
 
-    /** 호스트를 DNS 조회해 모든 IP 를 검사한다. 하나라도 차단 대상이면 {@link BlockedAddressException}. */
+    /**
+     * 호스트를 DNS 조회해 허용된 IP 만 돌려준다 — HTTP 연결용({@link GuardedDnsResolver}). 돌려준 IP 로만 연결하므로 차단 대상 IP 는 걸러져도 안전하다.
+     * 호스트가 IPv4·IPv6 를 함께 가질 때(예: localhost → 127.0.0.1, ::1) 허용 대역에 한쪽만 넣어도 동작하게 하려는 것. 남는 IP 가 없으면 {@link BlockedAddressException}.
+     */
+    public InetAddress[] resolveAllowed(String host) throws UnknownHostException {
+        InetAddress[] addresses = InetAddress.getAllByName(host);
+        InetAddress[] allowedAddresses = Arrays.stream(addresses).filter(this::isAllowed).toArray(InetAddress[]::new);
+        if (allowedAddresses.length == 0) {
+            log.warn("[OutboundGuard] 내부 주소로의 요청 차단. host : {}, addresses : {}", host,
+                    Arrays.stream(addresses).map(InetAddress::getHostAddress).toList());
+            throw new BlockedAddressException(host);
+        }
+        return allowedAddresses;
+    }
+
+    /**
+     * 호스트를 DNS 조회해 모든 IP 를 검사한다. 하나라도 차단 대상이면 {@link BlockedAddressException}.
+     * 연결할 IP 를 고를 수 없는 경로(JavaMail 이 직접 DNS 를 다시 조회하는 SMTP)용 — 어느 IP 로 붙어도 안전해야 하므로 전부 허용이어야 한다.
+     */
     public InetAddress[] resolveAndVerify(String host) throws UnknownHostException {
         InetAddress[] addresses = InetAddress.getAllByName(host);
         for (InetAddress address : addresses) {
