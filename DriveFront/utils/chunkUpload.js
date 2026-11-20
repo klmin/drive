@@ -129,7 +129,11 @@ const startSession = async (file, target, signal) => {
         { signal }
     );
     const data = res?.data;
-    if (!data?.sessionId) throw toError(res, signal);
+    if (!data?.sessionId) {
+        const err = toError(res, signal);
+        if (err !== CANCELLED) err.atStart = true;
+        throw err;
+    }
     return {
         sessionId: data.sessionId,
         partSize: data.partSize,
@@ -153,13 +157,17 @@ const getSession = async (sessionId, signal) => {
     throw err;
 };
 
-/** 남은 세션이 이 파일과 맞고 아직 PENDING 이면 이어 올린다. 끝났거나 다른 파일이면 null(새로 시작). 조회 실패는 던진다 */
+/**
+ * 남은 세션으로 이어 갈 수 있는지.
+ * - PENDING 이고 이 파일과 맞으면 이어 올릴 계획
+ * - COMPLETING·COMPLETED 면 { finishing: true } — complete 를 이미 보냈다(새로고침 등). 새로 올리면 같은 파일이 두 번 저장되므로 결과만 기다린다
+ * - 끝났거나(FAILED·없음) 다른 파일이면 null(새로 시작). 조회 실패는 던진다
+ */
 const resumeSession = async (sessionId, file, signal) => {
     const s = await getSession(sessionId, signal);
-    if (!s || s.status !== 'PENDING' || s.size !== file.size || s.fileName !== file.name) {
-        return null;
-    }
-    if (!s.partSize || !s.partCount) return null;
+    if (!s || s.size !== file.size || s.fileName !== file.name) return null;
+    if (s.status === 'COMPLETING' || s.status === 'COMPLETED') return { finishing: true };
+    if (s.status !== 'PENDING' || !s.partSize || !s.partCount) return null;
     return {
         sessionId,
         partSize: s.partSize,
@@ -318,11 +326,24 @@ const isFinalRejection = e => e instanceof ChunkUploadError && e.status !== 0 &&
 export async function uploadInChunks(file, target, { signal, onProgress, onPartsSent } = {}) {
     const fingerprint = fingerprintOf(file, target);
     let plan = null;
+    // 이어 올리려던 세션 — 조회 도중 취소돼도(plan 이 아직 없다) 이 세션을 정리해야 한다
+    let resumingId = null;
+    // complete 를 이미 보낸 세션(새로고침 뒤 다시 고름) — 파트를 보내지 않고 결과만 기다린다
+    let finishingOnly = false;
     try {
         const saved = readStore()[fingerprint];
         if (saved?.sessionId) {
-            plan = await resumeSession(saved.sessionId, file, signal);
-            if (!plan) forgetSession(fingerprint);
+            resumingId = saved.sessionId;
+            const resumed = await resumeSession(saved.sessionId, file, signal);
+            if (resumed?.finishing) {
+                plan = { sessionId: saved.sessionId };
+                finishingOnly = true;
+            } else if (resumed) {
+                plan = resumed;
+            } else {
+                forgetSession(fingerprint);
+                resumingId = null;
+            }
         }
         if (signal?.aborted) throw CANCELLED;
         if (!plan) {
@@ -331,10 +352,12 @@ export async function uploadInChunks(file, target, { signal, onProgress, onParts
         }
         if (signal?.aborted) throw CANCELLED;
 
-        await uploadParts(file, plan, signal, onProgress);
+        if (!finishingOnly) await uploadParts(file, plan, signal, onProgress);
     } catch (e) {
         if (e === CANCELLED) {
-            if (plan) cancelSession(plan.sessionId);
+            // PENDING 이 아니면(이미 complete 중·끝남) 서버가 DELETE 를 무시하고 현재 상태로 답한다
+            const id = plan?.sessionId ?? resumingId;
+            if (id) cancelSession(id);
             forgetSession(fingerprint);
             return null;
         }
@@ -349,7 +372,9 @@ export async function uploadInChunks(file, target, { signal, onProgress, onParts
 
     onPartsSent?.();
     try {
-        const result = await completeSession(plan.sessionId);
+        const result = finishingOnly
+            ? await waitForCompletion(plan.sessionId)
+            : await completeSession(plan.sessionId);
         forgetSession(fingerprint);
         return result;
     } catch (e) {
@@ -360,6 +385,13 @@ export async function uploadInChunks(file, target, { signal, onProgress, onParts
         throw e;
     }
 }
+
+/**
+ * 서버가 세션 생성에서 "단일 요청 기준 미만"(400 UPLOAD_008)으로 거절했는지 — 설치처가
+ * `drive.upload.single-request-threshold` 를 CHUNK_UPLOAD_THRESHOLD 보다 크게 잡은 경우. 호출부는 단일 요청(POST /files)으로 보낸다.
+ */
+export const isBelowServerChunkThreshold = e =>
+    e instanceof ChunkUploadError && e.atStart === true && e.errorCode === 'UPLOAD_008';
 
 /** 내 진행 중(PENDING) 청크 업로드 목록 */
 export async function listPendingUploads() {

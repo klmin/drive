@@ -7,6 +7,8 @@ export const server = {
     completeConflictTimes: 0,
     putDelay: 0,
     failGet: 0, // 남은 상태 조회 실패 횟수(네트워크 오류)
+    getDelay: 0,
+    singleRequestThreshold: 0, // 이보다 작은 파일은 세션 생성 거절(400 UPLOAD_008)
 };
 
 const PART = 16 * 1024 * 1024;
@@ -17,6 +19,7 @@ const api = {
     Post: async (url, body) => {
         server.calls.push(['POST', url]);
         if (url === 'uploads') {
+            if (body.size < server.singleRequestThreshold) return err(400, 'UPLOAD_008');
             const id = `s${++seq}`;
             const partCount = Math.ceil(body.size / PART);
             server.sessions.set(id, {
@@ -81,7 +84,9 @@ const api = {
         return { status: 200 };
     },
 
-    Get: async url => {
+    Get: async (url, data) => {
+        if (server.getDelay) await new Promise(r => setTimeout(r, server.getDelay));
+        if (data?.signal?.aborted) return undefined;
         server.calls.push(['GET', url]);
         if (server.failGet > 0) {
             server.failGet--;

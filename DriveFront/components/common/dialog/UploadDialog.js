@@ -18,6 +18,7 @@ import { BaseTooltip } from '../tooltip/BaseTooltip';
 import {
     CHUNK_UPLOAD_THRESHOLD,
     ChunkUploadError,
+    isBelowServerChunkThreshold,
     listPendingUploads,
     uploadInChunks,
 } from '@/utils/chunkUpload';
@@ -86,7 +87,10 @@ const countFilesInSubtree = node => {
  * - 성공: { status: 201, data: { data: { resourceSeq, resourceName } } }
  * - 서버 거절: { status, errorCode }
  * - 취소·네트워크 실패: undefined (호출부가 cancelMapRef 로 둘을 구분)
+ * - 서버의 단일 요청 기준이 더 커서 청크 세션을 거절: USE_SINGLE_REQUEST (호출부가 POST /files 로 보낸다)
  */
+const USE_SINGLE_REQUEST = Symbol('USE_SINGLE_REQUEST');
+
 async function sendChunked(
     file,
     { parentPfs, currentSs, existingResourceSeq, saveType, signal, onProgress, onSent }
@@ -106,6 +110,7 @@ async function sendChunked(
         if (!result) return undefined;
         return { status: 201, data: { data: result } };
     } catch (e) {
+        if (isBelowServerChunkThreshold(e)) return USE_SINGLE_REQUEST;
         if (e instanceof ChunkUploadError && e.status) {
             return { status: e.status, errorCode: e.errorCode };
         }
@@ -609,7 +614,7 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                 updateStatus(node.id, undefined, UPLOAD_STATUS.UPLOADING, undefined, url, query);
             };
 
-            const res =
+            let res =
                 fileToSend.size >= CHUNK_UPLOAD_THRESHOLD
                     ? await sendChunked(fileToSend, {
                           parentPfs,
@@ -618,21 +623,24 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                           onProgress: (loaded, total) => updateProgress(node.id, loaded, total),
                           onSent: markSent,
                       })
-                    : await api.PostForm(
-                          'files',
-                          {
-                              file: fileToSend,
-                              pfs: parentPfs,
-                              ss: currentSs || undefined,
-                          },
-                          {
-                              signal: controller.signal,
-                              onUploadProgress: event => {
-                                  if (!event) return;
-                                  if (event.total && event.loaded >= event.total) markSent();
-                              },
-                          }
-                      );
+                    : USE_SINGLE_REQUEST;
+            if (res === USE_SINGLE_REQUEST) {
+                res = await api.PostForm(
+                    'files',
+                    {
+                        file: fileToSend,
+                        pfs: parentPfs,
+                        ss: currentSs || undefined,
+                    },
+                    {
+                        signal: controller.signal,
+                        onUploadProgress: event => {
+                            if (!event) return;
+                            if (event.total && event.loaded >= event.total) markSent();
+                        },
+                    }
+                );
+            }
 
             if (res?.status === 201) {
                 const uploadName = res?.data?.data?.resourceName;
@@ -951,7 +959,7 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                         );
                     };
 
-                    const res =
+                    let res =
                         fileToSend.size >= CHUNK_UPLOAD_THRESHOLD
                             ? await sendChunked(fileToSend, {
                                   parentPfs,
@@ -963,27 +971,30 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                                       updateProgress(node.id, loaded, total),
                                   onSent: markSent,
                               })
-                            : await api.PostForm(
-                                  'files',
-                                  {
-                                      file: fileToSend,
-                                      pfs: parentPfs,
-                                      ss: currentSs || undefined,
-                                      ...(existingResourceSeq && {
-                                          rs: existingResourceSeq,
-                                          st: saveType,
-                                      }),
-                                  },
-                                  {
-                                      signal: controller.signal,
-                                      onUploadProgress: event => {
-                                          if (!event) return;
-                                          if (event.total && event.loaded >= event.total) {
-                                              markSent();
-                                          }
-                                      },
-                                  }
-                              );
+                            : USE_SINGLE_REQUEST;
+                    if (res === USE_SINGLE_REQUEST) {
+                        res = await api.PostForm(
+                            'files',
+                            {
+                                file: fileToSend,
+                                pfs: parentPfs,
+                                ss: currentSs || undefined,
+                                ...(existingResourceSeq && {
+                                    rs: existingResourceSeq,
+                                    st: saveType,
+                                }),
+                            },
+                            {
+                                signal: controller.signal,
+                                onUploadProgress: event => {
+                                    if (!event) return;
+                                    if (event.total && event.loaded >= event.total) {
+                                        markSent();
+                                    }
+                                },
+                            }
+                        );
+                    }
 
                     if (res?.status === 201) {
                         const uploadName = res?.data?.data?.resourceName;

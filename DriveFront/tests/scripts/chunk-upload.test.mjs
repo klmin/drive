@@ -11,7 +11,9 @@ globalThis.window = {
     localStorage: { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) },
 };
 const { server } = await import('./chunk-upload/fakeApi.mjs');
-const { uploadInChunks, ChunkUploadError } = await import('@/utils/chunkUpload');
+const { uploadInChunks, ChunkUploadError, isBelowServerChunkThreshold } = await import(
+    '@/utils/chunkUpload'
+);
 
 const MB = 1024 * 1024;
 const mkFile = (mb, name) => new File([new Uint8Array(mb * MB)], name, { lastModified: 1 });
@@ -27,6 +29,8 @@ beforeEach(() => {
     server.completeConflictTimes = 0;
     server.putDelay = 0;
     server.failGet = 0;
+    server.getDelay = 0;
+    server.singleRequestThreshold = 0;
     store.clear(); // 앞 테스트가 남긴 이어 올리기 지문이 saved() 단언을 흐리지 않게
 });
 
@@ -196,4 +200,62 @@ test('토큰 재발급 뒤 api.Post 가 Axios 응답 전체를 돌려줘도 세�
     } finally {
         api.Post = original;
     }
+});
+
+test('이어 올리기 상태 조회 중 취소해도 남은 세션을 DELETE 로 정리한다', async () => {
+    const f = mkFile(40, 'cancel-resume.bin');
+    server.failPut.set(1, 10);
+    await assert.rejects(uploadInChunks(f, target));
+    server.failPut.clear();
+    server.calls = [];
+
+    server.getDelay = 30;
+    const ac = new AbortController();
+    const p = uploadInChunks(f, target, { signal: ac.signal });
+    setTimeout(() => ac.abort(), 10);
+    assert.equal(await p, null);
+    assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 1);
+    const session = [...server.sessions.values()].find(s => s.fileName === 'cancel-resume.bin');
+    assert.equal(session.status, 'FAILED');
+    assert.equal(saved(), 0);
+});
+
+test('complete 를 이미 보낸 세션(COMPLETING)을 다시 고르면 새로 올리지 않고 결과를 기다린다', async () => {
+    const f = mkFile(40, 'finishing.bin');
+    server.failPut.set(1, 10);
+    await assert.rejects(uploadInChunks(f, target));
+    server.failPut.clear();
+    // 새로고침 전에 나머지 파트를 다 보내고 complete 를 보냈다고 치자
+    const session = [...server.sessions.values()].find(s => s.fileName === 'finishing.bin');
+    session.parts
+        .set(1, 16 * MB)
+        .set(2, 16 * MB)
+        .set(3, 8 * MB);
+    session.status = 'COMPLETING';
+    setTimeout(() => {
+        session.status = 'COMPLETED';
+    }, 50);
+    server.calls = [];
+
+    let sent = 0;
+    const r = await uploadInChunks(f, target, { onPartsSent: () => sent++ });
+    assert.equal(r.resourceSeq, 99);
+    assert.equal(starts(), 0, '새 세션 없음');
+    assert.deepEqual(puts(), [], '파트 다시 안 보냄');
+    assert.equal(
+        server.calls.filter(c => c[0] === 'POST' && String(c[1]).endsWith('complete')).length,
+        0
+    );
+    assert.equal(sent, 1, '취소 불가 상태로 표시');
+    assert.equal(saved(), 0);
+});
+
+test('서버의 단일 요청 기준이 더 크면(설정) 세션 생성 거절을 단일 요청 전환 신호로 알려 준다', async () => {
+    server.singleRequestThreshold = 64 * MB;
+    await assert.rejects(uploadInChunks(mkFile(40, 'mid.bin'), target), e =>
+        isBelowServerChunkThreshold(e)
+    );
+    assert.equal(saved(), 0);
+    // 파트 PUT 의 UPLOAD_008(번호·크기 오류)은 전환 신호가 아니다
+    assert.equal(isBelowServerChunkThreshold(new ChunkUploadError(400, 'UPLOAD_008')), false);
 });
