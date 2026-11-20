@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.http.MediaType;
-import org.springframework.http.MediaTypeFactory;
+import org.apache.tika.Tika;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -63,6 +63,8 @@ public class UploadSessionWriter {
 
     /** 커밋 tx 재시도 횟수(첫 시도 포함) */
     static final int COMMIT_ATTEMPTS = 3;
+    /** 확장자 → MIME 사전 조회만(내용 감지 아님) — 파사드는 스레드 세이프 */
+    private static final Tika CONTENT_TYPES = new Tika();
     /** 테넌트 없는 사용자의 key 접두 */
     static final String NO_TENANT_PREFIX = "0";
 
@@ -122,9 +124,9 @@ public class UploadSessionWriter {
      */
     public OpenedSession open(FileUploadDto requested, int requestUserSeq, Long partSize, Integer partCount) {
         UploadSaveType saveType = saveTypeOf(requested);
-        // Content-Type 이 없는 요청(파일 파트 헤더 누락·청크 API)도 받는다 — 세션·스토리지·리소스 행에 같은 값
+        // Content-Type 은 클라이언트 값을 버리고 서버가 확장자로 정한다(규칙 3) — 세션·스토리지·리소스 행에 같은 값
         FileUploadDto dto = requested.toBuilder()
-                .contentType(resolveContentType(requested.getContentType(), requested.getOriginalFileName()))
+                .contentType(resolveContentType(effectiveName(saveType, requested)))
                 .build();
         int userSeq = dto.getUserSeq();
         Integer tenantSeq = userFindService.findTenantSeqByUserSeq(userSeq);
@@ -189,7 +191,7 @@ public class UploadSessionWriter {
             }
             // 매직바이트(규칙 3) — 사용자가 올린 내용만. 복사·복원(StorageCopy)은 이미 저장소에 있던 내용이라 건너뛴다
             if (!(session.dto().resolveContentSource() instanceof FileContentSource.StorageCopy)) {
-                uploadContentInspector.verify(session.key(), inspectionName(session), size);
+                uploadContentInspector.verify(session.key(), effectiveName(session.saveType(), session.dto()), size);
             }
             return commitWithRetry(session.saveType(), session.id(), session.key(), session.baseStorageKey(), session.dto(), requestUserSeq,
                                    recheckActor);
@@ -199,13 +201,12 @@ public class UploadSessionWriter {
     }
 
     /**
-     * 매직바이트 검사에서 확장자로 쓸 이름 — 신규는 업로드한 파일명, 버전 저장·덮어쓰기는 대상 파일의 확장자.
-     * 기존 파일 갱신은 대상의 이름·확장자를 그대로 두고 내용만 바꾸므로, 업로드한 이름(photo.png)으로 보면 report.pdf 에
-     * PNG 내용이 들어가는 위장을 놓친다. 대상 확장자를 모르면 업로드한 이름으로 본다.
+     * 저장될 파일의 확장자를 담은 이름 — Content-Type 결정과 매직바이트 검사가 쓴다. 신규는 업로드한 파일명,
+     * 버전 저장·덮어쓰기·복원은 대상 파일의 확장자. 기존 파일 갱신은 대상의 이름·확장자를 그대로 두고 내용만 바꾸므로,
+     * 업로드한 이름(photo.png)으로 보면 report.pdf 에 PNG 내용·image/png 가 들어간다. 대상 확장자를 모르면 업로드한 이름.
      */
-    private String inspectionName(OpenedSession session) {
-        FileUploadDto dto = session.dto();
-        if (session.saveType() == UploadSaveType.VERSION || session.saveType() == UploadSaveType.OVERWRITE) {
+    private String effectiveName(UploadSaveType saveType, FileUploadDto dto) {
+        if (saveType == UploadSaveType.VERSION || saveType == UploadSaveType.OVERWRITE || saveType == UploadSaveType.RESTORE) {
             var ext = uploadLockRepository.findFileExt(dto.getUserSeq(), dto.getResourceSeq());
             if (ext.isPresent()) {
                 return "target." + ext.get();
@@ -308,14 +309,16 @@ public class UploadSessionWriter {
         return uploadId;
     }
 
-    /** 서버가 정하는 Content-Type(규칙 3) — 클라이언트 값이 없으면 파일명 확장자로, 그것도 모르면 application/octet-stream. */
-    static String resolveContentType(String declared, String fileName) {
-        if (StringUtils.hasText(declared)) {
-            return declared;
+    /**
+     * 서버가 정하는 Content-Type(규칙 3) — 클라이언트가 보낸 값은 쓰지 않고 파일명 확장자로만(Tika 확장자 사전 — MCP 업로드·
+     * 매직바이트 검사와 같은 사전). 모르는 확장자·확장자 없음은 application/octet-stream. 다운로드는 attachment·nosniff 라
+     * 이 값으로 브라우저가 내용을 실행하지 않지만, 클라이언트가 text/html 같은 값을 붙여 저장하는 길을 닫는다.
+     */
+    static String resolveContentType(String fileName) {
+        if (!StringUtils.hasText(fileName)) {
+            return MediaType.APPLICATION_OCTET_STREAM_VALUE;
         }
-        return MediaTypeFactory.getMediaType(fileName == null ? "" : fileName)
-                               .map(MediaType::toString)
-                               .orElse(MediaType.APPLICATION_OCTET_STREAM_VALUE);
+        return CONTENT_TYPES.detect(fileName);
     }
 
     private static InputStream open(FileContentSource source, long declaredSize) throws IOException {

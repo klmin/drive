@@ -190,21 +190,39 @@ class UploadSessionWriterTest {
     }
 
     @Test
-    @DisplayName("Content-Type 이 없으면 확장자로, 모르면 application/octet-stream — 세션·스토리지·커밋에 같은 값")
+    @DisplayName("Content-Type 은 클라이언트 값을 버리고 서버가 확장자로(규칙 3), 모르면 application/octet-stream — 세션·스토리지·커밋에 같은 값")
     void contentTypeResolved() {
-        assertThat(UploadSessionWriter.resolveContentType(null, "report.pdf")).isEqualTo("application/pdf");
-        assertThat(UploadSessionWriter.resolveContentType(" ", "noext")).isEqualTo("application/octet-stream");
-        assertThat(UploadSessionWriter.resolveContentType("text/plain", "a.pdf")).isEqualTo("text/plain");
+        assertThat(UploadSessionWriter.resolveContentType("report.pdf")).isEqualTo("application/pdf");
+        assertThat(UploadSessionWriter.resolveContentType("Photo.JPG")).isEqualTo("image/jpeg");
+        assertThat(UploadSessionWriter.resolveContentType("noext")).isEqualTo("application/octet-stream");
+        assertThat(UploadSessionWriter.resolveContentType(" ")).isEqualTo("application/octet-stream");
+        assertThat(UploadSessionWriter.resolveContentType(null)).isEqualTo("application/octet-stream");
 
         given(storage.headContentLength(KEY)).willReturn(10L);
         given(commit.commitDuplicate(any(), any(), any(), anyInt(), any())).willReturn(saved);
-        var dto = streamDto(10).toBuilder().contentType(null).originalFileName("report.pdf").build();
+        // 클라이언트가 text/html 을 붙여 보내도 저장되는 값은 확장자(pdf) 기준
+        var dto = streamDto(10).toBuilder().contentType("text/html").originalFileName("report.pdf").build();
 
         writer.write(dto, USER);
 
         verify(tx).create(Mockito.argThat(q -> "application/pdf".equals(q.contentType())));
         verify(storage).putObject(eq(KEY), eq("application/pdf"), any(), eq(10L));
         verify(commit).commitDuplicate(eq(ID), eq(KEY), Mockito.argThat(d -> "application/pdf".equals(d.getContentType())), eq(USER), Mockito.isNull());
+    }
+
+    @Test
+    @DisplayName("버전 저장 Content-Type 은 대상 파일 확장자로 — report.pdf 에 photo.png(image/png)를 올려도 application/pdf")
+    void versionContentTypeFollowsTarget() {
+        given(storage.headContentLength(KEY)).willReturn(10L);
+        given(commit.commitVersion(any(), any(), any(), anyInt(), any())).willReturn(saved);
+        given(locks.findFileExt(USER, 55L)).willReturn(Optional.of("pdf"));
+        var dto = typed(ResourceSaveType.VERSION, new FileContentSource.Stream(new FileData("image/png", new ByteArrayInputStream(new byte[10]), 10)), 10)
+                .toBuilder().contentType("image/png").originalFileName("photo.png").build();
+
+        writer.write(dto, USER);
+
+        verify(tx).create(Mockito.argThat(q -> "application/pdf".equals(q.contentType())));
+        verify(commit).commitVersion(eq(ID), eq(KEY), Mockito.argThat(d -> "application/pdf".equals(d.getContentType())), eq(USER), Mockito.isNull());
     }
 
     @Test
