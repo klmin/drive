@@ -66,7 +66,7 @@ public class McpRequestLoggingFilter extends OncePerRequestFilter {
                     LogSafe.of(request.getRequestURI()),
                     LogSafe.of(request.getHeader(HttpHeaders.ACCEPT)),
                     LogSafe.of(request.getHeader("Mcp-Session-Id")),
-                    authorization == null ? "(none)" : maskCredential(authorization));
+                    authorization == null ? "(none)" : LogSafe.of(maskCredential(authorization)));
             chain.doFilter(request, response);
             log.info("Response [MCP] {} {} -> status={}", request.getMethod(), LogSafe.of(request.getRequestURI()), response.getStatus());
             return;
@@ -79,7 +79,7 @@ public class McpRequestLoggingFilter extends OncePerRequestFilter {
                 LogSafe.of(request.getRequestURI()),
                 LogSafe.of(request.getHeader(HttpHeaders.ACCEPT)),
                 LogSafe.of(request.getHeader("Mcp-Session-Id")),
-                authorization == null ? "(none)" : maskCredential(authorization),
+                authorization == null ? "(none)" : LogSafe.of(maskCredential(authorization)),
                 LogSafe.of(summarizeJsonRpc(requestBody)),
                 requestBody.length == 0 ? "" : " | body=" + LogSafe.of(new String(requestBody, StandardCharsets.UTF_8)));
 
