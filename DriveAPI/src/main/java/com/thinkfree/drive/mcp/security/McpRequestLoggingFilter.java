@@ -33,7 +33,8 @@ import java.nio.charset.StandardCharsets;
 /**
  * /mcp 요청 관측용 임시 필터 (인증 없음, 로깅만).
  *
- * 요청/응답 각각 로그 한 줄씩만 남긴다 — 바디가 있으면 그 줄에 포함하고,
+ * 요청/응답 각각 로그 한 줄씩만 남긴다. 바디는 업로드 파일 내용·문서 본문 같은 민감정보를 담을 수 있어
+ * DEBUG 레벨에서만 그 줄에 포함하고(INFO 는 JSON-RPC 메서드 요약만),
  * 없으면 바디 없이 찍는다.
  *
  * 요청 바디를 진입 시점 로그에 포함해야 하므로 본문을 미리 읽어 캐시하는
@@ -81,7 +82,7 @@ public class McpRequestLoggingFilter extends OncePerRequestFilter {
                 LogSafe.of(request.getHeader("Mcp-Session-Id")),
                 authorization == null ? "(none)" : LogSafe.of(maskCredential(authorization)),
                 LogSafe.of(summarizeJsonRpc(requestBody)),
-                requestBody.length == 0 ? "" : " | body=" + LogSafe.of(new String(requestBody, StandardCharsets.UTF_8)));
+                requestBody.length == 0 || !log.isDebugEnabled() ? "" : " | body=" + LogSafe.of(new String(requestBody, StandardCharsets.UTF_8)));
 
         TeeResponseWrapper teeResponse = new TeeResponseWrapper(response);
 
@@ -131,7 +132,7 @@ public class McpRequestLoggingFilter extends OncePerRequestFilter {
                 response.getStatus(),
                 LogSafe.of(sessionId),
                 response.getContentType(),
-                responseBody == null ? "" : " | body=" + LogSafe.of(responseBody));
+                responseBody == null || !log.isDebugEnabled() ? "" : " | body=" + LogSafe.of(responseBody));
     }
 
     private String summarizeJsonRpc(byte[] body) {

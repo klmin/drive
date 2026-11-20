@@ -109,7 +109,7 @@ export default function FileNameDialog({ open, onClose, ...props }) {
             }
             showSnackbar(t('common.toast.changeSuccess'), 'success');
             onClose();
-        } else if (res?.status === 423) {
+        } else if (res?.code === 423) {
             showSnackbar(t('lock.locked'), 'error');
             onClose();
         } else if (res?.errorCode === 'RESOURCE_006') {

@@ -242,7 +242,7 @@ const ContextMenuItems = ({
 
                     if (res?.status === 200) {
                         showSnackbar(t(T.MOVE_TO_TRASH_SUCCESS), 'success');
-                    } else if (res?.status === 423) {
+                    } else if (res?.code === 423) {
                         showSnackbar(t(T.LOCKED), 'error');
                     } else {
                         showSnackbar(t(T.MOVE_TO_TRASH_FAIL), 'error');

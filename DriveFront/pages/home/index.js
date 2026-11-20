@@ -146,7 +146,7 @@ export default function Home() {
                           });
                 if (res?.status === 200) {
                     showSnackbar(t('moveToTrash.success'), 'success');
-                } else if (res?.status === 423) {
+                } else if (res?.code === 423) {
                     showSnackbar(t('lock.locked'), 'error');
                 } else {
                     showSnackbar(t('moveToTrash.fail'), 'error');

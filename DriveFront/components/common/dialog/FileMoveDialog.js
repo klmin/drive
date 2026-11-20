@@ -236,10 +236,10 @@ export default function FileMoveDialog({ open, onClose, ...props }) {
                     if (res?.code === 200) {
                         successCount++;
                         movedItems.push(i);
-                    } else if (res?.status === 423) {
+                    } else if (res?.code === 423) {
                         failCount++;
                         lockedCount++;
-                    } else if (res?.status === 400 && res?.errorCode === 'QUOTA_003') {
+                    } else if (res?.errorCode === 'QUOTA_003') {
                         quotaExceededCount++;
                         failCount++;
                     } else {
