@@ -30,6 +30,7 @@ beforeEach(() => {
     server.putDelay = 0;
     server.failGet = 0;
     server.getDelay = 0;
+    server.startResponseDelay = 0;
     server.singleRequestThreshold = 0;
     store.clear(); // 앞 테스트가 남긴 이어 올리기 지문이 saved() 단언을 흐리지 않게
 });
@@ -258,4 +259,32 @@ test('서버의 단일 요청 기준이 더 크면(설정) 세션 생성 거절�
     assert.equal(saved(), 0);
     // 파트 PUT 의 UPLOAD_008(번호·크기 오류)은 전환 신호가 아니다
     assert.equal(isBelowServerChunkThreshold(new ChunkUploadError(400, 'UPLOAD_008')), false);
+});
+
+test('세션 생성 응답 전에 취소해도 만들어진 세션을 받아 DELETE 로 정리한다', async () => {
+    server.startResponseDelay = 30;
+    const ac = new AbortController();
+    const p = uploadInChunks(mkFile(40, 'cancel-start.bin'), target, { signal: ac.signal });
+    setTimeout(() => ac.abort(), 10);
+    assert.equal(await p, null);
+    assert.deepEqual(puts(), []);
+    assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 1);
+    const session = [...server.sessions.values()].find(s => s.fileName === 'cancel-start.bin');
+    assert.equal(session.status, 'FAILED');
+});
+
+test('이어 올리기 기록은 계정별 — 다른 계정이 같은 파일을 올려도 원래 계정의 세션을 지우지 않는다', async () => {
+    const f = mkFile(40, 'shared-browser.bin');
+    server.failPut.set(1, 10);
+    await assert.rejects(uploadInChunks(f, { ...target, accountKey: 101 }));
+    server.failPut.clear();
+    server.calls = [];
+
+    await uploadInChunks(f, { ...target, accountKey: 202 });
+    assert.equal(starts(), 1, '다른 계정은 자기 세션을 새로 만든다');
+    assert.equal(server.calls.filter(c => c[0] === 'GET').length, 0, '남의 세션을 조회하지 않는다');
+
+    server.calls = [];
+    await uploadInChunks(f, { ...target, accountKey: 101 });
+    assert.equal(starts(), 0, '원래 계정은 자기 세션으로 이어 올린다');
 });

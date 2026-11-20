@@ -82,9 +82,14 @@ const forgetSession = fingerprint => {
     }
 };
 
-/** 같은 파일·같은 대상이면 같은 지문 — 다른 위치로 올리는 같은 파일은 다른 세션 */
+/**
+ * 같은 계정·같은 파일·같은 대상이면 같은 지문 — 다른 위치로 올리는 같은 파일은 다른 세션.
+ * 계정(로그인 userSeq, 테넌트 간에도 유일)을 넣는 이유: PATH 모드에선 여러 테넌트·계정이 같은 origin 의 localStorage 를
+ * 함께 쓰므로, 빼면 다른 계정이 남의 세션 ID 를 읽고(서버는 404) 지워 버려 원래 계정이 이어 올리지 못한다.
+ */
 const fingerprintOf = (file, target) =>
     [
+        target.accountKey ?? '',
         file.name,
         file.size,
         file.lastModified,
@@ -115,23 +120,23 @@ const postBody = async (url, body, config) => {
     return isAxiosResponse ? res.data : res;
 };
 
-const startSession = async (file, target, signal) => {
-    const res = await postBody(
-        'uploads',
-        {
-            sharedByUserSeq: target.sharedByUserSeq ?? undefined,
-            parentFolderSeq: target.parentFolderSeq ?? undefined,
-            resourceSeq: target.resourceSeq ?? undefined,
-            saveType: target.saveType ?? undefined,
-            fileName: file.name,
-            size: file.size,
-        },
-        { signal }
-    );
+/**
+ * 세션 생성 — 사용자 취소로 요청을 끊지 않는다(signal 을 넘기지 않음). 서버가 세션을 만든 뒤 응답 전에 끊으면
+ * ID 를 몰라 정리하지 못하므로, 응답을 받은 다음 호출부가 취소 여부를 보고 DELETE 한다.
+ */
+const startSession = async (file, target) => {
+    const res = await postBody('uploads', {
+        sharedByUserSeq: target.sharedByUserSeq ?? undefined,
+        parentFolderSeq: target.parentFolderSeq ?? undefined,
+        resourceSeq: target.resourceSeq ?? undefined,
+        saveType: target.saveType ?? undefined,
+        fileName: file.name,
+        size: file.size,
+    });
     const data = res?.data;
     if (!data?.sessionId) {
-        const err = toError(res, signal);
-        if (err !== CANCELLED) err.atStart = true;
+        const err = toError(res);
+        err.atStart = true;
         throw err;
     }
     return {
@@ -317,7 +322,8 @@ const isFinalRejection = e => e instanceof ChunkUploadError && e.status !== 0 &&
  * 파일 하나를 청크로 올린다.
  *
  * @param {File} file
- * @param {{parentFolderSeq?: number, resourceSeq?: number, saveType?: 'DUPLICATE'|'VERSION'|'OVERWRITE', sharedByUserSeq?: number}} target
+ * @param {{accountKey?: string|number, parentFolderSeq?: number, resourceSeq?: number, saveType?: 'DUPLICATE'|'VERSION'|'OVERWRITE', sharedByUserSeq?: number}} target
+ *   accountKey: 로그인 사용자(userSeq) — 이어 올리기 지문을 계정별로 나눈다
  * @param {{signal?: AbortSignal, onProgress?: (loaded:number, total:number) => void, onPartsSent?: () => void}} options
  *   onPartsSent: 모든 파트 전송이 끝나 complete 를 보내기 직전 — 이 뒤로는 취소할 수 없다
  * @returns {Promise<{resourceSeq:number, resourceName:string} | null>} 취소되면 null
@@ -347,7 +353,7 @@ export async function uploadInChunks(file, target, { signal, onProgress, onParts
         }
         if (signal?.aborted) throw CANCELLED;
         if (!plan) {
-            plan = await startSession(file, target, signal);
+            plan = await startSession(file, target);
             rememberSession(fingerprint, plan.sessionId);
         }
         if (signal?.aborted) throw CANCELLED;

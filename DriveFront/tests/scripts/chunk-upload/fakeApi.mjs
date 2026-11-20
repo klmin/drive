@@ -8,6 +8,7 @@ export const server = {
     putDelay: 0,
     failGet: 0, // 남은 상태 조회 실패 횟수(네트워크 오류)
     getDelay: 0,
+    startResponseDelay: 0,
     singleRequestThreshold: 0, // 이보다 작은 파일은 세션 생성 거절(400 UPLOAD_008)
 };
 
@@ -32,6 +33,9 @@ const api = {
                 parts: new Map(),
                 body,
             });
+            // 세션은 만들어졌고 응답만 늦게 온다(그 사이 사용자 취소)
+            if (server.startResponseDelay)
+                await new Promise(r => setTimeout(r, server.startResponseDelay));
             return {
                 code: 201,
                 data: { sessionId: id, partSize: PART, partCount, maxConcurrentParts: 4 },

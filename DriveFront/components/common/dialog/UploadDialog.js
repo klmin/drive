@@ -93,12 +93,13 @@ const USE_SINGLE_REQUEST = Symbol('USE_SINGLE_REQUEST');
 
 async function sendChunked(
     file,
-    { parentPfs, currentSs, existingResourceSeq, saveType, signal, onProgress, onSent }
+    { accountKey, parentPfs, currentSs, existingResourceSeq, saveType, signal, onProgress, onSent }
 ) {
     try {
         const result = await uploadInChunks(
             file,
             {
+                accountKey,
                 parentFolderSeq: parentPfs ?? undefined,
                 resourceSeq: existingResourceSeq ?? undefined,
                 saveType:
@@ -617,6 +618,7 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
             let res =
                 fileToSend.size >= CHUNK_UPLOAD_THRESHOLD
                     ? await sendChunked(fileToSend, {
+                          accountKey: user?.userSeq,
                           parentPfs,
                           currentSs,
                           signal: controller.signal,
@@ -962,6 +964,7 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                     let res =
                         fileToSend.size >= CHUNK_UPLOAD_THRESHOLD
                             ? await sendChunked(fileToSend, {
+                                  accountKey: user?.userSeq,
                                   parentPfs,
                                   currentSs,
                                   existingResourceSeq,
