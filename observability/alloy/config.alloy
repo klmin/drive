@@ -73,6 +73,8 @@ prometheus.exporter.postgres "drive" {
   // wal 수집기는 pg_ls_waldir 권한(pg_monitor)이 필요하다 — 앱 계정으로 붙으면 30초마다 권한 오류. 일반 계정으로 되는 것만 켠다
   //   pg_monitor 역할을 준 전용 계정이면 "wal" 을 더해도 된다
   enabled_collectors = ["database", "locks", "replication", "replication_slot", "stat_bgwriter", "stat_database", "stat_user_tables", "statio_user_tables"]
+  // 앱 테이블에서 읽는 "지금 상태" 지표(진행 중 업로드 세션·스토리지 정리 대기열) — pg-queries.yaml
+  custom_queries_config_path = "/etc/alloy/pg-queries.yaml"
 }
 
 discovery.relabel "postgres" {
@@ -95,6 +97,7 @@ prometheus.scrape "postgres" {
 prometheus.exporter.postgres "loadtest" {
   data_source_names  = ["postgresql://drive_load:drive_load_pw@loadtest-db:5432/drive_load?sslmode=disable"]
   enabled_collectors = ["database", "locks", "stat_bgwriter", "stat_database", "stat_user_tables", "statio_user_tables"]
+  custom_queries_config_path = "/etc/alloy/pg-queries.yaml"
 }
 
 discovery.relabel "postgres_loadtest" {

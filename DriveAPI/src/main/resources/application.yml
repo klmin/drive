@@ -111,6 +111,12 @@ management:
       # 응답 시간 분포(histogram) — Grafana 에서 p95·p99 계산, 점(exemplar)에서 트레이스로 이동
       percentiles-histogram:
         http.server.requests: true
+        # S3 호출(S3ObservationInterceptor) — operation 별 p95. 구간 수를 줄이려고 범위를 1ms~2분으로 좁힌다
+        aws.s3.client: true
+      minimum-expected-value:
+        aws.s3.client: 1ms
+      maximum-expected-value:
+        aws.s3.client: 2m
   observations:
     enable:
       # Spring Security 필터 체인 구간(인증·인가 단계별 span) — 요청마다 여러 개라 트레이스를 가리고,

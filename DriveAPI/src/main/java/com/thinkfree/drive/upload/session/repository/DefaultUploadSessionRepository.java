@@ -6,6 +6,7 @@ import com.thinkfree.drive.upload.session.data.UploadSessionCleanupTarget;
 import com.thinkfree.drive.upload.session.data.UploadSessionData;
 import com.thinkfree.drive.upload.session.enums.UploadSessionFailReason;
 import com.thinkfree.drive.upload.session.enums.UploadSessionStatus;
+import com.thinkfree.drive.upload.session.metrics.UploadSessionMetrics;
 import com.thinkfree.drive.upload.session.query.UploadSessionCreateQuery;
 import lombok.RequiredArgsConstructor;
 import org.jooq.Condition;
@@ -24,7 +25,10 @@ import java.util.UUID;
 
 import static com.thinkfree.drive.jooq.Tables.TB_UPLOAD_SESSION;
 
-/** tb_upload_session(jOOQ). 시각은 DB now() 하나로 통일한다. */
+/**
+ * tb_upload_session(jOOQ). 시각은 DB now() 하나로 통일한다.
+ * 세션 생성·종료(COMPLETED·FAILED)는 모두 여기를 지나므로 지표({@link UploadSessionMetrics})도 여기서 남긴다.
+ */
 @Repository
 @RequiredArgsConstructor
 public class DefaultUploadSessionRepository implements UploadSessionRepository {
@@ -35,10 +39,11 @@ public class DefaultUploadSessionRepository implements UploadSessionRepository {
     private static final Field<Instant> DB_NOW = DSL.field("now()", SQLDataType.INSTANT);
 
     private final DSLContext dsl;
+    private final UploadSessionMetrics metrics;
 
     @Override
     public UUID insert(UploadSessionCreateQuery q) {
-        return dsl.insertInto(TB_UPLOAD_SESSION)
+        UUID id = dsl.insertInto(TB_UPLOAD_SESSION)
                   .set(TB_UPLOAD_SESSION.TENANT_SEQ, q.tenantSeq())
                   .set(TB_UPLOAD_SESSION.USER_SEQ, q.userSeq())
                   .set(TB_UPLOAD_SESSION.REQUEST_USER_SEQ, q.requestUserSeq())
@@ -56,6 +61,8 @@ public class DefaultUploadSessionRepository implements UploadSessionRepository {
                   .set(TB_UPLOAD_SESSION.STATUS, UploadSessionStatus.PENDING)
                   .returningResult(TB_UPLOAD_SESSION.UPLOAD_SESSION_ID)
                   .fetchOne(TB_UPLOAD_SESSION.UPLOAD_SESSION_ID);
+        metrics.started(q.partCount(), q.sizeByte());
+        return id;
     }
 
     @Override
@@ -123,7 +130,7 @@ public class DefaultUploadSessionRepository implements UploadSessionRepository {
 
     @Override
     public int markCompleted(UUID uploadSessionId, long resultResourceSeq, String resultName) {
-        return dsl.update(TB_UPLOAD_SESSION)
+        int updated = dsl.update(TB_UPLOAD_SESSION)
                   .set(TB_UPLOAD_SESSION.STATUS, UploadSessionStatus.COMPLETED)
                   .set(TB_UPLOAD_SESSION.RESULT_RESOURCE_SEQ, resultResourceSeq)
                   .set(TB_UPLOAD_SESSION.RESULT_NAME, resultName)
@@ -131,11 +138,15 @@ public class DefaultUploadSessionRepository implements UploadSessionRepository {
                   .where(TB_UPLOAD_SESSION.UPLOAD_SESSION_ID.eq(uploadSessionId))
                   .and(TB_UPLOAD_SESSION.STATUS.eq(UploadSessionStatus.COMPLETING))
                   .execute();
+        if (updated == 1) {
+            metrics.completed();
+        }
+        return updated;
     }
 
     @Override
     public Optional<UploadSessionCleanupTarget> markFailed(UUID uploadSessionId, UploadSessionStatus expected, UploadSessionFailReason reason, String lastError) {
-        return dsl.update(TB_UPLOAD_SESSION)
+        Optional<UploadSessionCleanupTarget> target = dsl.update(TB_UPLOAD_SESSION)
                   .set(TB_UPLOAD_SESSION.STATUS, UploadSessionStatus.FAILED)
                   .set(TB_UPLOAD_SESSION.FAIL_REASON, reason)
                   .set(TB_UPLOAD_SESSION.LAST_ERROR, truncate(lastError))
@@ -144,6 +155,8 @@ public class DefaultUploadSessionRepository implements UploadSessionRepository {
                   .and(TB_UPLOAD_SESSION.STATUS.eq(expected))
                   .returningResult(TB_UPLOAD_SESSION.UPLOAD_SESSION_ID, TB_UPLOAD_SESSION.STORAGE_KEY, TB_UPLOAD_SESSION.UPLOAD_ID)
                   .fetchOptional(DefaultUploadSessionRepository::toTarget);
+        target.ifPresent(t -> metrics.failed(reason, 1));
+        return target;
     }
 
     @Override
@@ -169,7 +182,7 @@ public class DefaultUploadSessionRepository implements UploadSessionRepository {
                            .limit(limit)
                            .forUpdate()
                            .skipLocked();
-        return dsl.update(TB_UPLOAD_SESSION)
+        List<UploadSessionCleanupTarget> targets = dsl.update(TB_UPLOAD_SESSION)
                   .set(TB_UPLOAD_SESSION.STATUS, UploadSessionStatus.FAILED)
                   .set(TB_UPLOAD_SESSION.FAIL_REASON, reason)
                   .set(TB_UPLOAD_SESSION.LAST_ERROR, lastError)
@@ -178,6 +191,8 @@ public class DefaultUploadSessionRepository implements UploadSessionRepository {
                   .and(TB_UPLOAD_SESSION.STATUS.eq(expected))
                   .returningResult(TB_UPLOAD_SESSION.UPLOAD_SESSION_ID, TB_UPLOAD_SESSION.STORAGE_KEY, TB_UPLOAD_SESSION.UPLOAD_ID)
                   .fetch(DefaultUploadSessionRepository::toTarget);
+        metrics.failed(reason, targets.size());
+        return targets;
     }
 
     @Override

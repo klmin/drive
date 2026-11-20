@@ -13,11 +13,17 @@ k6 컨테이너 ──HTTP──▶ Drive (IntelliJ "DriveAPI (loadtest)", :8082
 
 ## 파일
 
+**흐름(`flows/`)** 과 **실행 파일**을 나눈다. 흐름은 "사용자가 무엇을 하나"(함수), 실행 파일은 "몇 명이 얼마 동안, 기준은 무엇"(`options`)만 정한다.
+같은 흐름을 여러 실행 파일이 재사용하고, 나중에 `mixed.js` 처럼 `scenarios` 의 `exec` 로 섞을 수 있다.
+
 | 파일 | 내용 |
 |---|---|
-| `lib/drive.js` | 로그인(쿠키 + `X-Drive-Role` 헤더)·응답 꺼내기·multipart |
+| `lib/drive.js` | 로그인(쿠키 + `X-Drive-Role` 헤더)·VU 별 사용자 로그인·요청+체크(`request`)·응답 꺼내기·multipart |
+| `flows/browse.js` | 흐름: 둘러보기 — 내 드라이브 목록 → 폴더 열기 → 파일 상세 → 검색 → 최근·즐겨찾기·트리·용량 |
+| `flows/upload.js` | 흐름: 올리기 — 작은 파일(기존 업로드 API) / 큰 파일(청크 업로드 API, 일부는 중간 취소), 올린 뒤 영구 삭제 |
 | `seed.js` | 데이터 만들기 — 사용자 18명 × (루트 파일 10 + 폴더 10 × 파일 20) = 파일 3,780·폴더 180, 10개마다 즐겨찾기 |
-| `read.js` | 읽기 시나리오 — 내 드라이브 목록 → 폴더 열기 → 파일 상세 → 검색 → 최근·즐겨찾기·트리·용량 |
+| `read.js` | 실행: 둘러보기 부하 |
+| `upload.js` | 실행: 업로드 부하 — 작은 파일·큰 파일 시나리오를 동시에 |
 | `seed-admin.sql` | 부하 테스트 DB 의 admin 비밀번호를 테스트 값(`LoadTest!2026`)으로 |
 
 ## 처음 한 번
@@ -53,6 +59,28 @@ docker compose --profile loadtest run --rm k6 run -e THINK=0 /scripts/read.js   
 - `-e TESTID=이름` 을 주면 Grafana 에서 실행을 골라 볼 수 있다(기본 `read-<PROFILE>`).
 - 기준(thresholds): HTTP 실패 1% 미만, 목록 p95 1초 미만, 체크 99% 이상 — 넘으면 k6 가 실패로 끝난다.
 
+### 업로드
+
+```bash
+docker compose --profile loadtest run --rm k6 run /scripts/upload.js                    # 기본: 작은 파일 4→8명 + 큰 파일 2→4명, 약 3분 30초
+docker compose --profile loadtest run --rm k6 run -e PROFILE=smoke /scripts/upload.js   # 확인용: 각 1명 30초
+docker compose --profile loadtest run --rm k6 run -e PROFILE=stress /scripts/upload.js  # 큰 파일 동시 12명까지
+docker compose --profile loadtest run --rm k6 run -e CHUNK_MB=100 -e SMALL_KB=2048 -e CANCEL_RATE=0.2 /scripts/upload.js
+```
+
+| 환경변수 | 기본 | 뜻 |
+|---|---|---|
+| `SMALL_KB` | 512 | 작은 파일 크기 — `POST /api/v1/files` 한 요청 |
+| `CHUNK_MB` | 40 | 큰 파일 크기 — 32MB(단일 요청 기준) 이상이어야 청크 API 가 받는다. 파트는 16MB, 동시 4개 |
+| `CANCEL_RATE` | 0.1 | 큰 파일 중 절반쯤 보내다 취소하는 비율 — 멀티파트 abort 정리 경로 |
+| `THINK` | 1 | 반복 사이 쉬는 시간(초) |
+
+- 올린 파일은 바로 `DELETE /api/v1/files/{id}`(영구 삭제)로 지운다 — 사용자 용량(100MB)이 차지 않게. 다만 complete 전까지는 진행 중 용량으로 잡히므로
+  **사용자 하나를 쓰는 VU 수 × `CHUNK_MB` 가 100MB 를 넘으면 세션 생성이 용량 초과로 실패한다.** VU 는 사용자 18명을 번호 순서대로 나눠 쓴다(두 시나리오 합산, 기본·stress 는 겹치지 않음).
+- 부하 테스트 실행 구성은 배치 스케줄러가 꺼져 있어(`DRIVE_SCHEDULER_BATCH_ENABLED=false`) 지운 객체·취소한 멀티파트가 스토리지에서 실제로 정리되지 않고
+  `tb_storage_deletion` 에 쌓인다(대시보드 "정리 대기열"). 스토리지 볼륨이 커지면 "다시 처음부터".
+- 기준: HTTP 실패 1% 미만, 체크 99% 이상, 작은 파일 p95 2초, complete p95 5초.
+
 ## 보는 곳
 
 Grafana http://localhost:3300 › Drive › **k6 부하 테스트**
@@ -61,6 +89,18 @@ Grafana http://localhost:3300 › Drive › **k6 부하 테스트**
 - 아래: 같은 시간대 서버 — WAS p95(점 → 트레이스), Hikari 커넥션 사용·대기, 부하 테스트 DB 세션·트랜잭션(`job="postgres-loadtest"`), CPU, 힙·GC, WARN·ERROR 로그
 - 읽는 법: VU 를 올려도 초당 요청이 더 안 오르고 p95 만 오르면 한계. 그때 Hikari 대기가 0 보다 크면 DB 풀·쿼리, CPU 가 차면 WAS, DB 세션 active 가 많으면 DB 쪽.
   느린 요청은 WAS p95 그래프의 점을 눌러 트레이스에서 어느 SQL 인지 본다.
+- 업로드 행: 파일 하나 올리는 시간(k6) · 세션 시작·종료(앱) · 진행 중 세션(DB) · S3 호출 p95·오류(앱) · 정리 대기열(DB).
+  업로드가 느려질 때 S3 p95 가 같이 오르면 스토리지, 그대로면 WAS·DB(complete 의 커밋 tx). 시작보다 completed 가 적고 진행 중 PENDING 이 계속 늘면 클라이언트가 끝내지 못하는 세션이 쌓이는 것.
+
+### 지표가 어디서 오나
+
+| 패널 지표 | 만드는 곳 | 가는 곳 |
+|---|---|---|
+| `k6_*` (예: `k6_upload_file_duration_p95`) | k6 — 내장 지표 + `flows/upload.js` 의 `Trend` | k6 → Prometheus(remote write) |
+| `http_server_requests_*`, `hikaricp_*`, `jvm_*` | Spring Boot Actuator 자동 | Alloy 가 `/actuator/prometheus` 를 가져감 → Prometheus |
+| `aws_s3_client_seconds_*` | 앱 `S3ObservationInterceptor`(Observation) | Prometheus(지표) + Tempo(구간) 둘 다 |
+| `drive_upload_session_*` | 앱 `UploadSessionMetrics`(Counter·DistributionSummary) | Prometheus 만 |
+| `drive_upload_active_*`, `drive_storage_deletion_*` | Alloy postgres exporter 커스텀 쿼리(`../alloy/pg-queries.yaml`) | Prometheus — "지금 DB 상태" 라 앱이 아니라 exporter 가 센다 |
 
 ## 장애 주입 — 부하 중에 DB 멈추기
 

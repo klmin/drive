@@ -28,6 +28,7 @@ services:
       DRIVE_PG_DSN: ${DRIVE_PG_DSN:-postgresql://drive:drive@host.docker.internal:5432/drive?sslmode=disable}
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ./alloy/pg-queries.yaml:/etc/alloy/pg-queries.yaml:ro   # postgres exporter 커스텀 쿼리
       - alloy-data:/var/lib/alloy/data
       # Drive 로그 폴더(LOG_PATH·ERROR_LOG_PATH 의 상위) → 컨테이너 안 /var/log/drive
       - ${DRIVE_LOG_DIR:-./logs}:/var/log/drive:ro

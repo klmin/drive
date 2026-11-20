@@ -1,0 +1,57 @@
+# postgres exporter 커스텀 쿼리 — 앱 코드에 없는 "지금 DB 상태" 지표(config.alloy 의 custom_queries_config_path).
+# 메트릭 이름 = <최상위 키>_<컬럼>. LABEL 컬럼은 라벨, GAUGE 컬럼은 값이 된다. 수집 주기(15~30초)마다 실행되니 인덱스를 타는 가벼운 쿼리만 둔다.
+# 테이블이 없는 DB(마이그레이션 전)면 이 쿼리만 실패하고 나머지 PG 지표는 그대로 나온다.
+
+# 진행 중 업로드 세션(PENDING·COMPLETING) — idx_upload_session_cleanup(status, last_activity)
+#   drive_upload_active_sessions{status}       세션 수(0 이어도 두 상태 모두 나온다)
+#   drive_upload_active_reserved_bytes{status} 진행 중 용량으로 잡아 둔 크기 합
+#   drive_upload_active_oldest_idle_seconds{status} 가장 오래 활동 없는 세션의 경과 시간 — TTL(1h)에 가까워지면 버려진 업로드
+drive_upload_active:
+  query: |
+    SELECT s.status,
+           count(u.upload_session_id)                                      AS sessions,
+           COALESCE(sum(COALESCE(u.reserve_byte, u.size_byte)), 0)         AS reserved_bytes,
+           COALESCE(EXTRACT(EPOCH FROM now() - min(u.last_activity)), 0)   AS oldest_idle_seconds
+    FROM (VALUES ('PENDING'), ('COMPLETING')) AS s(status)
+    LEFT JOIN tb_upload_session u ON u.status = s.status
+    GROUP BY s.status
+  metrics:
+    - status:
+        usage: LABEL
+        description: 업로드 세션 상태
+    - sessions:
+        usage: GAUGE
+        description: 진행 중 업로드 세션 수
+    - reserved_bytes:
+        usage: GAUGE
+        description: 진행 중 세션이 잡아 둔 용량(byte)
+    - oldest_idle_seconds:
+        usage: GAUGE
+        description: 가장 오래 활동 없는 세션의 경과 시간(초)
+
+# 스토리지 정리 대기열(tb_storage_deletion) — 쌓이기만 하고 줄지 않으면 삭제 워커(배치 스케줄러)가 멈췄거나 실패 중
+#   drive_storage_deletion_pending{action}            대기 행 수(action = DELETE / ABORT_MULTIPART)
+#   drive_storage_deletion_retrying{action}           한 번 이상 실패해 재시도 중인 행 수
+#   drive_storage_deletion_oldest_age_seconds{action} 가장 오래된 행의 경과 시간
+drive_storage_deletion:
+  query: |
+    SELECT a.action,
+           count(d.storage_deletion_seq)                                    AS pending,
+           count(d.storage_deletion_seq) FILTER (WHERE d.attempt_count > 0) AS retrying,
+           COALESCE(EXTRACT(EPOCH FROM now() - min(d.register_date)), 0)    AS oldest_age_seconds
+    FROM (VALUES ('DELETE'), ('ABORT_MULTIPART')) AS a(action)
+    LEFT JOIN tb_storage_deletion d ON d.action = a.action
+    GROUP BY a.action
+  metrics:
+    - action:
+        usage: LABEL
+        description: 정리 동작
+    - pending:
+        usage: GAUGE
+        description: 정리 대기 행 수
+    - retrying:
+        usage: GAUGE
+        description: 실패 후 재시도 중인 행 수
+    - oldest_age_seconds:
+        usage: GAUGE
+        description: 가장 오래된 대기 행의 경과 시간(초)
