@@ -1,0 +1,375 @@
+// 청크 업로더(utils/chunkUpload.js) — 가짜 서버로 분할·이어 올리기·재시도·409 중단·취소·complete 대기를 확인한다.
+// 실행: node --test tests/scripts/chunk-upload.test.mjs
+import test, { beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+import { register } from 'node:module';
+
+register('./chunk-upload/hooks.mjs', import.meta.url);
+
+const store = new Map();
+globalThis.window = {
+    localStorage: { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) },
+};
+const { server } = await import('./chunk-upload/fakeApi.mjs');
+const { uploadInChunks, ChunkUploadError, isBelowServerChunkThreshold } = await import(
+    '@/utils/chunkUpload'
+);
+
+const MB = 1024 * 1024;
+const mkFile = (mb, name) => new File([new Uint8Array(mb * MB)], name, { lastModified: 1 });
+const target = { parentFolderSeq: 10 };
+const puts = () => server.calls.filter(c => c[0] === 'PUT').map(c => c[1]);
+const starts = () => server.calls.filter(c => c[0] === 'POST' && c[1] === 'uploads').length;
+const saved = () => Object.keys(JSON.parse(store.get('drive.chunkUploads') || '{}')).length;
+
+beforeEach(() => {
+    server.calls = [];
+    server.failPut.clear();
+    server.conflictOnPart = null;
+    server.completeConflictTimes = 0;
+    server.putDelay = 0;
+    server.failGet = 0;
+    server.getDelay = 0;
+    server.startResponseDelay = 0;
+    server.singleRequestThreshold = 0;
+    store.clear(); // 앞 테스트가 남긴 이어 올리기 지문이 saved() 단언을 흐리지 않게
+});
+
+test('전체 업로드: 70MB = 16MB 파트 5개, 진행률 100%, onPartsSent 1번, 저장소 정리', async () => {
+    let last = 0;
+    let sent = 0;
+    const r = await uploadInChunks(mkFile(70, 'big.bin'), target, {
+        onProgress: (l, tot) => {
+            last = l / tot;
+        },
+        onPartsSent: () => sent++,
+    });
+    assert.equal(r.resourceSeq, 99);
+    assert.deepEqual(
+        [...puts()].sort((a, b) => a - b),
+        [1, 2, 3, 4, 5]
+    );
+    assert.equal(last, 1);
+    assert.equal(sent, 1);
+    assert.equal(saved(), 0);
+});
+
+test('네트워크 오류로 끊김 → 같은 파일을 다시 고르면 같은 세션으로 빠진 파트만', async () => {
+    const f = mkFile(70, 'resume.bin');
+    server.failPut.set(3, 10); // 3번 파트 계속 네트워크 실패 → 재시도 소진
+    await assert.rejects(
+        uploadInChunks(f, target),
+        e => e instanceof ChunkUploadError && e.status === 0
+    );
+    assert.equal(starts(), 1);
+    assert.equal(saved(), 1, '네트워크 오류면 이어 올리기용으로 남긴다');
+    const sentBefore = new Set(puts().filter(n => n !== 3));
+    server.calls = [];
+    server.failPut.clear(); // 연결 복구
+
+    const r = await uploadInChunks(f, target);
+    assert.equal(r.resourceSeq, 99);
+    assert.equal(starts(), 0, '새 세션을 만들지 않는다');
+    assert.ok(puts().includes(3));
+    assert.deepEqual(
+        puts().filter(n => sentBefore.has(n)),
+        [],
+        '이미 올라간 파트는 다시 보내지 않는다'
+    );
+});
+
+test('5xx 는 재시도해서 성공', async () => {
+    server.failPut.set(2, 99); // 503 한 번
+    const r = await uploadInChunks(mkFile(40, 'retry.bin'), target);
+    assert.equal(r.resourceSeq, 99);
+    assert.equal(puts().filter(n => n === 2).length, 2);
+});
+
+test('409 를 받으면 재시도·취소 없이 멈추고 저장소에서 지운다', async () => {
+    server.conflictOnPart = 2;
+    await assert.rejects(
+        uploadInChunks(mkFile(70, 'conflict.bin'), target),
+        e => e.status === 409 && e.errorCode === 'UPLOAD_001'
+    );
+    assert.equal(puts().filter(n => n === 2).length, 1);
+    assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 0);
+    assert.equal(saved(), 0);
+});
+
+test('취소 → null, DELETE 1번, complete 안 보냄, 저장소에서 지움', async () => {
+    server.putDelay = 30;
+    const ac = new AbortController();
+    const p = uploadInChunks(mkFile(100, 'cancel.bin'), target, { signal: ac.signal });
+    setTimeout(() => ac.abort(), 10);
+    assert.equal(await p, null);
+    assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 1);
+    assert.equal(
+        server.calls.filter(c => c[0] === 'POST' && String(c[1]).endsWith('complete')).length,
+        0
+    );
+    assert.equal(saved(), 0);
+});
+
+test('complete 409(처리 중) → 상태 조회로 완료 결과', async () => {
+    server.completeConflictTimes = 1;
+    const r = await uploadInChunks(mkFile(40, 'dup.bin'), target);
+    assert.equal(r.resourceSeq, 99);
+    assert.ok(server.calls.some(c => c[0] === 'GET'));
+});
+
+test('남은 세션이 만료(FAILED)됐으면 새로 시작', async () => {
+    const f = mkFile(40, 'stale.bin');
+    server.failPut.set(1, 10);
+    await assert.rejects(uploadInChunks(f, target));
+    for (const s of server.sessions.values()) if (s.fileName === 'stale.bin') s.status = 'FAILED';
+    server.calls = [];
+    server.failPut.clear();
+
+    const r = await uploadInChunks(f, target);
+    assert.equal(r.resourceSeq, 99);
+    assert.equal(starts(), 1);
+});
+
+test('다른 위치로 올리는 같은 파일은 다른 세션', async () => {
+    const f = mkFile(40, 'where.bin');
+    server.failPut.set(1, 10);
+    await assert.rejects(uploadInChunks(f, { parentFolderSeq: 1 }));
+    server.calls = [];
+    server.failPut.clear();
+    await uploadInChunks(f, { parentFolderSeq: 2 });
+    assert.equal(starts(), 1);
+});
+
+test('앞단 프록시 413(HTML 본문)처럼 서버 세션이 살아 있는 거절 → 재시도 없이 실패, 세션은 DELETE 로 정리', async () => {
+    const api = (await import('./chunk-upload/fakeApi.mjs')).default;
+    const original = api.Put;
+    // 실제 api 유틸 + validateStatus: HTML 본문이라도 실제 HTTP 상태가 온다
+    api.Put = async () => ({ status: 413, data: '<html>413 Request Entity Too Large</html>' });
+    try {
+        await assert.rejects(
+            uploadInChunks(mkFile(40, 'proxy.bin'), target),
+            e => e.status === 413
+        );
+    } finally {
+        api.Put = original;
+    }
+    assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 1);
+    const session = [...server.sessions.values()].find(s => s.fileName === 'proxy.bin');
+    assert.equal(session.status, 'FAILED');
+    assert.equal(saved(), 0);
+});
+
+test('409 처럼 서버가 이미 끝낸 세션은 DELETE 하지 않는다', async () => {
+    server.conflictOnPart = 1;
+    await assert.rejects(uploadInChunks(mkFile(40, 'ended.bin'), target), e => e.status === 409);
+    assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 0);
+});
+
+test('이어 올리기 직전 상태 조회가 일시적으로 실패하면 세션을 버리지 않는다', async () => {
+    const f = mkFile(70, 'flaky-get.bin');
+    server.failPut.set(2, 10);
+    await assert.rejects(uploadInChunks(f, target));
+    server.failPut.clear();
+    server.calls = [];
+
+    server.failGet = 1;
+    await assert.rejects(uploadInChunks(f, target), e => e.status === 0);
+    assert.equal(starts(), 0, '새 세션을 만들지 않는다');
+    assert.equal(saved(), 1, '지문을 남긴다');
+
+    server.calls = [];
+    const r = await uploadInChunks(f, target);
+    assert.equal(r.resourceSeq, 99);
+    assert.equal(starts(), 0, '원래 세션으로 이어 올린다');
+});
+
+test('complete 뒤 상태 조회가 일시적으로 실패해도 기다려서 결과를 받는다', async () => {
+    server.completeConflictTimes = 1;
+    server.failGet = 2;
+    const r = await uploadInChunks(mkFile(40, 'flaky-poll.bin'), target);
+    assert.equal(r.resourceSeq, 99);
+});
+
+test('complete 중 프록시가 HTML 504 를 줘도(서버는 완료) 재요청으로 결과를 받는다 — 기록을 지워 중복 저장하지 않게', async () => {
+    const api = (await import('./chunk-upload/fakeApi.mjs')).default;
+    const original = api.PostRaw;
+    let gatewayTimeouts = 1;
+    api.PostRaw = async (url, body, t, cfg) => {
+        if (String(url).endsWith('complete') && gatewayTimeouts > 0) {
+            gatewayTimeouts--;
+            await original(url, body, t, cfg); // 서버는 완료했다
+            return { status: 504, data: '<html>504 Gateway Time-out</html>' };
+        }
+        return original(url, body, t, cfg);
+    };
+    try {
+        const r = await uploadInChunks(mkFile(40, 'gateway-complete.bin'), target);
+        assert.equal(r.resourceSeq, 99);
+        assert.equal(saved(), 0);
+    } finally {
+        api.PostRaw = original;
+    }
+});
+
+test('재발급 뒤 재시도까지 실패해 오류 본문만 오면 본문의 code 로 판단한다', async () => {
+    const api = (await import('./chunk-upload/fakeApi.mjs')).default;
+    const original = api.PostRaw;
+    api.PostRaw = async () => ({ result: false, code: 403, errorCode: 'AUTH_007' });
+    try {
+        await assert.rejects(
+            uploadInChunks(mkFile(40, 'body-only.bin'), target),
+            e => e.status === 403 && e.errorCode === 'AUTH_007'
+        );
+    } finally {
+        api.PostRaw = original;
+    }
+});
+
+test('이어 올리기 상태 조회 중 취소해도 남은 세션을 DELETE 로 정리한다', async () => {
+    const f = mkFile(40, 'cancel-resume.bin');
+    server.failPut.set(1, 10);
+    await assert.rejects(uploadInChunks(f, target));
+    server.failPut.clear();
+    server.calls = [];
+
+    server.getDelay = 30;
+    const ac = new AbortController();
+    const p = uploadInChunks(f, target, { signal: ac.signal });
+    setTimeout(() => ac.abort(), 10);
+    assert.equal(await p, null);
+    assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 1);
+    const session = [...server.sessions.values()].find(s => s.fileName === 'cancel-resume.bin');
+    assert.equal(session.status, 'FAILED');
+    assert.equal(saved(), 0);
+});
+
+test('complete 를 이미 보낸 세션(COMPLETING)을 다시 고르면 새로 올리지 않고 결과를 기다린다', async () => {
+    const f = mkFile(40, 'finishing.bin');
+    server.failPut.set(1, 10);
+    await assert.rejects(uploadInChunks(f, target));
+    server.failPut.clear();
+    // 새로고침 전에 나머지 파트를 다 보내고 complete 를 보냈다고 치자
+    const session = [...server.sessions.values()].find(s => s.fileName === 'finishing.bin');
+    session.parts
+        .set(1, 16 * MB)
+        .set(2, 16 * MB)
+        .set(3, 8 * MB);
+    session.status = 'COMPLETING';
+    setTimeout(() => {
+        session.status = 'COMPLETED';
+    }, 50);
+    server.calls = [];
+
+    let sent = 0;
+    const r = await uploadInChunks(f, target, { onPartsSent: () => sent++ });
+    assert.equal(r.resourceSeq, 99);
+    assert.equal(starts(), 0, '새 세션 없음');
+    assert.deepEqual(puts(), [], '파트 다시 안 보냄');
+    assert.equal(
+        server.calls.filter(c => c[0] === 'POST' && String(c[1]).endsWith('complete')).length,
+        0
+    );
+    assert.equal(sent, 1, '취소 불가 상태로 표시');
+    assert.equal(saved(), 0);
+});
+
+test('서버의 단일 요청 기준이 더 크면(설정) 세션 생성 거절을 단일 요청 전환 신호로 알려 준다', async () => {
+    server.singleRequestThreshold = 64 * MB;
+    await assert.rejects(uploadInChunks(mkFile(40, 'mid.bin'), target), e =>
+        isBelowServerChunkThreshold(e)
+    );
+    assert.equal(saved(), 0);
+    // 파트 PUT 의 UPLOAD_008(번호·크기 오류)은 전환 신호가 아니다
+    assert.equal(isBelowServerChunkThreshold(new ChunkUploadError(400, 'UPLOAD_008')), false);
+});
+
+test('세션 생성 응답 전에 취소해도 만들어진 세션을 받아 DELETE 로 정리한다', async () => {
+    server.startResponseDelay = 30;
+    const ac = new AbortController();
+    const p = uploadInChunks(mkFile(40, 'cancel-start.bin'), target, { signal: ac.signal });
+    setTimeout(() => ac.abort(), 10);
+    assert.equal(await p, null);
+    assert.deepEqual(puts(), []);
+    assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 1);
+    const session = [...server.sessions.values()].find(s => s.fileName === 'cancel-start.bin');
+    assert.equal(session.status, 'FAILED');
+});
+
+test('이어 올리기 기록은 계정별 — 다른 계정이 같은 파일을 올려도 원래 계정의 세션을 지우지 않는다', async () => {
+    const f = mkFile(40, 'shared-browser.bin');
+    server.failPut.set(1, 10);
+    await assert.rejects(uploadInChunks(f, { ...target, accountKey: 101 }));
+    server.failPut.clear();
+    server.calls = [];
+
+    await uploadInChunks(f, { ...target, accountKey: 202 });
+    assert.equal(starts(), 1, '다른 계정은 자기 세션을 새로 만든다');
+    assert.equal(server.calls.filter(c => c[0] === 'GET').length, 0, '남의 세션을 조회하지 않는다');
+
+    server.calls = [];
+    await uploadInChunks(f, { ...target, accountKey: 101 });
+    assert.equal(starts(), 0, '원래 계정은 자기 세션으로 이어 올린다');
+});
+
+test('앞단 프록시의 HTML 502 는 일시적 오류로 재시도하고 세션·지문을 지키다가 성공한다', async () => {
+    const api = (await import('./chunk-upload/fakeApi.mjs')).default;
+    const original = api.Put;
+    let gatewayErrors = 2;
+    api.Put = async (...args) => {
+        if (gatewayErrors > 0) {
+            gatewayErrors--;
+            server.calls.push(['PUT', -1]);
+            return { status: 502, data: '<html>502 Bad Gateway</html>' };
+        }
+        return original(...args);
+    };
+    try {
+        const r = await uploadInChunks(mkFile(40, 'gateway.bin'), target);
+        assert.equal(r.resourceSeq, 99);
+        assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 0);
+    } finally {
+        api.Put = original;
+    }
+});
+
+test('파트 PUT·상태 GET 은 실제 HTTP 상태를 받도록 validateStatus 를 넘긴다(401 은 던져 재발급)', async () => {
+    const api = (await import('./chunk-upload/fakeApi.mjs')).default;
+    const seen = [];
+    const originalPut = api.Put;
+    api.Put = async (url, blob, t, cfg) => {
+        seen.push(cfg.validateStatus);
+        return originalPut(url, blob, t, cfg);
+    };
+    try {
+        await uploadInChunks(mkFile(40, 'validate.bin'), target);
+    } finally {
+        api.Put = originalPut;
+    }
+    assert.ok(seen.length > 0 && seen.every(v => typeof v === 'function'));
+    assert.equal(seen[0](502), true);
+    assert.equal(seen[0](401), false);
+});
+
+test('같은 파일을 같은 곳에 올리는 중 한 번 더 올려도 세션을 같이 쓰지 않고, 두 번째만 취소해도 첫 번째는 성공한다', async () => {
+    const f = mkFile(70, 'twice.bin');
+    // 첫 작업이 끊겨 기록이 남은 상태에서 다시 시작(이어 올리기) — 전송이 느리다
+    server.failPut.set(1, 10);
+    await assert.rejects(uploadInChunks(f, target));
+    server.failPut.clear();
+    server.calls = [];
+    server.putDelay = 30;
+
+    const first = uploadInChunks(f, target);
+    await new Promise(r => setTimeout(r, 5)); // 첫 작업이 세션을 잡은 뒤
+    const ac = new AbortController();
+    const second = uploadInChunks(f, target, { signal: ac.signal });
+    setTimeout(() => ac.abort(), 10);
+
+    assert.equal(await second, null);
+    const r = await first;
+    assert.equal(r.resourceSeq, 99, '첫 작업은 두 번째 취소와 상관없이 성공');
+    const sessions = [...server.sessions.values()].filter(s => s.fileName === 'twice.bin');
+    assert.equal(sessions.length, 2, '두 번째는 자기 세션을 새로 만들었다');
+    assert.deepEqual(sessions.map(s => s.status).sort(), ['COMPLETED', 'FAILED']);
+    assert.equal(saved(), 0);
+});

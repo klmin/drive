@@ -849,7 +849,17 @@
         "success": "Upload completed successfully.",
         "fail": {
             "general": "Upload failed.",
-            "quotaExceeded": "Storage limit exceeded. Upload could not be completed."
+            "quotaExceeded": "Storage limit exceeded. Upload could not be completed.",
+            "sessionLimit": "Too many uploads are in progress. Try again after some of them finish.",
+            "expired": "The upload was interrupted. Please upload the file again."
+        },
+        "pending": {
+            "title": "Uploads in progress",
+            "description": "{count} unfinished upload(s) of yours ({size}) may be holding storage space, which can stop a new upload from starting.\nCancel uploads you no longer need to free that space. Choose the same file again to resume an upload.",
+            "empty": "There are no in-progress uploads you can cancel.",
+            "lastActivity": "Last sent {time}",
+            "cancel": "Cancel",
+            "cancelFail": "Could not cancel the upload."
         }
     },
     "quota": {

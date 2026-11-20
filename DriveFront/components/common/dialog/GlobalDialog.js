@@ -10,6 +10,7 @@ import FileNameDialog from '@/components/common/dialog/FileNameDialog';
 import FolderFixDialog from '@/components/common/dialog/FolderFixDialog';
 import FolderCreateDialog from '@/components/common/dialog/FolderCreateDialog';
 import UploadDialog from '@/components/common/dialog/UploadDialog';
+import PendingUploadsDialog from '@/components/common/dialog/PendingUploadsDialog';
 import ChangePassword from '@/components/common/dialog/ChangePassword';
 import InitialPasswordChangeDialog from '@/components/common/dialog/InitialPasswordChangeDialog';
 import PreviewDialog from '@/components/common/dialog/PreviewDialog';
@@ -57,6 +58,7 @@ export default function GlobalDialog({ dialogs, onClose }) {
         changePassword: ChangePassword,
         initialPasswordChange: InitialPasswordChangeDialog,
         uploadFiles: UploadDialog,
+        pendingUploads: PendingUploadsDialog,
         preview: PreviewDialog,
         version: VersionDialog,
         updateUser: UpdateUserDialog,

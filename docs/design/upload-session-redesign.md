@@ -358,13 +358,13 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
 
 ## 10. 프론트
 
-- **Uppy**(`@uppy/aws-s3` 멀티파트 플러그인)를 우리 API(세션 생성·파트 PUT·complete·abort 엔드포인트)에 연결 — 분할·병렬·재시도·진행률·재개를 직접 만들지 않음. 나중에 presigned 로 바꿔도 같은 플러그인.
+- **직접 만든 청크 업로더**(`DriveFront/utils/chunkUpload.js`)를 기존 업로드 다이얼로그에 연결(2026-11-20 변경 — 처음엔 Uppy `@uppy/aws-s3`). Uppy 를 쓰지 않은 이유: ① 파트 PUT 응답의 ETag 헤더를 요구해 백엔드 헤더·CORS 노출 추가가 필요, ② 자체 XHR 이라 api 유틸의 401 → 토큰 재발급 → 재시도를 거치지 않아 긴 업로드 중 토큰 만료에 실패, ③ 기존 다이얼로그(폴더 업로드·중복 이름·취소·재시도)와 Uppy 상태가 이중. 필요한 것은 전송 로직(분할·동시·재시도·재개)뿐이라 약 300줄로 충분. presigned 로 바꾸면 파트 PUT 대상만 바꾼다.
 - 파트 PUT 은 `application/octet-stream` 원본 바이트, 세션당 동시 4.
 - **409(`UPLOAD_SESSION_FAILED`)** 받으면 남은 파트 전송 중지, 재시도 안 함, 사유별 메시지. abort 요청은 보내지 않는다(서버가 이미 등록).
 - 취소 버튼 → `DELETE /uploads/{id}`. 새로고침·탭 닫기에는 abort 를 보내지 않는다(1시간 안에 이어 올리기 가능, 아니면 TTL 정리).
 - 재개: `localStorage` 에 `{sessionId, fileName, size, lastModified, partSize}` → 복귀 시 같은 파일 재선택 → 지문 비교 → `GET /uploads/{id}` 로 빠진 파트만.
 - 폴더 업로드: 파일 큐 + 동시 3~6 세션(사용자당 상한 50).
-- 사용량 막대: 확정값만. 세션 시작이 IS_FULL 이면 사용량 API 를 다시 읽어 `uploadingByte > 0` 일 때 "진행 중 업로드가 공간을 쓰고 있음" + 업로드 목록·취소 버튼(막대 두 구간은 낯설고 업로드가 끝나면 어차피 확정값으로 넘어가므로 안내로 대신).
+- 사용량 막대: 확정값만. 세션 시작이 IS_FULL 이면 내 진행 중 청크 업로드 목록(`GET /uploads?status=PENDING`, 요청자 기준)을 읽어 있을 때 "진행 중 업로드가 공간을 쓰고 있음" + 목록·취소 버튼. 내 `uploadingByte` 로 판단하지 않는 이유: 공유 폴더에 올릴 때 용량 검사 대상은 폴더 주인이라, 내 값이 0 이어도 내가 그 폴더에 올리던 세션이 주인 공간을 잡고 있을 수 있다(Codex 리뷰, PR #45)(막대 두 구간은 낯설고 업로드가 끝나면 어차피 확정값으로 넘어가므로 안내로 대신).
 
 ---
 
@@ -384,7 +384,7 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
 | 1 | **스토리지 계약 테스트**(Testcontainers: MinIO / Ceph demo / RustFS — create·part·list·complete·abort·range·copy·uploadPartCopy) |
 | 2 | Flyway: `tb_upload_session` 생성 + `tb_storage_deletion` 확장, S3StorageService 멀티파트 메서드, 삭제 워커 action 분리, 세션 정리 스케줄러, 버킷 lifecycle |
 | 3 | 세션·불변 key·커밋 tx 를 **서버 내부에 먼저**: 기존 단일 업로드 API·웹오피스·MCP·복사·복원이 내부에서 세션 → 저장 → 커밋. 기존 `FileWriteOrchestrator`/`*FileWriteService`/저장 마커/`cleanVersionIfExists`/`initResourceSaveName` 제거. 이름 결정 경로 잠금 통일(규칙 9) |
-| 4 | 청크 API(§5.3) + 프론트 Uppy·이어 올리기, `uploadingByte`(IS_FULL 안내용) |
+| 4 | 청크 API(§5.3) + 프론트 청크 업로더·이어 올리기, `uploadingByte`(IS_FULL 안내용) |
 | 5 | (선택) 관리자 축소 시 진행 중 세션 즉시 중단, presigned 옵션(`upload.mode = PROXY \| PRESIGNED`, 버킷 CORS `ExposeHeaders: ETag`), resolve API, 버킷↔DB 대조 잡, 파트 체크섬 |
 | 별건 | 다운로드 Range(206, `If-Range`, ETag) + 토큰 만료 연장 |
 
@@ -418,7 +418,8 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
   - 정한 것: 32MB 미만은 받지 않는다(기존 단일 요청 API — 단일 객체는 complete 뒤 늦은 PUT 이 커밋된 객체를 덮어쓸 수 있다). 청크 API 세션 = `part_count` 가 있는 세션(내부 쓰기 세션은 이 API 로 조회·complete·취소 불가). complete 의 파트 검증 실패는 설계대로 세션 FAILED + ABORT. 권한은 세션 생성과 complete 선점 전에 확인(커밋 tx 안 재확인은 todo B). 익명 사용자 불가.
 - **단계 4-2 (`uploadingByte`)** — 브랜치 `feat/usage-uploading-byte`: `GET /api/v1/users/quota` 에 진행 중 세션 합계 `uploadingByte` 별도 필드(용량 주인 기준, 확정값 `useQuotaByte` 와 합치지 않음). 알림·지표·관리자 화면은 그대로 확정값.
 - **단계 4-3 (덮어쓰기 사전 필터)** — 브랜치 `fix/overwrite-quota-precheck`, V7 `reserve_byte`: 덮어쓰기 세션은 시작 검사·진행 중 합계에 증가분(새 − 시작 시 대상 크기, 0 이상)만. 전체 크기로 보던 탓에 용량이 거의 찬 사용자의 수정 저장이 커밋에선 통과할 텐데 시작에서 거절됐다. 그 사이 다른 저장이 끼어 버전 저장으로 바뀌면 커밋 tx 가 전체 크기로 다시 판정.
-- **미착수**: 단계 4 나머지(프론트·앞단 프록시 문서), 지표(§13), 커밋 tx 권한 재확인·매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
+- **단계 4-4 (프론트)** — 브랜치 `feat/front-chunk-upload`: `utils/chunkUpload.js`(분할·세션당 동시 4·5xx·네트워크 재시도·409 중단·`localStorage` 지문 이어 올리기·취소 DELETE·complete 409 이면 상태 조회) + `UploadDialog` 에서 32MB 이상만 청크로(설치처가 `drive.upload.single-request-threshold` 를 더 크게 잡아 세션 생성이 400 `UPLOAD_008` 이면 단일 요청으로 전환, complete 를 이미 보낸 세션을 다시 고르면 결과만 기다림), 진행률 표시, IS_FULL 때 내 진행 중 청크 업로드가 있으면 목록(`PendingUploadsDialog`, 취소 가능).
+- **미착수**: 단계 4 나머지(앞단 프록시 문서, 실제 MinIO 1GB 브라우저 확인), 지표(§13), 커밋 tx 권한 재확인·매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
 
 ---
 

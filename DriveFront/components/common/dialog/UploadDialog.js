@@ -15,6 +15,13 @@ import { useUser } from '@/context/UserContext';
 import { v4 as uuidv4 } from 'uuid';
 import { useDrivePreview } from '@/hooks/useDrivePreview';
 import { BaseTooltip } from '../tooltip/BaseTooltip';
+import {
+    CHUNK_UPLOAD_THRESHOLD,
+    ChunkUploadError,
+    isBelowServerChunkThreshold,
+    listPendingUploads,
+    uploadInChunks,
+} from '@/utils/chunkUpload';
 
 // 컴포넌트 내부에 두면 매 렌더마다 새 Symbol이 생성되어
 // 비동기 흐름에서 "e === STOP" 비교가 실패할 수 있음 → 컴포넌트 외부로 이동
@@ -72,6 +79,45 @@ const countFilesInSubtree = node => {
     if (node.type === 'file') return 1;
     return (node.children || []).reduce((sum, child) => sum + countFilesInSubtree(child), 0);
 };
+
+/**
+ * 큰 파일(CHUNK_UPLOAD_THRESHOLD 이상)을 청크 API 로 보내고, 결과를 단일 요청(api.PostForm)과 같은 모양으로 돌려준다
+ * — 호출부의 상태 분기(201·QUOTA_003·SYSTEM_CONFIG_007·!res)를 그대로 쓰기 위해.
+ *
+ * - 성공: { status: 201, data: { data: { resourceSeq, resourceName } } }
+ * - 서버 거절: { status, errorCode }
+ * - 취소·네트워크 실패: undefined (호출부가 cancelMapRef 로 둘을 구분)
+ * - 서버의 단일 요청 기준이 더 커서 청크 세션을 거절: USE_SINGLE_REQUEST (호출부가 POST /files 로 보낸다)
+ */
+const USE_SINGLE_REQUEST = Symbol('USE_SINGLE_REQUEST');
+
+async function sendChunked(
+    file,
+    { accountKey, parentPfs, currentSs, existingResourceSeq, saveType, signal, onProgress, onSent }
+) {
+    try {
+        const result = await uploadInChunks(
+            file,
+            {
+                accountKey,
+                parentFolderSeq: parentPfs ?? undefined,
+                resourceSeq: existingResourceSeq ?? undefined,
+                saveType:
+                    existingResourceSeq && saveType ? String(saveType).toUpperCase() : undefined,
+                sharedByUserSeq: currentSs ? Number(currentSs) : undefined,
+            },
+            { signal, onProgress, onPartsSent: onSent }
+        );
+        if (!result) return undefined;
+        return { status: 201, data: { data: result } };
+    } catch (e) {
+        if (isBelowServerChunkThreshold(e)) return USE_SINGLE_REQUEST;
+        if (e instanceof ChunkUploadError && e.status) {
+            return { status: e.status, errorCode: e.errorCode };
+        }
+        return undefined;
+    }
+}
 
 // 동시 업로드 요청 개수 제한
 function createLimiter(limit) {
@@ -326,6 +372,48 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
     const stoppedNodeMapRef = useRef(new Map()); // id -> { node, parentPfs } (취소된 파일 재업로드용)
     // QUOTA_003 발생 시 true로 설정 → 이후 대기 중인 파일들이 checkExists/업로드를 시도하지 않고 즉시 실패 처리
     const quotaExceededRef = useRef(false);
+    // 용량 부족 때 "진행 중 업로드" 안내는 배치당 한 번만
+    const pendingNoticeShownRef = useRef(false);
+
+    /**
+     * 용량 부족(QUOTA_003) 안내. 사용량 막대는 확정값만 보여 주므로, 진행 중 업로드가 공간을 잡고 있으면
+     * 막대에는 여유가 있어 보여도 거절된다 — 그때 내가 취소할 수 있는 진행 중 업로드가 있으면 목록을 띄운다(설계 규칙 12).
+     * 내 사용량(users/quota 의 uploadingByte)으로 판단하지 않는다 — 공유 폴더에 올릴 때 용량 검사 대상은 폴더 주인이라,
+     * 내 uploadingByte 가 0 이어도 내가 그 폴더에 올리던 세션이 주인의 공간을 잡고 있을 수 있다.
+     */
+    const notifyQuotaExceeded = async () => {
+        showSnackbar(t('upload.fail.quotaExceeded'), 'error');
+        if (pendingNoticeShownRef.current) return;
+        pendingNoticeShownRef.current = true;
+        const sessions = await listPendingUploads();
+        if (sessions?.length > 0) {
+            openDialog('pendingUploads', { sessions });
+        }
+    };
+
+    /** 서버 거절 중 청크 업로드에만 있는 것 — 처리했으면 true */
+    const notifyChunkFailure = res => {
+        if (res?.errorCode === 'UPLOAD_002') {
+            showSnackbar(t('upload.fail.sessionLimit'), 'error');
+            return true;
+        }
+        if (res?.errorCode === 'UPLOAD_001' || res?.errorCode === 'UPLOAD_006') {
+            showSnackbar(t('upload.fail.expired'), 'error');
+            return true;
+        }
+        return false;
+    };
+
+    // 진행률(%) — 정수 단위로 바뀔 때만 상태 갱신(파트 전송 이벤트마다 목록 전체를 다시 그리지 않게)
+    const progressRef = useRef(new Map());
+    const updateProgress = (id, loaded, total) => {
+        const percent = total > 0 ? Math.floor((loaded / total) * 100) : 0;
+        if (progressRef.current.get(id) === percent) return;
+        progressRef.current.set(id, percent);
+        setUploadList(prev =>
+            prev.map(item => (item.id === id ? { ...item, progress: percent } : item))
+        );
+    };
 
     const updateStatus = (id, pfs, status, parent, url, query, uploadName) => {
         setUploadList(prev => {
@@ -386,6 +474,8 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
         sentLockRef.current.clear();
         stoppedNodeMapRef.current.clear();
         quotaExceededRef.current = false;
+        pendingNoticeShownRef.current = false;
+        progressRef.current.clear();
         totalFilesToUpload.current = 0;
         setCompletedUploads(0);
         setUploadList([]);
@@ -398,6 +488,7 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                 // 새 배치가 시작될 때 quota 플래그 리셋
                 // 이전 배치에서 QUOTA_003이 발생했더라도 새로 올리는 파일은 업로드를 시도해야 함
                 quotaExceededRef.current = false;
+                pendingNoticeShownRef.current = false;
 
                 const itemsWithIds = addUniqueIdsToTree(uploadItems);
                 const flatListForUi = flattenTree(itemsWithIds);
@@ -509,38 +600,49 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
         updateStatus(node.id, undefined, UPLOAD_STATUS.WAITING, undefined, url, query);
 
         const createFunc = async () => {
-            const fileToSend = new File([node.file], node.name, { type: node.file.type });
+            const fileToSend = new File([node.file], node.name, {
+                type: node.file.type,
+                // 청크 업로드 이어 올리기 지문에 쓴다 — 빼면 지금 시각이 되어 같은 파일을 다시 골라도 못 찾는다
+                lastModified: node.file.lastModified,
+            });
             const controller = new AbortController();
             controllerMapRef.current.set(node.id, controller);
             let sentMarked = false;
+            const markSent = () => {
+                if (sentMarked) return;
+                sentMarked = true;
+                sentLockRef.current.set(node.id, true);
+                updateStatus(node.id, undefined, UPLOAD_STATUS.UPLOADING, undefined, url, query);
+            };
 
-            const res = await api.PostForm(
-                'files',
-                {
-                    file: fileToSend,
-                    pfs: parentPfs,
-                    ss: currentSs || undefined,
-                },
-                {
-                    signal: controller.signal,
-                    onUploadProgress: event => {
-                        if (!event) return;
-                        const isSent = event.total && event.loaded >= event.total;
-                        if (isSent && !sentMarked) {
-                            sentMarked = true;
-                            sentLockRef.current.set(node.id, true);
-                            updateStatus(
-                                node.id,
-                                undefined,
-                                UPLOAD_STATUS.UPLOADING,
-                                undefined,
-                                url,
-                                query
-                            );
-                        }
+            let res =
+                fileToSend.size >= CHUNK_UPLOAD_THRESHOLD
+                    ? await sendChunked(fileToSend, {
+                          accountKey: user?.userSeq,
+                          parentPfs,
+                          currentSs,
+                          signal: controller.signal,
+                          onProgress: (loaded, total) => updateProgress(node.id, loaded, total),
+                          onSent: markSent,
+                      })
+                    : USE_SINGLE_REQUEST;
+            if (res === USE_SINGLE_REQUEST) {
+                res = await api.PostForm(
+                    'files',
+                    {
+                        file: fileToSend,
+                        pfs: parentPfs,
+                        ss: currentSs || undefined,
                     },
-                }
-            );
+                    {
+                        signal: controller.signal,
+                        onUploadProgress: event => {
+                            if (!event) return;
+                            if (event.total && event.loaded >= event.total) markSent();
+                        },
+                    }
+                );
+            }
 
             if (res?.status === 201) {
                 const uploadName = res?.data?.data?.resourceName;
@@ -560,10 +662,10 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                     currentSs || undefined
                 );
                 if (!registered) showSnackbar(t('recent.register.fail'), 'error');
-            } else if (res?.status === 400 && res?.errorCode === 'QUOTA_003') {
+            } else if (res?.errorCode === 'QUOTA_003') {
                 updateStatus(node.id, undefined, UPLOAD_STATUS.FAILED, undefined, url, query);
-                showSnackbar(t('upload.fail.quotaExceeded'), 'error');
-            } else if (res?.status === 413 && res?.errorCode === 'SYSTEM_CONFIG_007') {
+                notifyQuotaExceeded();
+            } else if (res?.errorCode === 'SYSTEM_CONFIG_007') {
                 updateStatus(
                     node.id,
                     undefined,
@@ -582,7 +684,7 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                 showSnackbar(t('upload.fail.general'), 'error');
             } else {
                 updateStatus(node.id, undefined, UPLOAD_STATUS.FAILED, undefined, url, query);
-                showSnackbar(t('upload.fail.general'), 'error');
+                if (!notifyChunkFailure(res)) showSnackbar(t('upload.fail.general'), 'error');
             }
         };
 
@@ -733,7 +835,7 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                             if (!ok) throw STOP;
                         }
                         setUpdateSuccess(true);
-                    } else if (res?.status === 400 && res?.errorCode === 'QUOTA_003') {
+                    } else if (res?.errorCode === 'QUOTA_003') {
                         // 저장 용량 초과: 남은 모든 업로드를 중단
                         // 플래그를 세팅해 checkExists 단계에 있는 파일도 즉시 실패 처리되도록 함
                         quotaExceededRef.current = true;
@@ -745,7 +847,7 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                             url,
                             query
                         );
-                        showSnackbar(t('upload.fail.quotaExceeded'), 'error');
+                        notifyQuotaExceeded();
                         throw STOP;
                     } else {
                         // 일반 실패(권한 없음, 부모 폴더 삭제 등): 이 폴더만 실패 처리
@@ -833,45 +935,69 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                 }
 
                 const createFunc = async (existingResourceSeq = null, saveType = null) => {
-                    const fileToSend = new File([node.file], node.name, { type: node.file.type });
+                    const fileToSend = new File([node.file], node.name, {
+                        type: node.file.type,
+                        // 청크 업로드 이어 올리기 지문에 쓴다 — 빼면 지금 시각이 되어 같은 파일을 다시 골라도 못 찾는다
+                        lastModified: node.file.lastModified,
+                    });
 
                     const controller = new AbortController();
                     controllerMapRef.current.set(node.id, controller);
                     sentLockRef.current.set(node.id, false);
 
                     let sentMarked = false;
+                    // 요청 본문(청크면 모든 파트)을 다 보냈다 → 이 뒤로는 취소 불가
+                    const markSent = () => {
+                        if (sentMarked) return;
+                        sentMarked = true;
+                        sentLockRef.current.set(node.id, true);
+                        updateStatus(
+                            node.id,
+                            undefined,
+                            UPLOAD_STATUS.UPLOADING,
+                            undefined,
+                            url,
+                            query
+                        );
+                    };
 
-                    const res = await api.PostForm(
-                        'files',
-                        {
-                            file: fileToSend,
-                            pfs: parentPfs,
-                            ss: currentSs || undefined,
-                            ...(existingResourceSeq && {
-                                rs: existingResourceSeq,
-                                st: saveType,
-                            }),
-                        },
-                        {
-                            signal: controller.signal,
-                            onUploadProgress: event => {
-                                if (!event) return;
-                                const isSent = event.total && event.loaded >= event.total;
-                                if (isSent && !sentMarked) {
-                                    sentMarked = true;
-                                    sentLockRef.current.set(node.id, true);
-                                    updateStatus(
-                                        node.id,
-                                        undefined,
-                                        UPLOAD_STATUS.UPLOADING,
-                                        undefined,
-                                        url,
-                                        query
-                                    );
-                                }
+                    let res =
+                        fileToSend.size >= CHUNK_UPLOAD_THRESHOLD
+                            ? await sendChunked(fileToSend, {
+                                  accountKey: user?.userSeq,
+                                  parentPfs,
+                                  currentSs,
+                                  existingResourceSeq,
+                                  saveType,
+                                  signal: controller.signal,
+                                  onProgress: (loaded, total) =>
+                                      updateProgress(node.id, loaded, total),
+                                  onSent: markSent,
+                              })
+                            : USE_SINGLE_REQUEST;
+                    if (res === USE_SINGLE_REQUEST) {
+                        res = await api.PostForm(
+                            'files',
+                            {
+                                file: fileToSend,
+                                pfs: parentPfs,
+                                ss: currentSs || undefined,
+                                ...(existingResourceSeq && {
+                                    rs: existingResourceSeq,
+                                    st: saveType,
+                                }),
                             },
-                        }
-                    );
+                            {
+                                signal: controller.signal,
+                                onUploadProgress: event => {
+                                    if (!event) return;
+                                    if (event.total && event.loaded >= event.total) {
+                                        markSent();
+                                    }
+                                },
+                            }
+                        );
+                    }
 
                     if (res?.status === 201) {
                         const uploadName = res?.data?.data?.resourceName;
@@ -892,7 +1018,7 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                         if (!registered) {
                             showSnackbar(t('recent.register.fail'), 'error');
                         }
-                    } else if (res?.status === 400 && res?.errorCode === 'QUOTA_003') {
+                    } else if (res?.errorCode === 'QUOTA_003') {
                         // 저장 용량 초과: 플래그 세팅 후 전체 중단
                         quotaExceededRef.current = true;
                         updateStatus(
@@ -903,9 +1029,9 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                             url,
                             query
                         );
-                        showSnackbar(t('upload.fail.quotaExceeded'), 'error');
+                        notifyQuotaExceeded();
                         throw STOP;
-                    } else if (res?.status === 413 && res?.errorCode === 'SYSTEM_CONFIG_007') {
+                    } else if (res?.errorCode === 'SYSTEM_CONFIG_007') {
                         // 관리자가 설정한 용량 제한 초과 → 이 파일만 실패 처리, 다른 업로드는 계속 진행
                         updateStatus(
                             node.id,
@@ -941,7 +1067,9 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                             url,
                             query
                         );
-                        showSnackbar(t('upload.fail.general'), 'error');
+                        if (!notifyChunkFailure(res)) {
+                            showSnackbar(t('upload.fail.general'), 'error');
+                        }
                     }
                 };
 
@@ -1379,6 +1507,14 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                                             }
                                         />
                                     )}
+                                    {/* 청크 업로드(큰 파일)만 진행률이 있다 — 파트 전송 중에는 '대기'(취소 가능) 상태 */}
+                                    {!isGroup &&
+                                        item.progress != null &&
+                                        currentStatus === UPLOAD_STATUS.WAITING && (
+                                            <Typography noWrap variant={'body7'} color={'text_60'}>
+                                                {item.progress}%
+                                            </Typography>
+                                        )}
                                     <UploadStatusIcon
                                         item={item}
                                         isHovered={hover === index + 1}
