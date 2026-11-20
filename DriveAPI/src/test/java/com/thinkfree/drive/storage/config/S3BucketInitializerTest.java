@@ -110,6 +110,61 @@ class S3BucketInitializerTest {
 
     @SuppressWarnings("unchecked")
     @Test
+    @DisplayName("운영자가 버킷 전체에 같거나 더 짧은 미완성 멀티파트 정리 규칙을 두었으면 그대로 두고 PUT 하지 않는다")
+    void respectsExistingWholeBucketAbortRule() {
+        LifecycleRule ops = rule("ops-abort", 1).toBuilder().filter(f -> f.prefix("")).build();
+        givenRules(List.of(ops));
+
+        initializer(true).init();
+
+        verify(s3Client, never()).putBucketLifecycleConfiguration(any(Consumer.class));
+    }
+
+    @Test
+    @DisplayName("운영자 규칙이 더 길거나 일부 prefix·태그만 대상이면 우리 규칙을 더한다")
+    void addsRuleWhenExistingAbortRuleIsWeaker() {
+        LifecycleRule longer = rule("ops-longer", 7);
+        LifecycleRule partial = rule("ops-tmp", 1).toBuilder().filter(f -> f.prefix("tmp/")).build();
+        LifecycleRule tagged = rule("ops-tag", 1).toBuilder().filter(f -> f.tag(t -> t.key("k").value("v"))).build();
+        givenRules(List.of(longer, partial, tagged));
+
+        initializer(true).init();
+
+        assertThat(putRules()).extracting(LifecycleRule::id)
+                              .containsExactly("ops-longer", "ops-tmp", "ops-tag", S3BucketInitializer.ABORT_RULE_ID);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    @DisplayName("예전 형식(규칙 바로 아래 Prefix) 규칙은 같은 뜻의 Filter 로 바꿔 다시 쓴다 — 형식이 섞여 PUT 이 거절되지 않게")
+    void convertsLegacyPrefixRule() {
+        LifecycleRule legacy = LifecycleRule.builder().id("legacy").status(ExpirationStatus.ENABLED).prefix("logs/")
+                                            .expiration(e -> e.days(30)).build();
+        givenRules(List.of(legacy));
+
+        initializer(true).init();
+
+        LifecycleRule written = putRules().get(0);
+        assertThat(written.id()).isEqualTo("legacy");
+        assertThat(written.prefix()).isNull();
+        assertThat(written.filter().prefix()).isEqualTo("logs/");
+        assertThat(written.expiration().days()).isEqualTo(30);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    @DisplayName("버킷 전체 판정 — 필터 없음·빈 prefix 는 전체, prefix·태그·크기 조건은 일부")
+    void coversWholeBucket() {
+        assertThat(S3BucketInitializer.coversWholeBucket(LifecycleRule.builder().build())).isTrue();
+        assertThat(S3BucketInitializer.coversWholeBucket(LifecycleRule.builder().prefix("").build())).isTrue();
+        assertThat(S3BucketInitializer.coversWholeBucket(LifecycleRule.builder().filter(f -> f.prefix("")).build())).isTrue();
+        assertThat(S3BucketInitializer.coversWholeBucket(LifecycleRule.builder().prefix("a/").build())).isFalse();
+        assertThat(S3BucketInitializer.coversWholeBucket(LifecycleRule.builder().filter(f -> f.prefix("a/")).build())).isFalse();
+        assertThat(S3BucketInitializer.coversWholeBucket(LifecycleRule.builder().filter(f -> f.objectSizeGreaterThan(1L)).build())).isFalse();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
     @DisplayName("manageBucketLifecycle=false 면 lifecycle 을 건드리지 않는다")
     void disabled() {
         given(s3Client.headBucket(any(Consumer.class))).willReturn(HeadBucketResponse.builder().build());

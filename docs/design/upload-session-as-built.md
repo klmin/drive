@@ -160,7 +160,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 - 실패는 2^n 분 백오프(상한 60분), 10회면 그대로 남김.
 
 ### 5.3 버킷 lifecycle — `S3BucketInitializer`
-기동 시 `AbortIncompleteMultipartUpload` 1일 규칙을 기존 규칙에 병합 PUT. **MinIO 는 미지원**(400, 경고만 남기고 기동 계속 — MinIO 는 자체 24h 정리). 끄려면 `drive.upload.manage-bucket-lifecycle=false`.
+기동 시 `AbortIncompleteMultipartUpload` 1일 규칙을 기존 규칙에 병합 PUT. 운영자가 버킷 전체에 같거나 더 짧은 abort 규칙을 두었으면 더하지 않고, 예전 형식(규칙 바로 아래 Prefix) 규칙은 같은 뜻의 Filter 로 바꿔 다시 쓰며, 객체 만료(Expiration Days·Date) 규칙이 있으면 경고만 남긴다. 수동 설정 안내는 `DriveInstaller/docs/storage-bucket-lifecycle.md`. **MinIO 는 미지원**(400, 경고만 남기고 기동 계속 — MinIO 는 자체 24h 정리). 끄려면 `drive.upload.manage-bucket-lifecycle=false`.
 
 ---
 
