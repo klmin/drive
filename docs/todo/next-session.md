@@ -33,6 +33,9 @@
 | #57 | CodeQL 발견 32건 정리(`LogSafe` 로 로그 줄바꿈 제거 등) + `FAIL_ON_FINDINGS: 'true'` |
 | #60 | 프론트 423 잠금·QUOTA_003 분기 수정(오류 응답에 `status` 가 없음), MCP 요청·응답 본문 로그는 DEBUG 에서만 |
 | #63 | 옛 흐름 호환 코드 제거(`cleanVersionIfExists`·저장 마커·PENDING 만료 판정·`VERSION_PROCESSING`·버전 롤백 쿼리) |
+| #59 | 통합 테스트를 test 프로필(`@DriveIntegrationTest`)로 고정해 항상 Testcontainers 사용, 백엔드 테스트 CI(`backend-test.yml`, `DriveAPI/**` PR·main push) 추가, CI(리눅스·UTC)에서만 나던 실패 수정 |
+| #65 | `DriveFixtures`(테스트 tx 안에서만 동작) 로 #59 에서 dev DB 의존으로 끈 16건을 다시 켬 |
+| #64 | 다운로드 멈춤 수정: 스트림 전용 풀 `DriveStream-`(대기열 없음, 포화 시 503)·`spring.mvc.async.request-timeout` 해제·커밋 후 실패 시 연결 끊기(`CommittedResponseExceptionResolver`), 거절 시 열린 S3 응답 abort·닫기(`PendingDownloadStreams`)·503 전에 다운로드 헤더 제거, 감사 로그 CSV 는 요청 스레드에서 직접 씀 |
 
 **업로드 경로 정리**
 - 웹 화면의 신규·덮어쓰기·새 버전은 모두 `UploadDialog` 한 곳에서 처리한다. 32MB 이상은 청크 API, 미만은 기존 단일 요청(`POST /files`)이다.
@@ -64,7 +67,10 @@
 - 단일 요청·내부 쓰기의 커밋 tx 권한 재확인: 의도한 설계다. 요청 안에서 확인과 커밋이 바로 이어지고, 오래 걸리는 청크만 다시 확인한다.
 - V6 인덱스 `CONCURRENTLY`: 배포된 곳이 없으니 그대로 둔다.
 
-그 다음 후보(운영 전): 지표·알림, 운영 버킷 lifecycle 확인, Developers 저장소 k8s ingress 본문 크기·타임아웃. Ceph·RustFS 계약 테스트는 그 스토리지를 쓰는 설치처가 생길 때 한다.
+4. ~~**테스트 기반 정리**~~ — **완료(PR #59·#65)**. 통합 테스트는 이제 test 프로필·Testcontainers 로만 돌고, PR CI(`backend-test.yml`)가 전체 백엔드 테스트를 돌린다. Docker 없는 PC 에서는 컴파일·단위 테스트만 하고 통합 테스트는 PR CI 로 확인한다.
+5. ~~**다운로드 전송 멈춤**~~ — **완료(PR #64)**. Codex 지적 3건(거절 시 S3 응답 정리, 정리는 close 대신 abort, 503 전 Content-Length 제거)과 CodeQL log-injection 2건까지 반영했다.
+
+그 다음 후보(운영 전): COMPLETING 30분 초과 알림(3번 측정 뒤 기준 결정, 업로드 세션·삭제 대기열 지표와 나머지 알림은 이미 있음 — [upload-session.md](upload-session.md) B), 운영 버킷 lifecycle 확인, Developers 저장소 k8s ingress 본문 크기·타임아웃. Ceph·RustFS 계약 테스트는 그 스토리지를 쓰는 설치처가 생길 때 한다.
 
 ## 4. 바로 알아야 할 것
 - **작업 폴더**: `C:\intelliJProject\klmin-drive` 는 다른 세션들도 같이 쓴다. 브랜치가 중간에 바뀐 적이 있다. 작업은 `git worktree add ../wt-<이름> -b <브랜치> origin/main` 으로 따로 만들고, 끝나면 `git worktree remove` 로 지운다.
@@ -78,15 +84,18 @@
 - **로컬 stash**: `stash@{0}` 은 이미 main 에 머지된 PR #8(관측) 작업본 사본이다. 필요 없으면 `git stash drop`.
 
 ## 5. 로컬 환경 메모 (Windows)
+- **PC 마다 다르다.** 2026-11-20 두 번째 PC 의 상태는 다음과 같다.
+  - 기본 `java` 가 25 라서 `JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot` 로 21 을 지정한다.
+  - Maven 3.9.11 은 PATH 에 있다. 이 PC 는 처음에 `-o` 로 돌리면 surefire 플러그인이 없어 실패하니, 한 번은 온라인으로 돌린다.
+  - Docker 가 없어서 통합 테스트는 PR CI 로 확인한다.
 - Maven: PATH 에 없다. `~/.m2/wrapper/dists/apache-maven-3.9.11/<hash>/bin/mvn` 을 쓴다(리포에 `.mvn/wrapper` 없음). 빌드·테스트는 `-o -Dfrontend.skip=true`
   - 예: `M=$(find ~/.m2/wrapper/dists/apache-maven-3.9.11* -name mvn -path "*/bin/*" | head -1); "$M" -q -o test -Dfrontend.skip=true -Dtest='UploadChunkIntegrationTest'`
 - 업로드 관련 주요 테스트:
   - 백엔드: `UploadChunkIntegrationTest`, `UploadWriteIntegrationTest`, `UploadSessionWriterTest`, `UploadContentInspectorTest`
   - 프론트: `DriveFront` 에서 `node --test tests/scripts/chunk-upload.test.mjs`(가짜 서버 22건)
 - 테스트는 Testcontainers(PG 18·MinIO)를 쓰므로 Docker 가 필요하다.
-- **전체 테스트(2026-11-20, 3200f01)**: 2585건 중 오류 140건, 실패 1건이고, 업로드 관련 실패는 없다.
-  - 오류 140건: test 프로필 없는 35개 클래스의 컨텍스트 실패. 다른 세션이 `test/integration-test-profile` 브랜치에서 작업 중이다.
-  - 실패 1건: `StorageDeletionSchedulerTimingIntegrationTest`. 단독 실행은 통과하고 전체 실행에서만 흔들린다.
+- **전체 테스트**: PR #59 부터 PR CI(`backend-test.yml`, 리눅스)가 전체를 돌린다. 이전 오류 140건(test 프로필 없는 클래스의 컨텍스트 실패)은 #59 로 사라졌고, 그때 끈 16건은 #65 에서 다시 켰다.
+  - 예전에 전체 실행에서만 흔들리던 `StorageDeletionSchedulerTimingIntegrationTest` 는 CI 결과로 계속 지켜본다.
   - 그 밖의 기존 원인은 [upload-session.md](upload-session.md) 맨 아래에 있다. 관련 테스트만 골라 돌린다.
 - jOOQ 재생성: `docker-maven-plugin` 이 Docker 29 와 맞지 않는다. PG 18 컨테이너를 직접 띄우고 `-Pjooq-codegen -Ddocker.skip=true -Djooq-codegen.pg-port=<port>` 로 돌린다. 생성물의 `"this-escape"` 토큰은 지워 diff 를 줄인다.
 - 동시성(교착) 회귀 테스트 패턴: `ResourceNamingLockConcurrencyIntegrationTest` 의 `race()`. 수정을 잠시 끄고 실패하는지 확인한 뒤 원복하는 식으로 검증해 왔다.
