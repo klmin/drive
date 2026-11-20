@@ -26,6 +26,8 @@ beforeEach(() => {
     server.conflictOnPart = null;
     server.completeConflictTimes = 0;
     server.putDelay = 0;
+    server.failGet = 0;
+    store.clear(); // 앞 테스트가 남긴 이어 올리기 지문이 saved() 단언을 흐리지 않게
 });
 
 test('전체 업로드: 70MB = 16MB 파트 5개, 진행률 100%, onPartsSent 1번, 저장소 정리', async () => {
@@ -133,7 +135,7 @@ test('다른 위치로 올리는 같은 파일은 다른 세션', async () => {
     assert.equal(starts(), 1);
 });
 
-test('오류 본문이 JSON 이 아니면(앞단 프록시 413 HTML 등) 재시도하지 않는 실패', async () => {
+test('앞단 프록시 413(HTML 본문)처럼 서버 세션이 살아 있는 거절 → 재시도 없이 실패, 세션은 DELETE 로 정리', async () => {
     const api = (await import('./chunk-upload/fakeApi.mjs')).default;
     const original = api.Put;
     api.Put = async () => '<html>413 Request Entity Too Large</html>';
@@ -142,6 +144,41 @@ test('오류 본문이 JSON 이 아니면(앞단 프록시 413 HTML 등) 재시�
     } finally {
         api.Put = original;
     }
+    assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 1);
+    const session = [...server.sessions.values()].find(s => s.fileName === 'proxy.bin');
+    assert.equal(session.status, 'FAILED');
+    assert.equal(saved(), 0);
+});
+
+test('409 처럼 서버가 이미 끝낸 세션은 DELETE 하지 않는다', async () => {
+    server.conflictOnPart = 1;
+    await assert.rejects(uploadInChunks(mkFile(40, 'ended.bin'), target), e => e.status === 409);
+    assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 0);
+});
+
+test('이어 올리기 직전 상태 조회가 일시적으로 실패하면 세션을 버리지 않는다', async () => {
+    const f = mkFile(70, 'flaky-get.bin');
+    server.failPut.set(2, 10);
+    await assert.rejects(uploadInChunks(f, target));
+    server.failPut.clear();
+    server.calls = [];
+
+    server.failGet = 1;
+    await assert.rejects(uploadInChunks(f, target), e => e.status === 0);
+    assert.equal(starts(), 0, '새 세션을 만들지 않는다');
+    assert.equal(saved(), 1, '지문을 남긴다');
+
+    server.calls = [];
+    const r = await uploadInChunks(f, target);
+    assert.equal(r.resourceSeq, 99);
+    assert.equal(starts(), 0, '원래 세션으로 이어 올린다');
+});
+
+test('complete 뒤 상태 조회가 일시적으로 실패해도 기다려서 결과를 받는다', async () => {
+    server.completeConflictTimes = 1;
+    server.failGet = 2;
+    const r = await uploadInChunks(mkFile(40, 'flaky-poll.bin'), target);
+    assert.equal(r.resourceSeq, 99);
 });
 
 test('토큰 재발급 뒤 api.Post 가 Axios 응답 전체를 돌려줘도 세션 생성·complete 성공', async () => {

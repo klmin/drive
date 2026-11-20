@@ -139,12 +139,21 @@ const startSession = async (file, target, signal) => {
     };
 };
 
+/**
+ * 세션 상태. 없으면(404 — 남의 세션·내부 쓰기 세션 포함) null.
+ * 조회 자체가 실패하면(네트워크·5xx) 던진다 — "세션이 끝났다"와 구분해야 이어 올릴 세션을 버리지 않는다.
+ */
 const getSession = async (sessionId, signal) => {
     const res = await api.Get(`uploads/${sessionId}`, { signal });
-    return res?.data?.data || null;
+    const session = res?.data?.data;
+    if (session) return session;
+    const err = toError(res, signal);
+    if (err === CANCELLED) throw CANCELLED;
+    if (err.status === 404) return null;
+    throw err;
 };
 
-/** 남은 세션이 이 파일과 맞고 아직 PENDING 이면 이어 올린다. 아니면 null(새로 시작) */
+/** 남은 세션이 이 파일과 맞고 아직 PENDING 이면 이어 올린다. 끝났거나 다른 파일이면 null(새로 시작). 조회 실패는 던진다 */
 const resumeSession = async (sessionId, file, signal) => {
     const s = await getSession(sessionId, signal);
     if (!s || s.status !== 'PENDING' || s.size !== file.size || s.fileName !== file.name) {
@@ -251,7 +260,16 @@ const completeSession = async sessionId => {
 
 const waitForCompletion = async sessionId => {
     for (let i = 0; i < COMPLETE_POLL_LIMIT; i++) {
-        const s = await getSession(sessionId);
+        let s;
+        try {
+            s = await getSession(sessionId);
+        } catch (e) {
+            // 일시적인 조회 실패는 다음 조회까지 기다린다
+            if (!(e instanceof ChunkUploadError) || !isRetryable(e)) throw e;
+            await sleep(COMPLETE_POLL_MS);
+            continue;
+        }
+        if (s === null) throw new ChunkUploadError(404, 'UPLOAD_003', 'upload session not found');
         if (s?.status === 'COMPLETED') {
             return { resourceSeq: s.resourceSeq, resourceName: s.resourceName };
         }
@@ -267,6 +285,23 @@ const cancelSession = sessionId => {
     // 취소 응답은 기다리지 않는다 — 실패해도 서버 스케줄러가 만료시킨다
     api.Delete(`uploads/${sessionId}`).catch(() => {});
 };
+
+/**
+ * 이어 올리지 않기로 한 세션을 정리한다 — 아직 PENDING 이면 DELETE.
+ * 409·410·400(UPLOAD_009)처럼 서버가 이미 끝낸 세션은 그대로 두고, 앞단 프록시 413·권한 오류처럼 서버 세션은 살아 있는데
+ * 클라이언트가 포기하는 경우만 취소한다(안 하면 만료까지 예약 용량·세션 수를 잡는다). 조회가 안 되면 스케줄러에 맡긴다.
+ */
+const abandonSession = async sessionId => {
+    try {
+        const s = await getSession(sessionId);
+        if (s?.status === 'PENDING') cancelSession(sessionId);
+    } catch {
+        // 만료 스케줄러가 정리
+    }
+};
+
+/** 다시 시도해도 소용없는 서버 거절(네트워크·5xx·429 가 아님) */
+const isFinalRejection = e => e instanceof ChunkUploadError && e.status !== 0 && !isRetryable(e);
 
 // ------------------------------------------------------------------ 진입점
 
@@ -303,9 +338,11 @@ export async function uploadInChunks(file, target, { signal, onProgress, onParts
             forgetSession(fingerprint);
             return null;
         }
-        // 409·410 = 세션이 이미 끝났다(만료·취소·NoSuchUpload) — 다음엔 새로 시작. 네트워크 오류면 이어 올릴 수 있게 남긴다
-        if (e instanceof ChunkUploadError && e.status !== 0 && !isRetryable(e)) {
+        // 다시 시도해도 안 되는 거절 — 다음엔 새로 시작하고, 서버 세션이 아직 살아 있으면 취소.
+        // 네트워크·5xx(조회 실패 포함)면 이어 올릴 수 있게 세션과 지문을 남긴다
+        if (isFinalRejection(e)) {
             forgetSession(fingerprint);
+            if (plan) await abandonSession(plan.sessionId);
         }
         throw e;
     }
@@ -316,7 +353,10 @@ export async function uploadInChunks(file, target, { signal, onProgress, onParts
         forgetSession(fingerprint);
         return result;
     } catch (e) {
-        if (e instanceof ChunkUploadError && e.status !== 0) forgetSession(fingerprint);
+        if (isFinalRejection(e)) {
+            forgetSession(fingerprint);
+            await abandonSession(plan.sessionId);
+        }
         throw e;
     }
 }

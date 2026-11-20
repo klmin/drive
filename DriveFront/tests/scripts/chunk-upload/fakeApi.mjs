@@ -6,6 +6,7 @@ export const server = {
     conflictOnPart: null,
     completeConflictTimes: 0,
     putDelay: 0,
+    failGet: 0, // 남은 상태 조회 실패 횟수(네트워크 오류)
 };
 
 const PART = 16 * 1024 * 1024;
@@ -82,6 +83,10 @@ const api = {
 
     Get: async url => {
         server.calls.push(['GET', url]);
+        if (server.failGet > 0) {
+            server.failGet--;
+            return undefined;
+        }
         const id = url.split('/')[1];
         const s = server.sessions.get(id);
         if (!s) return err(404, 'UPLOAD_003');
