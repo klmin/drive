@@ -39,8 +39,12 @@ public class MailSenderFactory {
 
         if ("TLS".equalsIgnoreCase(smtpConfig.getEncryptionType().getValue())) {
             props.put("mail.smtp.starttls.enable", "true");
+            // STARTTLS 를 못 하면 평문으로 진행하지 않고 실패 — 중간자가 STARTTLS 광고를 지워 계정·비밀번호가 평문으로 가는 것 방지
+            props.put("mail.smtp.starttls.required", "true");
+            props.put("mail.smtp.ssl.checkserveridentity", "true");
         } else if ("SSL".equalsIgnoreCase(smtpConfig.getEncryptionType().getValue())) {
             props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.ssl.checkserveridentity", "true");   // 인증서의 호스트 이름 검증
         }
 
         // 인증 방식 분기
