@@ -26,6 +26,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -194,5 +195,22 @@ class DefaultUserServiceProfileImageTest {
 
         assertThat(userService.downloadProfileImage(USER_SEQ).isEmpty()).isTrue();
         verify(storageService, never()).getFileData(anyString());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"0,1", "31,1", "1,0", "1,31", "-1,5"})
+    @DisplayName("익명 프로필 이미지 — animal·color 가 1~30 밖이면 배열 인덱스 예외(500) 대신 VALIDATION_ERROR(400)")
+    void anonymousProfileImageRejectsOutOfRange(int animal, int color) {
+        assertThatThrownBy(() -> userService.downloadAnonymousProfileImage(animal, color))
+                .isInstanceOf(com.thinkfree.drive.global.exception.ApiRuntimeException.class)
+                .satisfies(e -> assertThat(((com.thinkfree.drive.global.exception.ApiRuntimeException) e).getCode())
+                        .isEqualTo(com.thinkfree.drive.global.exception.GlobalErrorCode.VALIDATION_ERROR));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"1,1", "30,30"})
+    @DisplayName("익명 프로필 이미지 — 경계값 1·30 은 정상")
+    void anonymousProfileImageAcceptsBounds(int animal, int color) {
+        assertThat(userService.downloadAnonymousProfileImage(animal, color)).isNotNull();
     }
 }

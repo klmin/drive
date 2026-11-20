@@ -1,5 +1,6 @@
 package com.thinkfree.drive.user.service.impl;
 
+import com.thinkfree.drive.global.exception.GlobalErrorCode;
 import com.thinkfree.drive.tenant.policy.TenantFeature;
 import com.thinkfree.drive.tenant.policy.TenantPolicy;
 import com.thinkfree.drive.auditlog.aspect.annotation.AuditLog;
@@ -368,6 +369,9 @@ public class DefaultUserService implements UserService {
     }
 
     public ProfileImageResult downloadAnonymousProfileImage(int animal, int color) {
+        // 비로그인 경로 — 범위를 벗어나면 배열 인덱스 예외(500) 대신 400
+        DriveAssert.throwIfTrue(animal < 1 || animal > ANONYMOUS_ANIMAL_FILE_NAMES.length || color < 1 || color > CursorColors.count(),
+                GlobalErrorCode.VALIDATION_ERROR);
         String classpath = String.format("anonymous-animals/%d_%s.svg",
                 animal, ANONYMOUS_ANIMAL_FILE_NAMES[animal - 1]);
 

@@ -13,6 +13,10 @@ public final class CursorColors {
             "#82B400", "#4489AD", "#AC76E2", "#F472B6", "#E84C66"
     );
 
+    public static int count() {
+        return COLORS.size();
+    }
+
     public static int randomIndex() {
         return (int) (Math.random() * COLORS.size());
     }
