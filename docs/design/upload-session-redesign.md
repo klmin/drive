@@ -419,7 +419,8 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
 - **단계 4-2 (`uploadingByte`)** — 브랜치 `feat/usage-uploading-byte`: `GET /api/v1/users/quota` 에 진행 중 세션 합계 `uploadingByte` 별도 필드(용량 주인 기준, 확정값 `useQuotaByte` 와 합치지 않음). 알림·지표·관리자 화면은 그대로 확정값.
 - **단계 4-3 (덮어쓰기 사전 필터)** — 브랜치 `fix/overwrite-quota-precheck`, V7 `reserve_byte`: 덮어쓰기 세션은 시작 검사·진행 중 합계에 증가분(새 − 시작 시 대상 크기, 0 이상)만. 전체 크기로 보던 탓에 용량이 거의 찬 사용자의 수정 저장이 커밋에선 통과할 텐데 시작에서 거절됐다. 그 사이 다른 저장이 끼어 버전 저장으로 바뀌면 커밋 tx 가 전체 크기로 다시 판정.
 - **단계 4-4 (프론트)** — 브랜치 `feat/front-chunk-upload`: `utils/chunkUpload.js`(분할·세션당 동시 4·5xx·네트워크 재시도·409 중단·`localStorage` 지문 이어 올리기·취소 DELETE·complete 409 이면 상태 조회) + `UploadDialog` 에서 32MB 이상만 청크로(설치처가 `drive.upload.single-request-threshold` 를 더 크게 잡아 세션 생성이 400 `UPLOAD_008` 이면 단일 요청으로 전환, complete 를 이미 보낸 세션을 다시 고르면 결과만 기다림), 진행률 표시, IS_FULL 때 내 진행 중 청크 업로드가 있으면 목록(`PendingUploadsDialog`, 취소 가능).
-- **미착수**: 단계 4 나머지(앞단 프록시 문서, 실제 MinIO 1GB 브라우저 확인), 지표(§13), 커밋 tx 권한 재확인·매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
+- **단계 4-5 (앞단 프록시)** — 브랜치 `docs/proxy-chunk-upload`: 설치 문서(`DriveInstaller/thinkfree/TFD/template/httpd/README.md`), 번들 Apache `ProxyTimeout 300`.
+- **미착수**: 단계 4 나머지(실제 MinIO 1GB 브라우저 확인, Developers 저장소 k8s ingress 값), 지표(§13), 커밋 tx 권한 재확인·매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
 
 ---
 
@@ -437,7 +438,7 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
 - [ ] Ceph·RustFS 의 멀티파트·abort 직후 동작·체크섬·조건부 쓰기(`If-None-Match`) 지원(단계 1 결과로 확정) — MinIO 는 `S3StorageServiceMultipartContractTest` 통과. 같은 테스트를 Ceph demo·RustFS 이미지로 돌리는 건 남음
 - [x] 버킷 lifecycle `AbortIncompleteMultipartUpload`: **MinIO 는 미지원**(단독 규칙은 400 MalformedXML, 다른 동작과 섞으면 조용히 버림 — MinIO 는 `stale_uploads_expiry`(기본 24h)로 자체 정리). `S3BucketInitializer` 는 기존 규칙을 읽어 병합 후 PUT, 실패하면 경고만(`drive.upload.manage-bucket-lifecycle=false` 로 끔). RustFS 도 MinIO 계열이라 같을 가능성 — 단계 1 에서 확인
 - [ ] `tb_upload_session` 컬럼 COMMENT·오류 코드 이름(`UPLOAD_SESSION_FAILED`, `UPLOAD_SESSION_LIMIT`) 최종 확정
-- [ ] 앞단 프록시 `client_max_body_size`·타임아웃 값
+- [x] 앞단 프록시 본문 상한·타임아웃 값 — 본문 1GiB·응답 대기 300초(설치 문서 `DriveInstaller/thinkfree/TFD/template/httpd/README.md`)
 - [ ] 이력서 반영 문구는 구현 후(`C:\intelljProject\drive\RESUME_DRIVE_REVIEW.md` §5 참고)
 
 ---
