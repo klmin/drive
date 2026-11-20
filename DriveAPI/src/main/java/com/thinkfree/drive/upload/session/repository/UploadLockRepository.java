@@ -65,18 +65,27 @@ public class UploadLockRepository {
                   .fetchOptional(r -> new LockedFolder(r.value1(), r.value2()));
     }
 
-    /** 살아 있는 파일의 현재 저장 key(잠금 없음) — 덮어쓰기 세션의 base key(커밋 tx 가 잠근 뒤 다시 비교한다). */
-    public Optional<String> findFileKey(int userSeq, Long resourceSeq) {
+    /**
+     * 덮어쓰기 대상 파일의 시작 시점 상태.
+     *
+     * @param storageKey 현재 저장 key — 커밋 tx 가 잠근 뒤 다시 비교하는 base key
+     * @param sizeByte   현재 크기 — 진행 중 용량(reserve_byte) = 새 크기 − 이 값(0 이상)
+     */
+    public record FileBase(String storageKey, long sizeByte) {
+    }
+
+    /** 살아 있는 파일의 현재 저장 key·크기(잠금 없음) — 덮어쓰기 세션의 base key 와 진행 중 용량 계산용. */
+    public Optional<FileBase> findFileBase(int userSeq, Long resourceSeq) {
         if (resourceSeq == null) {
             return Optional.empty();
         }
-        return dsl.select(TB_RESOURCE.RESOURCE_SAVE_NAME)
+        return dsl.select(TB_RESOURCE.RESOURCE_SAVE_NAME, TB_RESOURCE.SIZE_BYTE)
                   .from(TB_RESOURCE)
                   .where(TB_RESOURCE.USER_SEQ.eq(userSeq))
                   .and(TB_RESOURCE.RESOURCE_SEQ.eq(resourceSeq))
                   .and(TB_RESOURCE.RESOURCE_TYPE.eq(ResourceType.FILE))
                   .and(TB_RESOURCE.IS_DELETE.eq(false))
-                  .fetchOptional(TB_RESOURCE.RESOURCE_SAVE_NAME);
+                  .fetchOptional(r -> new FileBase(r.value1(), nz(r.value2())));
     }
 
     private static long nz(Long value) {

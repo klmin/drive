@@ -125,10 +125,14 @@ public class UploadSessionWriter {
         int userSeq = dto.getUserSeq();
         Integer tenantSeq = userFindService.findTenantSeqByUserSeq(userSeq);
         // 덮어쓰기 충돌 감지 기준 — 세션 시작 시 대상의 현재 key(불변 key 라 커밋 때 같으면 그 사이 내용이 안 바뀐 것, §4.3)
-        String baseStorageKey = saveType == UploadSaveType.OVERWRITE
-                ? uploadLockRepository.findFileKey(userSeq, dto.getResourceSeq())
+        // 진행 중 용량(reserveByte) — 덮어쓰기는 커밋 때 새 크기 − 이전 크기만 늘어나므로 그 양만(0 이상). 그 사이 다른 저장이 끼어
+        // 버전 저장으로 바뀌면 커밋 tx 가 전체 크기로 다시 판정한다(사전 필터가 느슨해질 뿐 한도를 넘지 않는다)
+        var base = saveType == UploadSaveType.OVERWRITE
+                ? uploadLockRepository.findFileBase(userSeq, dto.getResourceSeq())
                                       .orElseThrow(() -> ApiRuntimeException.type(ResourceErrorCode.NOT_FOUND))
                 : null;
+        String baseStorageKey = base == null ? null : base.storageKey();
+        long reserveByte = base == null ? dto.getFileSize() : Math.max(0L, dto.getFileSize() - base.sizeByte());
         // 잠긴 파일은 복원 불가 — 스토리지 복사 전에 미리 거절(최종 판정은 커밋 tx 의 행 잠금 뒤 확인)
         if (dto.isUnlockedRequired() && dto.getResourceSeq() != null) {
             resourceLockUnlockService.checkLockedResource(dto.getResourceSeq(), userSeq);
@@ -139,7 +143,7 @@ public class UploadSessionWriter {
         try {
             id = uploadSessionTxService.create(new UploadSessionCreateQuery(tenantSeq, userSeq, requestUserSeq, saveType,
                     dto.getParentFolderSeq(), dto.getResourceSeq(), null, baseStorageKey, fileName, dto.getContentType(), dto.getFileSize(),
-                    partSize, partCount));
+                    partSize, partCount, reserveByte));
         } catch (ApiRuntimeException e) {
             notifyIfQuotaExceeded(e, userSeq, requestUserSeq);
             throw e;

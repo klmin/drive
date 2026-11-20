@@ -332,6 +332,50 @@ class UploadWriteIntegrationTest {
     }
 
     @Test
+    @DisplayName("OVERWRITE 사전 검사는 늘어날 양만 — 남은 50 에서 100 → 120 덮어쓰기(+20)는 통과(전체 크기 120 으로 보면 거절됐다), 세션 reserve_byte = 20")
+    void overwritePrecheckUsesDelta() {
+        rememberStoredSizes();
+        Resource r = createFile();
+        String before = keyOf(r.getResourceSeq());
+        jdbc.update("UPDATE tb_user SET use_quota_byte = 1000, total_quota_byte = 1050 WHERE user_seq = ?", ADMIN);
+
+        overwrite(r.getResourceSeq(), 120);
+
+        Map<String, Object> session = lastSession();
+        assertThat(session.get("status")).isEqualTo("COMPLETED");
+        assertThat(jdbc.queryForObject("SELECT reserve_byte FROM tb_upload_session WHERE upload_session_id = ?", Long.class,
+                session.get("upload_session_id"))).isEqualTo(20L);
+        assertThat(quota()).isEqualTo(1020L);
+        jdbc.update("DELETE FROM tb_storage_deletion WHERE storage_key = ?", before);
+    }
+
+    @Test
+    @DisplayName("OVERWRITE 로 작아지면 진행 중 용량 0 — 용량이 꽉 차도 줄이는 저장은 시작할 수 있다")
+    void overwriteShrinkAllowedWhenFull() {
+        rememberStoredSizes();
+        Resource r = createFile();
+        String before = keyOf(r.getResourceSeq());
+        jdbc.update("UPDATE tb_user SET use_quota_byte = 1050, total_quota_byte = 1050 WHERE user_seq = ?", ADMIN);
+
+        overwrite(r.getResourceSeq(), 60);
+
+        assertThat(lastSession().get("status")).isEqualTo("COMPLETED");
+        assertThat(quota()).isEqualTo(1010L);
+        jdbc.update("DELETE FROM tb_storage_deletion WHERE storage_key = ?", before);
+    }
+
+    @Test
+    @DisplayName("OVERWRITE 증가분이 남은 용량보다 크면 여전히 사전 검사에서 IS_FULL")
+    void overwriteGrowthStillBlocked() {
+        Resource r = createFile();
+        jdbc.update("UPDATE tb_user SET use_quota_byte = 1000, total_quota_byte = 1050 WHERE user_seq = ?", ADMIN);
+
+        assertThatThrownBy(() -> overwrite(r.getResourceSeq(), 200))
+                .isInstanceOfSatisfying(ApiRuntimeException.class, e -> assertThat(e.getCode()).isEqualTo(QuotaErrorCode.IS_FULL));
+        verify(storageService, never()).putObject(anyString(), anyString(), any(), Mockito.anyLong());
+    }
+
+    @Test
     @DisplayName("OVERWRITE 스토리지 실패 — key·크기·수정자·수정일·사용량 모두 그대로, 세션 FAILED + 새 key DELETE 등록")
     void overwriteStorageFailureChangesNothing() {
         Resource r = createFile();

@@ -334,20 +334,21 @@ class UploadSessionWriterTest {
     @Test
     @DisplayName("OVERWRITE — 세션 시작 시 대상의 현재 key 를 base key 로 남기고, 커밋은 그 key 로 낙관적 비교")
     void overwriteRecordsBaseKey() {
-        given(locks.findFileKey(USER, 55L)).willReturn(Optional.of("3/base"));
+        given(locks.findFileBase(USER, 55L)).willReturn(Optional.of(new com.thinkfree.drive.upload.session.repository.UploadLockRepository.FileBase("3/base", 4L)));
         given(storage.headContentLength(KEY)).willReturn(10L);
         given(commit.commitOverwrite(any(), any(), any(), any(), anyInt())).willReturn(saved);
 
         writer.write(typed(ResourceSaveType.OVERWRITE, new FileContentSource.Stream(new FileData("text/plain", new ByteArrayInputStream(new byte[10]), 10)), 10), USER);
 
-        verify(tx).create(Mockito.argThat(q -> q.saveType() == UploadSaveType.OVERWRITE && "3/base".equals(q.baseStorageKey()) && q.resourceSeq() == 55L));
+        verify(tx).create(Mockito.argThat(q -> q.saveType() == UploadSaveType.OVERWRITE && "3/base".equals(q.baseStorageKey()) && q.resourceSeq() == 55L
+                && q.reserveByte() == 6L));   // 진행 중 용량 = 새 10 − 기존 4
         verify(commit).commitOverwrite(eq(ID), eq(KEY), eq("3/base"), any(), eq(USER));
     }
 
     @Test
     @DisplayName("OVERWRITE 대상이 없으면(삭제·휴지통) 세션을 만들지 않고 NOT_FOUND")
     void overwriteTargetMissing() {
-        given(locks.findFileKey(USER, 55L)).willReturn(Optional.empty());
+        given(locks.findFileBase(USER, 55L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> writer.write(typed(ResourceSaveType.OVERWRITE,
                 new FileContentSource.Stream(new FileData("text/plain", new ByteArrayInputStream(new byte[10]), 10)), 10), USER))

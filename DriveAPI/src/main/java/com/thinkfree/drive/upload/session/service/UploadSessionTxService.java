@@ -48,7 +48,8 @@ public class UploadSessionTxService {
         var quota = uploadLockRepository.lockUser(query.userSeq())
                                         .orElseThrow(() -> ApiRuntimeException.type(UserErrorCode.USER_NOT_FOUND));
         var active = uploadSessionRepository.sumActive(query.userSeq());
-        if (quota.wouldExceed(active.sizeByte() + query.sizeByte())) {
+        // 덮어쓰기는 늘어날 양(reserveByte)만 — 전체 크기로 보면 거의 찬 사용자의 수정 저장이 커밋에선 통과할 텐데 여기서 거절된다
+        if (quota.wouldExceed(active.sizeByte() + query.reserveByte())) {
             throw ApiRuntimeException.type(QuotaErrorCode.IS_FULL);
         }
         if (active.count() >= property.maxActiveSessionsPerUser()) {

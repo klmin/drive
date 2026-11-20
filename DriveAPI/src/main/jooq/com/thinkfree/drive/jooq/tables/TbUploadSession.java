@@ -199,6 +199,13 @@ public class TbUploadSession extends TableImpl<TbUploadSessionRecord> {
      */
     public final TableField<TbUploadSessionRecord, Instant> CREATE_DATE = createField(DSL.name("create_date"), SQLDataType.INSTANT.nullable(false).defaultValue(DSL.field(DSL.raw("now()"), SQLDataType.INSTANT)), this, "생성 시각");
 
+    /**
+     * The column <code>tb_upload_session.reserve_byte</code>. 진행 중 용량으로 셀
+     * 크기(byte) — OVERWRITE 는 새 크기 − 시작 시 대상 크기(0 이상), 그 외 size_byte. NULL 이면
+     * size_byte
+     */
+    public final TableField<TbUploadSessionRecord, Long> RESERVE_BYTE = createField(DSL.name("reserve_byte"), SQLDataType.BIGINT, this, "진행 중 용량으로 셀 크기(byte) — OVERWRITE 는 새 크기 − 시작 시 대상 크기(0 이상), 그 외 size_byte. NULL 이면 size_byte");
+
     private TbUploadSession(Name alias, Table<TbUploadSessionRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }
