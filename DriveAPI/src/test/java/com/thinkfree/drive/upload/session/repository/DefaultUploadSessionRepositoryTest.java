@@ -193,7 +193,7 @@ class DefaultUploadSessionRepositoryTest extends RepositoryTest {
     }
 
     @Test
-    @DisplayName("정리 — 30분 넘은 COMPLETING 은 FAILED(COMMIT_ERROR) + ABORT + DELETE")
+    @DisplayName("정리 — 30분 넘은 COMPLETING 은 FAILED(COMPLETING_TIMEOUT) + ABORT + DELETE")
     void staleCompleting() {
         UUID stale = insert(OWNER, 100);
         repository.attachStorage(stale, "1/" + stale, "up-stale");
@@ -205,6 +205,7 @@ class DefaultUploadSessionRepositoryTest extends RepositoryTest {
         assertThat(cleanupService.failStaleCompletingBatch()).isEqualTo(1);
 
         assertThat(status(stale)).isEqualTo("FAILED");
+        assertThat(jdbc.queryForObject("SELECT fail_reason FROM tb_upload_session WHERE upload_session_id = ?", String.class, stale)).isEqualTo(UploadSessionFailReason.COMPLETING_TIMEOUT.name());
         assertThat(status(running)).isEqualTo("COMPLETING");
         var queue = jdbc.queryForList("SELECT storage_key, action, upload_id FROM tb_storage_deletion");
         assertThat(queue).containsExactlyInAnyOrder(

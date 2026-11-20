@@ -12,7 +12,7 @@ public enum UploadSessionFailReason {
     EXPIRED,
     /** 사용자 취소 */
     CANCELED,
-    /** complete 처리 중 오류·COMPLETING 시간 초과 */
+    /** complete 처리 중 오류 */
     COMMIT_ERROR,
     /** 스토리지에 멀티파트 업로드가 없음(lifecycle 정리 등) */
     NO_SUCH_UPLOAD,
@@ -21,5 +21,7 @@ public enum UploadSessionFailReason {
     /** 커밋 직전 권한 재확인 실패 — 업로드하는 동안 공유가 해제됨 등(규칙 14) */
     PERMISSION_DENIED,
     /** 업로드하는 동안 대상 파일(버전·덮어쓰기)이나 부모 폴더(신규)가 삭제·휴지통 이동됨 — 파트 PUT 때 미리 끝낸다 */
-    TARGET_DELETED
+    TARGET_DELETED,
+    /** COMPLETING 이 시간 제한(기본 30분)을 넘겨 정리 스케줄러가 끝냄 — 조립이 너무 오래 걸렸거나 complete 처리 중 서버가 죽음. 알림 대상 */
+    COMPLETING_TIMEOUT
 }

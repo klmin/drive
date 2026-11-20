@@ -50,7 +50,7 @@ public interface UploadSessionRepository {
     /** last_activity 가 ttl 보다 오래된 PENDING 을 limit 개 FAILED(EXPIRED) 로 — 다른 처리와 겹치는 행은 건너뛴다(SKIP LOCKED). */
     List<UploadSessionCleanupTarget> expirePending(Duration ttl, int limit);
 
-    /** completing_at 이 timeout 보다 오래된 COMPLETING 을 limit 개 FAILED(COMMIT_ERROR) 로. */
+    /** completing_at 이 timeout 보다 오래된 COMPLETING 을 limit 개 FAILED(COMPLETING_TIMEOUT) 로. */
     List<UploadSessionCleanupTarget> failStaleCompleting(Duration timeout, int limit);
 
     /** create_date 가 retention 보다 오래된 COMPLETED·FAILED 행을 limit 개 지운다. @return 지운 행 수 */

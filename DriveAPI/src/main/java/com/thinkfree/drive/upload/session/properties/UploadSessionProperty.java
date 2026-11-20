@@ -10,7 +10,7 @@ import java.time.Duration;
  * 업로드 세션 설정값(docs/design/upload-session-redesign.md §2) — 기본값이 설계 확정값이고 application.yml 의 drive.upload.* 로 조정한다.
  *
  * @param sessionTtl                PENDING 세션 TTL — last_activity 기준 슬라이딩(이 안에 돌아오면 이어 올리기 가능)
- * @param completingTimeout         COMPLETING 최대 시간 — 넘으면 스케줄러가 FAILED(COMMIT_ERROR) + ABORT·DELETE 등록
+ * @param completingTimeout         COMPLETING 최대 시간 — 넘으면 스케줄러가 FAILED(COMPLETING_TIMEOUT) + ABORT·DELETE 등록
  * @param finishedRetention         끝난(COMPLETED·FAILED) 세션 행 보관 기간 — COMPLETED 는 complete 재요청 멱등 응답용
  * @param replacedKeyDeleteDelay    교체·밀려난 이전 key 삭제 유예
  * @param minPartSize               최소 파트 크기 — 파트 크기 = max(이 값, ceil(size / 10,000))
