@@ -12,7 +12,7 @@ import java.util.function.IntSupplier;
  * <table>
  *   <tr><th>대상</th><th>조건</th><th>처리</th></tr>
  *   <tr><td>PENDING</td><td>last_activity &lt; now() - TTL</td><td>FAILED(EXPIRED) + ABORT</td></tr>
- *   <tr><td>COMPLETING</td><td>completing_at &lt; now() - 30m</td><td>FAILED(COMMIT_ERROR) + ABORT + DELETE</td></tr>
+ *   <tr><td>COMPLETING</td><td>completing_at &lt; now() - 30m</td><td>FAILED(COMPLETING_TIMEOUT) + ABORT + DELETE</td></tr>
  *   <tr><td>COMPLETED / FAILED</td><td>create_date &lt; now() - 7d</td><td>행 삭제</td></tr>
  * </table>
  */
@@ -37,7 +37,8 @@ public class UploadSessionCleanupProcessor {
         int expired = repeat(uploadSessionCleanupService::expirePendingBatch);
         int staleCompleting = repeat(uploadSessionCleanupService::failStaleCompletingBatch);
         if (staleCompleting > 0) {
-            // 정상이면 생기지 않는다 — complete 처리 중 서버 다운·커밋 결과 불명확
+            // 정상이면 생기지 않는다 — complete 처리 중 서버 다운·커밋 결과 불명확·조립이 시간 제한보다 오래 걸림.
+            // 알림은 drive_upload_session_ended_total{reason="completing_timeout"} 로 건다(observability 알림 규칙 drive-upload-completing-timeout)
             log.warn("[UploadSessionCleanupProcessor] COMPLETING timed out sessions: {}", staleCompleting);
         }
         int purged = repeat(uploadSessionCleanupService::purgeFinishedBatch);

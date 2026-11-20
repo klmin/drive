@@ -168,7 +168,7 @@ public class DefaultUploadSessionRepository implements UploadSessionRepository {
     @Override
     public List<UploadSessionCleanupTarget> failStaleCompleting(Duration timeout, int limit) {
         return failOlderThan(UploadSessionStatus.COMPLETING, TB_UPLOAD_SESSION.COMPLETING_AT, timeout, limit,
-                             UploadSessionFailReason.COMMIT_ERROR, "completing timed out after " + timeout);
+                             UploadSessionFailReason.COMPLETING_TIMEOUT, "completing timed out after " + timeout);
     }
 
     private List<UploadSessionCleanupTarget> failOlderThan(UploadSessionStatus expected, Field<Instant> timeField, Duration age, int limit,

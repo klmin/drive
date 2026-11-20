@@ -150,7 +150,7 @@ Alloy 내장 exporter — 컨테이너 추가 없음. DB 접속 정보는 `obser
 PostgreSQL 수집기는 앱 계정으로 되는 것만 켠다(`enabled_collectors`) — `wal` 은 `pg_monitor` 권한이 필요하다.
 
 앱 테이블에서 읽는 "지금 상태" 지표는 커스텀 쿼리로 같이 모은다(`alloy/pg-queries.yaml`, 두 PG exporter 모두):
-`drive_upload_active_*{status}`(진행 중 업로드 세션 수·잡아 둔 용량·가장 오래 멈춘 시간), `drive_storage_deletion_*{action}`(스토리지 정리 대기열 — 대기·유예 중·기한 지남·포기. 교체된 key 는 24시간 유예, 실패는 백오프로 미뤄 등록되므로 "오래 남은 행" 이 아니라 "지울 시각이 지났는데 남은 행" 으로 본다),
+`drive_upload_active_*{status}`(진행 중 업로드 세션 수·잡아 둔 용량·가장 오래 멈춘 시간·가장 오래된 COMPLETING 의 경과 시간), `drive_storage_deletion_*{action}`(스토리지 정리 대기열 — 대기·유예 중·기한 지남·포기. 교체된 key 는 24시간 유예, 실패는 백오프로 미뤄 등록되므로 "오래 남은 행" 이 아니라 "지울 시각이 지났는데 남은 행" 으로 본다),
 `drive_pg_lock_wait_*`(잠금을 기다리는 세션 수·가장 오래 기다린 시간).
 커스텀 쿼리는 `SELECT /* exporter */ …` 로 표시한다 — 부하 테스트 DB 의 상위 쿼리 목록(`alloy/pg-statements.yaml`, `pg_stat_statements`)에서 빼기 위해서다.
 상위 쿼리 수집은 확장이 있는 부하 테스트 DB 에만 붙인다(compose `loadtest-db` 의 `shared_preload_libraries` + `k6/seed-admin.sql`).
@@ -174,8 +174,10 @@ PostgreSQL 수집기는 앱 계정으로 되는 것만 켠다(`enabled_collector
 | 스토리지 정리 밀림 | 지울 시각이 15분 넘게 지난 정리 행(`drive_storage_deletion_overdue`) > 0 이 15분 — 삭제 워커 정지·실패 |
 | 스토리지 정리 포기 행 있음 | 시도 상한(10회)에 닿은 행(`drive_storage_deletion_exhausted`) > 0 이 5분 — `last_error` 확인 후 수동 처리 |
 | 업로드 세션 정리 안 됨 | PENDING 세션의 활동 없는 시간 > 75분(TTL 1시간 + 정리 주기 10분 + 여유)이 10분 — 세션 정리 스케줄러 확인 |
+| 업로드 완료 처리 시간 초과 | 최근 15분에 COMPLETING 시간 제한(30분)을 넘겨 실패 처리된 세션(`drive_upload_session_ended_total{reason="completing_timeout"}`)이 있으면 바로 — 조립 시간·스토리지 지연·complete 중 서버 재시작 확인 |
+| 업로드 완료 처리 정리 안 됨 | COMPLETING 이 complete 시작 뒤 45분(시간 제한 30분 + 정리 주기 10분 + 여유)을 넘긴 채 남음(`drive_upload_active_oldest_completing_seconds`)이 10분 — 세션 정리 스케줄러 확인 |
 
-정리 관련 3개는 `job="postgres"`(운영·dev DB) 기준이다 — 부하 테스트 DB 는 배치 스케줄러를 꺼 두므로 대상이 아니다. 테이블이 없는 DB(V6 이전)는 지표가 없어 알림도 없다(`noDataState: OK`).
+정리 관련 알림은 `job="postgres"`(운영·dev DB) 기준이다("업로드 완료 처리 시간 초과" 만 앱 지표 `job="drive-api"`) — 부하 테스트 DB 는 배치 스케줄러를 꺼 두므로 대상이 아니다. 테이블이 없는 DB(V6 이전)는 지표가 없어 알림도 없다(`noDataState: OK`).
 
 **받는 곳(contact point)은 아직 없다** — 기본 이메일(SMTP 미설정)이라 아무 데도 안 간다.
 Grafana › Alerting › Contact points 에서 Slack·메일을 만들고 Notification policies 기본 정책에 연결한다.

@@ -35,10 +35,10 @@
   - 완료 기준: `UploadChunkIntegrationTest` 에 "업로드 중 대상·부모 삭제 → 다음 파트 409" 추가
 - [ ] **감사 로그 발행 시점**(규칙 13) — 지금 `resourceAuditService.record` 는 호출부(`FileUseCase` 등)에서 커밋 뒤. 커밋 tx 안에서 발행 + `AFTER_COMMIT` 으로 옮길지 검토(감사 코드 자체는 수정하지 않음)
 - [x] **지표·알림**(설계 §13) — Micrometer 대신 DB 지표(Alloy `observability/alloy/pg-queries.yaml`)로 냈다. 앱 인스턴스 수와 상관없이 DB 기준 한 벌만 나온다.
-  - 업로드 세션(PR #50): `drive_upload_active_sessions{status}`·`drive_upload_active_reserved_bytes{status}`·`drive_upload_active_oldest_idle_seconds{status}`(PENDING·COMPLETING, 0 이어도 두 상태 모두 나옴)
+  - 업로드 세션(PR #50): `drive_upload_active_sessions{status}`·`drive_upload_active_reserved_bytes{status}`·`drive_upload_active_oldest_idle_seconds{status}`·`drive_upload_active_oldest_completing_seconds{status}`(PENDING·COMPLETING, 0 이어도 두 상태 모두 나옴)
   - 삭제 대기열(PR #56): `drive_storage_deletion_pending`·`deferred`·`overdue`·`overdue_max_seconds`·`exhausted`(`{action}`, `REFERENCED` 포함 action 별)
   - 알림(`observability/grafana/provisioning/alerting/drive-rules.yaml`): 업로드 세션 정리 안 됨(`drive-upload-session-stale`, PENDING 활동 없음이 TTL 을 넘김, PR #50), 삭제 대기 기한 지남(`drive-storage-deletion-overdue`)·시도 상한 도달(`drive-storage-deletion-exhausted`, 최종 실패 행, PR #56)
-  - [ ] 남은 것: **COMPLETING 30분 초과 알림**. 지표(`drive_upload_active_oldest_idle_seconds{status="COMPLETING"}`)는 있지만 규칙이 없다. 지금은 `UploadSessionCleanupProcessor` 의 WARN 로그뿐이다. 30분 기준은 1GB 조립 시간 측정(next-session §3-3) 뒤에 정한다
+  - [x] **COMPLETING 30분 초과 알림**(PR #68) — 시간 초과 실패 사유를 `COMMIT_ERROR` 에서 `COMPLETING_TIMEOUT` 으로 분리해 `drive_upload_session_ended_total{reason="completing_timeout"}` 로 센다. 알림 두 개: 시간 초과 발생(`drive-upload-completing-timeout`, 15분 안에 1건 이상) · 시간 초과가 지났는데 정리 안 됨(`drive-upload-completing-stale`, `drive_upload_active_oldest_completing_seconds` > 45분). 시간 제한 30분 자체는 그대로 두고, 1GB 조립 시간 측정(next-session §3-3) 뒤에 다시 정한다
 - [ ] **Ceph·RustFS 계약 테스트**(단계 1 나머지) — `S3StorageServiceMultipartContractTest` 를 이미지만 바꿔 실행. 확인할 것: abort 직후 동작, NoSuchUpload 코드, `AbortIncompleteMultipartUpload` lifecycle 지원(MinIO 는 미지원), 파트 체크섬·`If-None-Match`
 - [ ] **운영 버킷 lifecycle 확인** — 기동 시 자동 병합 PUT 이 운영 버킷 정책과 충돌하지 않는지, 권한 없는 설치처는 `drive.upload.manage-bucket-lifecycle=false` + 수동 설정 안내(DriveInstaller 문서)
 - [x] **CodeQL 결과 업로드 실패**(PR #35) — private 저장소라 업로드 없이 분석만(`upload: never`), 결과는 실행 Summary·SARIF 아티팩트

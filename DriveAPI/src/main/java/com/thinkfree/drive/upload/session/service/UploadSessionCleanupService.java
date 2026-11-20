@@ -29,7 +29,7 @@ public class UploadSessionCleanupService {
         return targets.size();
     }
 
-    /** 시간 초과 COMPLETING → FAILED(COMMIT_ERROR) + ABORT·DELETE 등록(COMPLETING = 미반영이 보장되므로 안전). @return 처리한 세션 수 */
+    /** 시간 초과 COMPLETING → FAILED(COMPLETING_TIMEOUT) + ABORT·DELETE 등록(COMPLETING = 미반영이 보장되므로 안전). @return 처리한 세션 수 */
     @Transactional
     public int failStaleCompletingBatch() {
         List<UploadSessionCleanupTarget> targets = uploadSessionRepository.failStaleCompleting(property.completingTimeout(), property.cleanupBatchSize());

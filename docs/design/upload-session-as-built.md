@@ -105,7 +105,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 
 - 조건부 UPDATE 가 0행이면 커밋이 실제로는 성공했을 수 있다(커밋 뒤 예외·응답 유실) — 세션을 다시 읽어 COMPLETED 면 저장된 결과를 돌려준다(**DB 상태가 정본**).
 - 실패 기록조차 못 하면 세션은 PENDING/COMPLETING 으로 남고 스케줄러가 정리한다.
-- `fail_reason`: `QUOTA_EXCEEDED`(IS_FULL), `VALIDATION`(그 밖의 업무 오류), `STORAGE_ERROR`(조립 전 스토리지 오류), `COMMIT_ERROR`(그 외), `CONTENT_MISMATCH`(매직바이트 — 확장자 위장·실행 파일), 청크 API 에서 `CANCELED`(취소)·`NO_SUCH_UPLOAD`(파트 PUT 중 스토리지 업로드 사라짐)·`PERMISSION_DENIED`(커밋 tx 권한 재확인 실패)·`TARGET_DELETED`(파트 PUT 때 대상 파일·부모 폴더가 삭제됨).
+- `fail_reason`: `QUOTA_EXCEEDED`(IS_FULL), `VALIDATION`(그 밖의 업무 오류), `STORAGE_ERROR`(조립 전 스토리지 오류), `COMMIT_ERROR`(그 외), `COMPLETING_TIMEOUT`(COMPLETING 시간 제한 초과 — 정리 스케줄러, 알림 대상), `EXPIRED`(PENDING TTL 초과), `CONTENT_MISMATCH`(매직바이트 — 확장자 위장·실행 파일), 청크 API 에서 `CANCELED`(취소)·`NO_SUCH_UPLOAD`(파트 PUT 중 스토리지 업로드 사라짐)·`PERMISSION_DENIED`(커밋 tx 권한 재확인 실패)·`TARGET_DELETED`(파트 PUT 때 대상 파일·부모 폴더가 삭제됨).
 
 ### 3.5 청크 업로드 API (`/api/v1/uploads`)
 `UploadSessionController` → `UploadSessionUseCase`(권한·감사) → `UploadChunkService`(트랜잭션 없음). 로그인 사용자(USER)만, 익명 불가.
@@ -150,7 +150,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 | 대상 | 조건 | 처리 |
 |---|---|---|
 | PENDING | `last_activity < now() - 1h` | FAILED(EXPIRED) + ABORT(멀티파트) / DELETE(단일 요청) |
-| COMPLETING | `completing_at < now() - 30m` | FAILED(COMMIT_ERROR) + ABORT + DELETE |
+| COMPLETING | `completing_at < now() - 30m` | FAILED(COMPLETING_TIMEOUT) + ABORT + DELETE |
 | COMPLETED·FAILED | `create_date < now() - 7d` | 행 삭제 |
 
 ### 5.2 삭제 워커 — `StorageDeletionProcessor` (기존 `processStorageDeletions`, 30초)
