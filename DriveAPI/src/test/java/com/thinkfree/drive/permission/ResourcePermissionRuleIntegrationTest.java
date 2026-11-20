@@ -11,7 +11,7 @@ import com.thinkfree.drive.permission.support.RequestActor;
 import com.thinkfree.drive.share.enums.ShareType;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * ⚠ 실행 환경: H2(test 프로파일)는 운영 쿼리의 WITH RECURSIVE CTE를 파싱하지 못한다
  *   (H2 2.3.232는 재귀 CTE에 컬럼 리스트를 요구). 따라서 이 테스트는 기존
  *   ResourcePermissionFindServiceTest 와 동일하게 실제 MySQL(개발/로컬 DB)을 쓰는
- *   기본 @SpringBootTest 로 동작한다. 데이터는 직접 INSERT 하고 @Transactional 로 롤백한다.
+ *   @DriveIntegrationTest(test 프로필) 로 동작한다. 데이터는 직접 INSERT 하고 @Transactional 로 롤백한다.
  *   (seq 는 기존 데이터와 충돌하지 않도록 큰 값 사용)
  *
  * 룰:
@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - 권한       = useTarget ? 타겟권한 : (hasLink ? 링크권한 : invalid)
  * - 익명       = RequestActor.anonymous=true 면 checkPermission 내부에서 resolved SHARE_TYPE == PUBLIC_LINK 만 허용
  */
-@SpringBootTest
+@DriveIntegrationTest
 @Transactional
 @Disabled
 class ResourcePermissionRuleIntegrationTest {

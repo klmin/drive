@@ -15,7 +15,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import java.util.List;
 import java.util.stream.Stream;
 import com.thinkfree.drive.access.exception.AccessErrorCode;
@@ -24,7 +24,7 @@ import com.thinkfree.drive.global.exception.ApiRuntimeException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-@SpringBootTest
+@DriveIntegrationTest
 @DisplayName("IpAccessControlService 통합테스트")
 @Slf4j
 //@Disabled

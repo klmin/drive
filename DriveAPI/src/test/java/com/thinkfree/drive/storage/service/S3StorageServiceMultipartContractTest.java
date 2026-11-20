@@ -10,8 +10,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import com.thinkfree.drive.common.TestS3Container;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -48,11 +48,7 @@ class S3StorageServiceMultipartContractTest {
     private static final int PART = 5 * MIB;
 
     @SuppressWarnings("resource")
-    private static final GenericContainer<?> MINIO = new GenericContainer<>("bitnami/minio:2025")
-            .withEnv("MINIO_ROOT_USER", ACCESS_KEY)
-            .withEnv("MINIO_ROOT_PASSWORD", SECRET_KEY)
-            .withExposedPorts(9000)
-            .waitingFor(Wait.forHttp("/minio/health/live").forPort(9000).withStartupTimeout(Duration.ofMinutes(2)));
+    private static final GenericContainer<?> MINIO = TestS3Container.create(ACCESS_KEY, SECRET_KEY);
 
     private static S3Client s3Client;
     private static S3StorageService storage;
