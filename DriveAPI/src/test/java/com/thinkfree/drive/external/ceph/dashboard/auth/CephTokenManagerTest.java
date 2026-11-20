@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import org.springframework.security.concurrent.DelegatingSecurityContextExecutor;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 
@@ -16,7 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @EnabledIf(expression = "#{environment['storage.type'] == 'ceph'}", loadContext = true)
-@SpringBootTest
+@DriveIntegrationTest
 @Slf4j
 @Disabled
 class CephTokenManagerTest {

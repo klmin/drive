@@ -1,10 +1,10 @@
 package com.thinkfree.drive.mfa.properties;
 
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+@DriveIntegrationTest
 class MfaPropertyTest {
     
     @Autowired

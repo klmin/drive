@@ -1,11 +1,11 @@
 package com.thinkfree.drive.user.quota.alert.state.service;
 
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import com.thinkfree.drive.config.security.WithMockUserCustom;
 import com.thinkfree.drive.user.quota.alert.state.dto.UserQuotaAlertStateEvaluateDto;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.concurrent.DelegatingSecurityContextExecutor;
 
 import java.time.Instant;
@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-@SpringBootTest
+@DriveIntegrationTest
 @Slf4j
 class UserQuotaAlertStateServiceTest {
     

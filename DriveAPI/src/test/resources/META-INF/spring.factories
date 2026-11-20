@@ -1,0 +1,2 @@
+# 테스트 클래스패스에서만 쓰는 EnvironmentPostProcessor — test 프로필의 스토리지를 RustFS 테스트 컨테이너로 돌린다
+org.springframework.boot.env.EnvironmentPostProcessor=com.thinkfree.drive.common.TestS3ContainerEnvironmentPostProcessor

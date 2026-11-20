@@ -1,5 +1,6 @@
 package com.thinkfree.drive.permission.service;
 
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import com.thinkfree.drive.partition.PartitionKey;
 import com.thinkfree.drive.permission.data.ResourceShareChainData;
 import com.thinkfree.drive.permission.data.ResourceShareChainItem;
@@ -13,7 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.List;
 
-@SpringBootTest
+@DriveIntegrationTest
 @Slf4j
 class ResourcePermissionFindServiceTest {
     
@@ -44,6 +45,7 @@ class ResourcePermissionFindServiceTest {
     }
     
     @Test
+    @Disabled("dev DB 데이터 의존 — 공유된 리소스 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void findResourceShareFarthest(){
         int userSeq = 21;
         //var partitionKey = new PartitionKey(21, 3161);
@@ -70,6 +72,7 @@ class ResourcePermissionFindServiceTest {
     }
     
     @Test
+    @Disabled("dev DB 데이터 의존 — 공유된 리소스 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void findResourcePermissionWithFarthest(){
         int userSeq = 21;
         //var partitionKey = new PartitionKey(21, 3161);

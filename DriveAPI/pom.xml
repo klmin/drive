@@ -525,6 +525,15 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- 테스트 데이터가 timestamptz 컬럼에 '2026-01-10 00:00:00' 같은 문자열을 넣는다. PG 는 이를 세션 시간대(= JVM 기본 시간대)로
+                         해석하므로 OS 시간대에 따라 결과가 달라진다(CI 러너는 UTC). 테스트 JVM 을 DriveTime 기본 시간대(Asia/Seoul)로 고정한다. -->
+                    <argLine>-Duser.timezone=Asia/Seoul</argLine>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

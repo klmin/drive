@@ -1,5 +1,6 @@
 package com.thinkfree.drive.abstracts;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,7 @@ class TenantModeSwitchMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("setTestHost 매치 host: PATH 면 /{slug} 접두 + servletPath 전체, SUBDOMAIN 이면 접두 없음 — 둘 다 200")
+    @Disabled("dev DB 데이터 의존 — SUBDOMAIN='default-add' 테넌트 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void matchedHostFollowsMode() throws Exception {
         MvcResult result = mockMvc.perform(get(BRANDING)).andExpect(status().isOk()).andReturn();
         String uri = result.getRequest().getRequestURI();
@@ -74,6 +76,7 @@ class TenantModeSwitchMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("setTestTenant(slug): Host 는 그 테넌트 DOMAIN, PATH 면 /t/{slug} 접두 — 둘 다 200")
+    @Disabled("dev DB 데이터 의존 — SUBDOMAIN='default-add' 테넌트 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void setTestTenantFillsHostAndPrefix() throws Exception {
         setTestTenant("default-add");
 
@@ -90,6 +93,7 @@ class TenantModeSwitchMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("setTestTenant 와 setTestHost 는 같은 테넌트에 대해 같은 (host, slug) 로 귀결된다")
+    @Disabled("dev DB 데이터 의존 — SUBDOMAIN='default-add' 테넌트 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void setTestTenantAndSetTestHostConverge() {
         setTestTenant("default-add");
         String hostBySlug = getTestHost();
@@ -122,6 +126,7 @@ class TenantModeSwitchMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("setTestSlug(slug): static 으로 슬러그만 두고, 첫 요청 때 Host=DOMAIN 파생 + PATH 면 /t/{slug} 접두 — 둘 다 200")
+    @Disabled("dev DB 데이터 의존 — SUBDOMAIN='default-add' 테넌트 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void setTestSlugResolvesHostLazily() throws Exception {
         setTestSlug("default-add");
 
@@ -138,6 +143,7 @@ class TenantModeSwitchMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("setTestSlug 와 setTestTenant 는 같은 슬러그에 대해 같은 (host, slug) 로 귀결된다")
+    @Disabled("dev DB 데이터 의존 — SUBDOMAIN='default-add' 테넌트 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void setTestSlugAndSetTestTenantConverge() {
         setTestTenant("default-add");
         String hostByTenant = getTestHost();

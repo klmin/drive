@@ -13,12 +13,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import java.util.List;
 import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-@SpringBootTest
+@DriveIntegrationTest
 @DisplayName("AccessAllowedIpService 통합테스트")
 class AccessAllowedIpServiceTest {
     private static final int TENANT = 1;

@@ -31,17 +31,17 @@ spring:
     init:
       mode: never
 
-# AWS S3
+# 스토리지 — 사내망 Ceph 대신 테스트용 RustFS 컨테이너(Docker 필요)를 쓴다.
+# drive.test.s3-container.enabled 가 켜져 있으면 TestS3ContainerEnvironmentPostProcessor 가 JVM 당 컨테이너 하나를 띄우고
+# 아래 endpoint·access-key·secret-key 를 그 컨테이너 값으로 덮어쓴다(여기 값은 자리표시). 버킷은 기동 때 S3BucketInitializer 가 만든다.
+drive.test.s3-container.enabled: true
 storage:
   type: ceph
   connection:
-    #      endpoint: http://172.23.1.52:9000
-    #      access-key: LH6WT0T7CWBACZXFYHAI
-    #      secret-key: mCuL0ZYlzyf3Rnqe5doq9ML4s6bWNppyNj7aP1Ac
-    endpoint: http://172.17.163.136:9000
-    access-key: DG5KZPPJDUW7E7SIAZFT
-    secret-key: jt0ExdOAyHsl6Xzl6qDCsZdW34lqD6wEgXgXMawd
-    bucket-name: t-drive-demo
+    endpoint: http://localhost:9000
+    access-key: drive-test-access
+    secret-key: drive-test-secret-key
+    bucket-name: t-drive-test
 
 S3_BUCKET_NAME : t-drive-demo
 S3_REGION_STATIC : ap-northeast-2
