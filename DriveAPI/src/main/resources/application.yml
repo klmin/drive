@@ -271,6 +271,13 @@ drive:
   rest-client:
     # 외부 호출 요청·응답 본문까지 로그(본문 버퍼링) — 운영 false, dev·로컬은 true 주입
     trace-enabled: ${DRIVE_REST_CLIENT_TRACE_ENABLED:false}
+  # 테넌트 관리자가 입력한 주소(OIDC issuer·JWT JWKS·SMTP host)로 나가는 요청의 내부망 가드(SSRF 방지).
+  #   공인 IP 는 항상 통과. 169.254.0.0/16(클라우드 메타데이터)·fe80::/10 은 설정과 상관없이 항상 차단, OIDC·JWKS 는 리다이렉트를 따라가지 않는다.
+  #   enabled=true 면 loopback·사설망(10/8·172.16/12·192.168/16)·100.64/10·fc00::/7 도 차단 — 여러 고객사가 한 서버를 쓰는 배포는 켠다.
+  #   사내 IdP·메일 서버를 쓰는 설치처는 그 대역을 allowed-cidrs 에 쉼표로 넣는다(예: 10.20.0.0/16,192.168.10.5/32).
+  outbound-guard:
+    enabled: ${DRIVE_OUTBOUND_GUARD_ENABLED:false}
+    allowed-cidrs: ${DRIVE_OUTBOUND_GUARD_ALLOWED_CIDRS:}
   # 설치 직후 초기 설정(InitialSetupRunner) — Flyway 뒤 기동 시, 값이 주입됐고 DB 에 아직 없을 때만 넣는다(이미 있으면 유지).
   # 대상 테넌트 = 활성 자체관리(SELF_MANAGED) 테넌트가 하나뿐일 때 그 테넌트(첫 설치면 1). 여러 개면 건너뛴다.
   initial-setup:
