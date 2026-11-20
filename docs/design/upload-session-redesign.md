@@ -412,7 +412,11 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
   - 복원은 출처가 스토리지 객체인 VERSION = 세션 RESTORE. 잠긴 파일은 세션 시작 전에 미리 거절(최종 판정은 커밋 tx).
   - 남겨 둔 것(전환 기간): `cleanVersionIfExists`(옛 흐름이 남긴 PENDING·DELETE 버전 정리 — 저장 마커 `findSaveMarker`, `finalizeAfterStorageUpload`, `rollbackResourceVersionMetadata` 포함). 옛 PENDING 행이 없다고 확인된 뒤 제거. `ResourceRepository.revertOverwrite` 는 호출부 없음(다음 정리 때 제거).
 - **이름 결정 경로 잠금 통일** — 브랜치 `fix/name-lock-parent-folder`: `DefaultResourceService.lockNamingScope` 가 폴더 생성·파일/폴더 이름 변경·이동(소유자 변경 시 받는 사용자 기준)·휴지통 복원에서 대상 행 잠금 뒤 부모 폴더 행(루트면 사용자 행)을 `FOR NO KEY UPDATE`(`ResourceNamingLockRepository`). 업로드 커밋은 3-1 에서 이미 같은 잠금. 동시 같은 이름 생성·이름 변경·이동 테스트(잠금을 끄면 4건 모두 이름 중복으로 실패하는 것 확인).
-- **미착수**: 단계 4(청크 API·프론트), 지표(§13), 커밋 tx 권한 재확인·매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
+- **단계 4-1 (청크 API 백엔드)** — 브랜치 `feat/upload-chunk-api`:
+  - `/api/v1/uploads` — 세션 생성·파트 PUT(요청 스트림 그대로)·상태(ListParts 로 올라간 파트)·목록·complete·취소(`UploadSessionController` → `UploadSessionUseCase` → `UploadChunkService`).
+  - `UploadSessionWriter` 를 `open`(세션 생성)·`finishClaimed`(선점 뒤 조립→크기 확인→커밋→실패 처리)로 나눠 내부 쓰기와 complete 가 같은 코드를 쓴다.
+  - 정한 것: 32MB 미만은 받지 않는다(기존 단일 요청 API — 단일 객체는 complete 뒤 늦은 PUT 이 커밋된 객체를 덮어쓸 수 있다). 청크 API 세션 = `part_count` 가 있는 세션(내부 쓰기 세션은 이 API 로 조회·complete·취소 불가). complete 의 파트 검증 실패는 설계대로 세션 FAILED + ABORT. 권한은 세션 생성과 complete 선점 전에 확인(커밋 tx 안 재확인은 todo B). 익명 사용자 불가.
+- **미착수**: 단계 4 나머지(`uploadingByte`·프론트·앞단 프록시 문서), 지표(§13), 커밋 tx 권한 재확인·매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
 
 ---
 

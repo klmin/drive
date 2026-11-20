@@ -113,6 +113,52 @@
         }
       }
     },
+    "/api/v1/uploads/{sessionId}/parts/{partNumber}": {
+      "put": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Upload a part",
+        "description": "Uploads one part as a raw byte stream (application/octet-stream). Content-Length must equal the planned part size. Re-sending the same part number replaces it.",
+        "operationId": "uploadPart",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "partNumber",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        },
+        "x-drive": {
+          "external": false,
+          "anonymous": false
+        }
+      }
+    },
     "/api/v1/super-admin/tenants/{tenantSeq}/office": {
       "get": {
         "tags": [
@@ -1275,6 +1321,119 @@
               "userMode": "SINGLE"
             }
           ]
+        }
+      }
+    },
+    "/api/v1/uploads": {
+      "get": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "List my upload sessions",
+        "description": "Lists my chunked upload sessions with the given status (PENDING by default), newest first.",
+        "operationId": "listUploadSessions",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "COMPLETING",
+                "COMPLETED",
+                "FAILED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListUploadSessionResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-drive": {
+          "external": false,
+          "anonymous": false
+        }
+      },
+      "post": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Start a chunked upload",
+        "description": "Creates an upload session for a large file and returns the part plan. Send each part with PUT, then call complete.",
+        "operationId": "startUpload",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadSessionCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseUploadSessionCreateResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-drive": {
+          "external": false,
+          "anonymous": false
+        }
+      }
+    },
+    "/api/v1/uploads/{sessionId}/complete": {
+      "post": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Complete a chunked upload",
+        "description": "Verifies all parts, assembles the file and saves it. Calling it again for a completed session returns the same result.",
+        "operationId": "completeUpload",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseUploadSessionCompleteResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-drive": {
+          "external": false,
+          "anonymous": false
         }
       }
     },
@@ -5913,6 +6072,78 @@
         }
       }
     },
+    "/api/v1/uploads/{sessionId}": {
+      "get": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Get an upload session",
+        "description": "Returns the session status and, while it is PENDING, the part numbers already uploaded so a client can resume by sending only the missing parts.",
+        "operationId": "getUploadSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseUploadSessionResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-drive": {
+          "external": false,
+          "anonymous": false
+        }
+      },
+      "delete": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Cancel a chunked upload",
+        "description": "Cancels the upload and discards uploaded parts. Succeeds even if the session has already ended.",
+        "operationId": "cancelUpload",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseUploadSessionCancelResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-drive": {
+          "external": false,
+          "anonymous": false
+        }
+      }
+    },
     "/api/v1/trash": {
       "get": {
         "tags": [
@@ -9527,6 +9758,48 @@
   },
   "components": {
     "schemas": {
+      "ApiResponseVoid": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {},
+          "totalCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextCursor": {
+            "type": "number"
+          },
+          "nextCursorValue": {},
+          "nextCursorType": {
+            "type": "string",
+            "enum": [
+              "FILE",
+              "FOLDER"
+            ]
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      },
       "OfficeUpdateRequest": {
         "type": "object",
         "properties": {
@@ -9570,48 +9843,6 @@
         "required": [
           "officeConnectionType"
         ]
-      },
-      "ApiResponseVoid": {
-        "type": "object",
-        "properties": {
-          "result": {
-            "type": "boolean"
-          },
-          "code": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "message": {
-            "type": "string"
-          },
-          "data": {},
-          "totalCount": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "pageIndex": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "pageSize": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "nextCursor": {
-            "type": "number"
-          },
-          "nextCursorValue": {},
-          "nextCursorType": {
-            "type": "string",
-            "enum": [
-              "FILE",
-              "FOLDER"
-            ]
-          },
-          "hasNext": {
-            "type": "boolean"
-          }
-        }
       },
       "SuperAdminShareSettingSaveRequest": {
         "type": "object",
@@ -10247,6 +10478,176 @@
           },
           "hasNext": {
             "type": "boolean"
+          }
+        }
+      },
+      "UploadSessionCreateRequest": {
+        "type": "object",
+        "properties": {
+          "sharedByUserSeq": {
+            "type": "integer",
+            "format": "int32",
+            "description": "User ID of the Drive that holds the destination (sharedByUserSeq from the shared list). Leave unset for your own Drive.",
+            "title": "Shared-by user ID"
+          },
+          "parentFolderSeq": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Destination folder resourceSeq for DUPLICATE. Leave blank to upload to your Drive root.",
+            "title": "Parent folder ID"
+          },
+          "resourceSeq": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Existing file ID. Required for VERSION or OVERWRITE.",
+            "title": "Resource ID"
+          },
+          "fileName": {
+            "type": "string",
+            "description": "File name including the extension. The server decides the Content-Type from the extension.",
+            "maxLength": 255,
+            "minLength": 0,
+            "title": "File name"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total file size in bytes. Files below the single-request threshold (32MB by default) must use the regular upload API.",
+            "title": "Size"
+          },
+          "saveType": {
+            "type": "string",
+            "description": "DUPLICATE adds a file (default). VERSION adds a version; OVERWRITE replaces the target file.",
+            "enum": [
+              "VERSION",
+              "DUPLICATE",
+              "OVERWRITE"
+            ],
+            "title": "Upload mode"
+          }
+        },
+        "required": [
+          "fileName",
+          "size"
+        ]
+      },
+      "ApiResponseUploadSessionCreateResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UploadSessionCreateResponse"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextCursor": {
+            "type": "number"
+          },
+          "nextCursorValue": {},
+          "nextCursorType": {
+            "type": "string",
+            "enum": [
+              "FILE",
+              "FOLDER"
+            ]
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UploadSessionCreateResponse": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "partSize": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "partCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxConcurrentParts": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ApiResponseUploadSessionCompleteResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UploadSessionCompleteResponse"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextCursor": {
+            "type": "number"
+          },
+          "nextCursorValue": {},
+          "nextCursorType": {
+            "type": "string",
+            "enum": [
+              "FILE",
+              "FOLDER"
+            ]
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UploadSessionCompleteResponse": {
+        "type": "object",
+        "properties": {
+          "resourceSeq": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "resourceName": {
+            "type": "string"
           }
         }
       },
@@ -13644,6 +14045,159 @@
             "items": {
               "$ref": "#/components/schemas/ApiKeyListResponse"
             }
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextCursor": {
+            "type": "number"
+          },
+          "nextCursorValue": {},
+          "nextCursorType": {
+            "type": "string",
+            "enum": [
+              "FILE",
+              "FOLDER"
+            ]
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ApiResponseListUploadSessionResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UploadSessionResponse"
+            }
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextCursor": {
+            "type": "number"
+          },
+          "nextCursorValue": {},
+          "nextCursorType": {
+            "type": "string",
+            "enum": [
+              "FILE",
+              "FOLDER"
+            ]
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UploadSessionResponse": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "failReason": {
+            "type": "string"
+          },
+          "saveType": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "parentFolderSeq": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "targetResourceSeq": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "partSize": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "partCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "uploadedParts": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "resourceSeq": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "resourceName": {
+            "type": "string"
+          },
+          "lastActivity": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createDate": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseUploadSessionResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UploadSessionResponse"
           },
           "totalCount": {
             "type": "integer",
@@ -18663,6 +19217,58 @@
           "targets": {
             "type": "array",
             "items": {}
+          }
+        }
+      },
+      "ApiResponseUploadSessionCancelResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UploadSessionCancelResponse"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextCursor": {
+            "type": "number"
+          },
+          "nextCursorValue": {},
+          "nextCursorType": {
+            "type": "string",
+            "enum": [
+              "FILE",
+              "FOLDER"
+            ]
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UploadSessionCancelResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
           }
         }
       }
