@@ -16,7 +16,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
        1. 세션 생성        open → UploadSessionTxService.create  (짧은 tx, REQUIRES_NEW)
        2. 스토리지 저장    StorageService                       (tx 밖)
        3. COMPLETING 선점  UploadSessionTxService.markCompleting (짧은 tx)
-       4. (멀티파트면) 조립 → 저장 크기 확인     ┐ finishClaimed
+       4. (멀티파트면) 조립 → 저장 크기 확인 → 매직바이트 ┐ finishClaimed
        5. 커밋             UploadCommitService.commit*           │ (짧은 tx, 일시적 DB 오류 3회 재시도)
        실패 시             UploadSessionTxService.fail           ┘ (FAILED + 정리 등록, 같은 tx)
 ```
@@ -87,6 +87,8 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 | VERSION·RESTORE | 사용자 행 → 리소스 행 → 버전 행 잠금 → 현재 key·크기·등록일을 SUCCESS 버전 행으로(`pushCurrentAsVersion`) → 리소스를 세션 key·새 크기로(`replaceWithVersioning`). 버전 한도 초과 시 가장 오래된 버전 행 삭제·번호 당김 → 사용량 +새 크기 −밀려난 크기, 밀려난 key **24h 유예 삭제** |
 | OVERWRITE | 사용자 행 → 리소스 행 잠금 → 현재 key == base key 일 때만 key·크기 교체(JPQL `overwrite` 낙관적 조건) → 사용량 +(새−이전), 이전 key **24h 유예 삭제**. 다르면(그 사이 다른 저장) **버전 저장으로** 반영 |
 
+**매직바이트(규칙 3)** — `finishClaimed` 가 조립·크기 확인 뒤, 커밋 전에 객체 앞 64KB 를 `readRange` 로 읽어 Tika 로 내용만 판별(`UploadContentInspector`). 확장자 사전 조회 결과와 형식 계열(미디어·PDF·컨테이너·실행 파일)이 다르면, 또는 실행 파일이면(`block-executable-content`) `UPLOAD_CONTENT_MISMATCH`(415 `UPLOAD_010`) → FAILED(`CONTENT_MISMATCH`) + DELETE. 계열을 모르는 쪽(텍스트·HTML·SVG·알 수 없는 바이너리)은 통과, 같은 계열 안의 차이(docx↔xlsx, mp4↔mov)는 보지 않는다. 복사·복원(`StorageCopy`)은 이미 저장소에 있던 내용이라 건너뛴다. 단일 요청·청크·웹오피스 저장 모두 같은 경로.
+
 **권한 재확인(규칙 14)** — 청크 업로드 complete 는 행을 잠근 직후 요청자 권한을 다시 본다(`recheckActor` = 요청자, 신규는 부모 폴더 UPLOAD, 버전·덮어쓰기는 대상 EDIT — 세션 생성과 같은 기준). 업로드가 길어 그 사이 공유가 해제될 수 있어서다. 실패하면 `PERMISSION_DENIED` 로 FAILED + 조립된 객체 DELETE 등록, 403. 서버 내부 쓰기(`recheckActor` = null)는 호출부(aspect·툴)가 직전에 확인하므로 건너뛴다 — 세션에 익명 여부·공유 링크 맥락을 남기지 않아 커밋 tx 에서 재구성할 수 없다.
 
 공통 마무리: `markCompleted`(0행이면 예외 → 전체 롤백 — 스케줄러가 이미 FAILED 처리) → `FileUploadedEvent` 를 tx 안에서 발행(리스너가 `AFTER_COMMIT` 이라 커밋 성공 시에만 사용량 후처리).
@@ -99,11 +101,11 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 | 조립 전(PUT·파트·복사 중) | PENDING | 멀티파트 ABORT, 단일 요청이면 DELETE |
 | 조립 전(complete 의 파트 검증) | COMPLETING | ABORT |
 | 조립 중(complete 결과 불명확) | COMPLETING | ABORT + DELETE |
-| 조립 후(크기 확인·커밋) | COMPLETING | DELETE |
+| 조립 후(크기 확인·매직바이트·커밋) | COMPLETING | DELETE |
 
 - 조건부 UPDATE 가 0행이면 커밋이 실제로는 성공했을 수 있다(커밋 뒤 예외·응답 유실) — 세션을 다시 읽어 COMPLETED 면 저장된 결과를 돌려준다(**DB 상태가 정본**).
 - 실패 기록조차 못 하면 세션은 PENDING/COMPLETING 으로 남고 스케줄러가 정리한다.
-- `fail_reason`: `QUOTA_EXCEEDED`(IS_FULL), `VALIDATION`(그 밖의 업무 오류), `STORAGE_ERROR`(조립 전 스토리지 오류), `COMMIT_ERROR`(그 외), 청크 API 에서 `CANCELED`(취소)·`NO_SUCH_UPLOAD`(파트 PUT 중 스토리지 업로드 사라짐)·`PERMISSION_DENIED`(커밋 tx 권한 재확인 실패).
+- `fail_reason`: `QUOTA_EXCEEDED`(IS_FULL), `VALIDATION`(그 밖의 업무 오류), `STORAGE_ERROR`(조립 전 스토리지 오류), `COMMIT_ERROR`(그 외), `CONTENT_MISMATCH`(매직바이트 — 확장자 위장·실행 파일), 청크 API 에서 `CANCELED`(취소)·`NO_SUCH_UPLOAD`(파트 PUT 중 스토리지 업로드 사라짐)·`PERMISSION_DENIED`(커밋 tx 권한 재확인 실패).
 
 ### 3.5 청크 업로드 API (`/api/v1/uploads`)
 `UploadSessionController` → `UploadSessionUseCase`(권한·감사) → `UploadChunkService`(트랜잭션 없음). 로그인 사용자(USER)만, 익명 불가.
@@ -177,6 +179,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 | `cleanup-batch-size` | 500 |
 | `manage-bucket-lifecycle` | true |
 | `abort-incomplete-multipart-days` | 1 |
+| `block-executable-content` | true — 실행 파일(PE·ELF·Mach-O) 내용 업로드 차단. 설치 파일을 공유해야 하면 false(그래도 다른 확장자로 위장한 실행 파일은 막힌다). `UploadContentInspector` 의 `@Value` |
 스케줄 끄기(테스트): `drive.scheduler.upload-session-cleanup.cron: "-"`.
 
 ---
@@ -186,6 +189,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 |---|---|
 | 진입점 | `file/write/orchestrator/FileWriteOrchestrator` |
 | 쓰기 흐름 | `upload/session/service/UploadSessionWriter`(`open`·`finishClaimed` 는 청크 API 와 공유) |
+| 매직바이트 검사 | `upload/session/service/UploadContentInspector` |
 | 청크 업로드 API | `api/v1/upload/controller/UploadSessionController`, `application/upload/UploadSessionUseCase`, `upload/session/service/UploadChunkService` |
 | 청크 업로드 프론트 | `DriveFront/utils/chunkUpload.js`(업로더), `components/common/dialog/UploadDialog.js`(32MB 이상만 청크), `PendingUploadsDialog.js`(IS_FULL 때 진행 중 업로드 목록·취소) |
 | 사용량 `uploadingByte` | `api/v1/user/usecase/UserUseCase.getCurrentQuota` → `UploadSessionTxService.sumUploadingByte` |
@@ -215,7 +219,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 
 ## 8. 알려진 한계 (자세한 내용은 todo)
 - 앞단 프록시: 설정 안내는 `DriveInstaller/thinkfree/TFD/template/httpd/README.md`(본문 상한 1GiB·응답 대기 300초). 번들 Apache 외 프록시(nginx 기본 1MB 등)는 설치처가 맞춰야 하고, 안 맞추면 파트 PUT 이 413 으로 막힌다. Developers 저장소 k8s ingress 는 아직. 실제 MinIO·브라우저로 1GB 끊었다 이어 올리기는 아직 확인 안 함(업로더 로직은 가짜 서버 테스트만).
-- 커밋 tx 권한 재확인은 청크 업로드만(서버 내부 쓰기는 호출부 검사만 — 업로드가 짧고 세션에 익명·공유 링크 맥락이 없다), 매직바이트 검사 없음, 감사 로그 발행 시점은 호출부 그대로.
+- 커밋 tx 권한 재확인은 청크 업로드만(서버 내부 쓰기는 호출부 검사만 — 업로드가 짧고 세션에 익명·공유 링크 맥락이 없다), 매직바이트는 형식 계열만(텍스트·HTML·SVG 등은 내용으로 판별 불가 — 통과, 다운로드는 `attachment`·`nosniff` 로 막는다), 감사 로그 발행 시점은 호출부 그대로.
 - 청크 API 는 외부 API(`/api/public`, API Key)로 내보내지 않았다(내부 웹 API 만).
 - 옛 흐름 호환 코드 남음: `cleanVersionIfExists`(옛 PENDING 버전 정리, 저장 마커 조회 = tx 안 S3 HEAD), `ResourceRepository.revertOverwrite`(호출부 없음), 미사용 `uploadPartsFromStream`·`copyObjectAnySize`.
 - Ceph·RustFS 계약 테스트 미실행(MinIO 만).

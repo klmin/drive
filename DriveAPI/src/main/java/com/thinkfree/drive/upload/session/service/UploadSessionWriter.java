@@ -74,6 +74,7 @@ public class UploadSessionWriter {
     private final UploadLockRepository uploadLockRepository;
     private final ResourceLockUnlockService resourceLockUnlockService;
     private final UploadSessionProperty property;
+    private final UploadContentInspector uploadContentInspector;
 
     /** 세션 key — 계산은 여기 한 곳(세션 생성 시)뿐이고, 이후 조회·삭제는 DB 에 저장된 값으로만 한다(규칙 1). */
     static String storageKey(Integer tenantSeq, UUID uploadSessionId) {
@@ -185,6 +186,10 @@ public class UploadSessionWriter {
             long stored = storageService.headContentLength(session.key());
             if (stored != size) {
                 throw ApiRuntimeException.type(UploadSessionErrorCode.UPLOAD_SIZE_MISMATCH).with("expected", size).with("stored", stored);
+            }
+            // 매직바이트(규칙 3) — 사용자가 올린 내용만. 복사·복원(StorageCopy)은 이미 저장소에 있던 내용이라 건너뛴다
+            if (!(session.dto().resolveContentSource() instanceof FileContentSource.StorageCopy)) {
+                uploadContentInspector.verify(session.key(), session.dto().getOriginalFileName(), size);
             }
             return commitWithRetry(session.saveType(), session.id(), session.key(), session.baseStorageKey(), session.dto(), requestUserSeq,
                                    recheckActor);
@@ -383,6 +388,9 @@ public class UploadSessionWriter {
         if (e instanceof ApiRuntimeException api) {
             if (api.getCode() instanceof PermissionErrorCode) {
                 return UploadSessionFailReason.PERMISSION_DENIED;
+            }
+            if (api.getCode() == UploadSessionErrorCode.UPLOAD_CONTENT_MISMATCH) {
+                return UploadSessionFailReason.CONTENT_MISMATCH;
             }
             return api.getCode() == QuotaErrorCode.IS_FULL ? UploadSessionFailReason.QUOTA_EXCEEDED : UploadSessionFailReason.VALIDATION;
         }

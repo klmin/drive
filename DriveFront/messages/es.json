@@ -851,7 +851,8 @@
             "general": "Error al subir.",
             "quotaExceeded": "Límite de almacenamiento superado. No se pudo completar la carga.",
             "sessionLimit": "Hay demasiadas cargas en curso. Inténtelo de nuevo cuando terminen algunas.",
-            "expired": "La carga se interrumpió. Vuelva a subir el archivo."
+            "expired": "La carga se interrumpió. Vuelva a subir el archivo.",
+            "contentMismatch": "El contenido del archivo no coincide con su extensión o es un tipo que no se puede subir (como un ejecutable)."
         },
         "pending": {
             "title": "Cargas en curso",

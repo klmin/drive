@@ -402,6 +402,31 @@ class UploadChunkIntegrationTest {
         }
     }
 
+    @Test
+    @DisplayName("매직바이트 — 실행 파일을 pdf 로 올리면 complete 에서 거절(415 UPLOAD_010), 파일 없음·사용량 그대로·FAILED(CONTENT_MISMATCH)·DELETE 등록")
+    void disguisedExecutableRejectedAtComplete() {
+        byte[] pe = new byte[512];
+        pe[0] = 'M';
+        pe[1] = 'Z';
+        pe[0x3C] = (byte) 0x80;
+        pe[0x80] = 'P';
+        pe[0x81] = 'E';
+        given(storageService.readRange(anyString(), anyLong(), anyLong())).willReturn(pe);
+        var started = uploadAll("invoice.pdf");
+        int rowsBefore = newRows();
+        long before = quota();
+
+        assertThatThrownBy(() -> useCase.complete(started.sessionId(), ADMIN))
+                .isInstanceOfSatisfying(ApiRuntimeException.class, e -> assertThat(e.getCode()).isEqualTo(UploadSessionErrorCode.UPLOAD_CONTENT_MISMATCH));
+
+        assertThat(newRows()).isEqualTo(rowsBefore);
+        assertThat(quota()).isEqualTo(before);
+        assertThat(sessionStatus(started.sessionId())).isEqualTo("FAILED");
+        assertThat(failReason(started.sessionId())).isEqualTo(UploadSessionFailReason.CONTENT_MISMATCH.name());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tb_storage_deletion d JOIN tb_upload_session s ON d.storage_key = s.storage_key "
+                + "WHERE s.upload_session_id = ? AND d.action = 'DELETE'", Integer.class, started.sessionId())).isEqualTo(1);
+    }
+
     private static void loginAs(int userSeq) {
         CustomUserDetails details = Mockito.mock(CustomUserDetails.class);
         given(details.getUserSeq()).willReturn(userSeq);

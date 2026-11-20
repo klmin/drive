@@ -851,7 +851,8 @@
             "general": "Upload failed.",
             "quotaExceeded": "Storage limit exceeded. Upload could not be completed.",
             "sessionLimit": "Too many uploads are in progress. Try again after some of them finish.",
-            "expired": "The upload was interrupted. Please upload the file again."
+            "expired": "The upload was interrupted. Please upload the file again.",
+            "contentMismatch": "The file content does not match its extension or is a type that cannot be uploaded (such as an executable)."
         },
         "pending": {
             "title": "Uploads in progress",
