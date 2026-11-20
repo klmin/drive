@@ -81,7 +81,7 @@ public class OidcAuthHandler implements SsoAuthHandler {
     }
     
     private RestClient clientFor(String baseUrl) {
-        return clientCache.computeIfAbsent(baseUrl, restClientFactory::createRestClient);
+        return clientCache.computeIfAbsent(baseUrl, restClientFactory::createGuardedRestClient);
     }
     
     private OidcDiscoveryDocument fetchDiscovery(String issuerUrl) {
@@ -164,7 +164,7 @@ public class OidcAuthHandler implements SsoAuthHandler {
     private Jwt validateIdToken(String idToken, String jwksUri, String clientId, String issuerUrl) {
         String cacheKey = jwksUri + "|" + clientId;
         JwtDecoder decoder = decoderCache.computeIfAbsent(cacheKey, k -> {
-            NimbusJwtDecoder nimbusDecoder = NimbusJwtDecoder.withJwkSetUri(jwksUri).build();
+            NimbusJwtDecoder nimbusDecoder = NimbusJwtDecoder.withJwkSetUri(jwksUri).restOperations(restClientFactory.guardedRestOperations()).build();
             
             OAuth2TokenValidator<Jwt> audienceValidator = token -> {
                 List<String> audience = token.getAudience();

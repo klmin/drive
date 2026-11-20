@@ -1,5 +1,6 @@
 package com.thinkfree.drive.sso.service;
 
+import com.thinkfree.drive.restclient.config.RestClientFactory;
 import com.nimbusds.jwt.JWTParser;
 import com.thinkfree.drive.tenant.policy.TenantFeature;
 import com.thinkfree.drive.tenant.policy.TenantPolicy;
@@ -72,6 +73,7 @@ public class SsoJwtLoginService {
     private final TenantPolicy tenantPolicy;
     private final UserAuditLookupService userAuditLookupService;
     private final LoginAuditService loginAuditService;
+    private final RestClientFactory restClientFactory;
     
     public SsoJwtLoginResult login(String externalToken, String driveAccessToken, int tenantSeq, HttpServletRequest httpRequest) {
 
@@ -196,7 +198,8 @@ public class SsoJwtLoginService {
     private JwtDecoder buildDecoder(SsoJwtConfigData config) {
         return switch (config.getKeySourceType()) {
             case PUBLIC_KEY -> buildPublicKeyDecoder(config.getPublicKey());
-            case JWKS -> NimbusJwtDecoder.withJwkSetUri(config.getJwksUri()).build();
+            // JWKS URL 은 테넌트 관리자 입력 — 내부망 가드·리다이렉트 끔 클라이언트로만 조회
+            case JWKS -> NimbusJwtDecoder.withJwkSetUri(config.getJwksUri()).restOperations(restClientFactory.guardedRestOperations()).build();
         };
     }
 
