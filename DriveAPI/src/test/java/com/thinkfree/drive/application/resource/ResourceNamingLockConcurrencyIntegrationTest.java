@@ -68,9 +68,12 @@ class ResourceNamingLockConcurrencyIntegrationTest {
     final List<Long> created = Collections.synchronizedList(new ArrayList<>());
     CustomUserDetails user;
     ExecutorService pool;
+    // file() 은 사용량을 올리지 않고 SQL 로 넣는데 휴지통 영구 삭제는 사용량을 깎는다 — 공용 시드 사용자 사용량이 음수로 남지 않게 되돌린다
+    long quotaBefore;
 
     @BeforeEach
     void setUp() {
+        quotaBefore = jdbc.queryForObject("SELECT use_quota_byte FROM tb_user WHERE user_seq=?", Long.class, USER);
         user = mock(CustomUserDetails.class);
         when(user.getUserSeq()).thenReturn(USER);
         when(user.getUsername()).thenReturn("fixture");
@@ -90,8 +93,11 @@ class ResourceNamingLockConcurrencyIntegrationTest {
         List<Long> ids = new ArrayList<>(created);
         Collections.reverse(ids);
         for (long id : ids) {
+            jdbc.update("DELETE FROM tb_trash WHERE user_seq=? AND resource_seq=?", USER, id);
             jdbc.update("DELETE FROM tb_resource WHERE user_seq=? AND resource_seq=?", USER, id);
         }
+        jdbc.update("DELETE FROM tb_storage_deletion WHERE storage_key LIKE 'naming-lock-test/%'");
+        jdbc.update("UPDATE tb_user SET use_quota_byte=? WHERE user_seq=?", quotaBefore, USER);
         TenantContext.clear();
         SecurityContextHolder.clearContext();
     }

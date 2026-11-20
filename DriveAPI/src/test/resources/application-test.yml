@@ -15,12 +15,18 @@ spring:
   datasource:
     # Testcontainers JDBC URL: 첫 접속 때 postgres:18 컨테이너를 띄우고(Docker 필요) 같은 URL 은 JVM 안에서 컨테이너를 공유한다.
     # 빈 컨테이너에 앱과 같은 Flyway 마이그레이션(classpath:db/migration, application.yml spring.flyway)이 스키마·시드를 만든다.
-    url: jdbc:tc:postgresql:18:///t_drive
+    url: jdbc:tc:postgresql:18:///t_drive?TC_DAEMON=true
     driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
     username: test
     password: test
     hikari:
-      maximum-pool-size: 10   # 공통은 50 — 통합 전(Hikari 기본 10)과 같게
+      # 테스트 컨텍스트마다 풀이 따로 생기고 Spring 이 컨텍스트를 캐시해 둔다 — 공통 minimum-idle(10)을 그대로 두면
+      # 컨텍스트 10개 남짓에서 공유 컨테이너의 max_connections(100)를 넘어 "too many clients" 로 컨텍스트 로딩이 실패한다.
+      # 쉬는 풀은 비운다(minimum-idle 0, idle-timeout 최소값 10초). 최대치는 동시성 테스트(스레드 6개+)를 위해 10 유지.
+      # 연결이 0개가 돼도 컨테이너가 내려가지 않도록 url 에 TC_DAEMON=true(없으면 빈 컨테이너가 새로 떠 스키마가 사라진다).
+      maximum-pool-size: 10
+      minimum-idle: 0
+      idle-timeout: 10000
   sql:
     init:
       mode: never
