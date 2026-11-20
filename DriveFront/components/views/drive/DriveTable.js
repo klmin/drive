@@ -558,7 +558,7 @@ export default function DriveTable({
                         // 이동된 행만 반영한다(스크롤 위치 유지)
                         if (listPatch?.move) await listPatch.move(item);
                         else await getData({}, true);
-                    } else if (res?.status === 423) {
+                    } else if (res?.code === 423) {
                         showSnackbar(t('lock.locked'), 'error');
                     } else {
                         showSnackbar(t('move.fail.general'), 'error');
@@ -773,7 +773,7 @@ export default function DriveTable({
                     if (res?.status === 200) {
                         successCount++;
                         deletedSeqs.push(item?.resourceSeq);
-                    } else if (res?.status === 423) {
+                    } else if (res?.code === 423) {
                         lockedCount++;
                         failCount++;
                     } else {

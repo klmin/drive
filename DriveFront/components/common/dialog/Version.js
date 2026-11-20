@@ -159,7 +159,7 @@ export default function VersionDialog({ open, onClose, ...props }) {
                 getVersionList();
                 // 복원으로 크기·수정일이 바뀌므로 해당 행만 갱신
                 if (listPatch?.refresh) await listPatch.refresh(item);
-            } else if (res?.status === 423) {
+            } else if (res?.code === 423) {
                 showSnackbar(t('lock.locked'), 'error');
                 if (listPatch?.refresh) await listPatch.refresh(item);
                 else reload(true);

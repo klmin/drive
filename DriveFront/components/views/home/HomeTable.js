@@ -291,7 +291,7 @@ export default function HomeTable({
 
                     if (res?.status === 200) {
                         successCount++;
-                    } else if (res?.status === 423) {
+                    } else if (res?.code === 423) {
                         lockedCount++;
                         failCount++;
                     } else {

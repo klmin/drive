@@ -166,7 +166,7 @@ export default function Drive() {
                 if (res?.status === 200) {
                     deletedSeqs.push(item.resourceSeq);
                     showSnackbar(t('moveToTrash.success'), 'success');
-                } else if (res?.status === 423) {
+                } else if (res?.code === 423) {
                     showSnackbar(t('lock.locked'), 'error');
                 } else {
                     showSnackbar(t('moveToTrash.fail'), 'error');

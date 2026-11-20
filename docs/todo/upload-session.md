@@ -33,7 +33,7 @@
 - [ ] **Ceph·RustFS 계약 테스트**(단계 1 나머지) — `S3StorageServiceMultipartContractTest` 를 이미지만 바꿔 실행. 확인할 것: abort 직후 동작, NoSuchUpload 코드, `AbortIncompleteMultipartUpload` lifecycle 지원(MinIO 는 미지원), 파트 체크섬·`If-None-Match`
 - [ ] **운영 버킷 lifecycle 확인** — 기동 시 자동 병합 PUT 이 운영 버킷 정책과 충돌하지 않는지, 권한 없는 설치처는 `drive.upload.manage-bucket-lifecycle=false` + 수동 설정 안내(DriveInstaller 문서)
 - [x] **CodeQL 결과 업로드 실패**(PR #35) — private 저장소라 업로드 없이 분석만(`upload: never`), 결과는 실행 Summary·SARIF 아티팩트
-- [ ] **CodeQL 발견 검토** — #35 실행 기준 Java 31건·JS 2건(PR #35 의 Actions 실행 → Summary 표, 아티팩트 `codeql-sarif-<언어>`). 진짜 문제는 고치고 오탐은 이유를 남긴 뒤, `.github/workflows/codeql.yml` 의 `FAIL_ON_FINDINGS` 를 `'true'` 로 켜서 새 발견이 PR 체크를 실패시키게 한다(오탐 제외 수단이 없으므로 켜기 전에 0건으로 만들거나 쿼리·경로 제외를 정할 것)
+- [x] **CodeQL 발견 검토** — #35 실행 기준 Java 31건·JS 2건(PR #35 의 Actions 실행 → Summary 표, 아티팩트 `codeql-sarif-<언어>`). 진짜 문제는 고치고 오탐은 이유를 남긴 뒤, `.github/workflows/codeql.yml` 의 `FAIL_ON_FINDINGS` 를 `'true'` 로 켜서 새 발견이 PR 체크를 실패시키게 한다(오탐 제외 수단이 없으므로 켜기 전에 0건으로 만들거나 쿼리·경로 제외를 정할 것) → PR #57 로 정리(실제 문제 28건 수정·오탐 4건은 규칙 제외·이름 변경), `FAIL_ON_FINDINGS` 켬
 - [ ] **`tb_resource_version.resource_save_name` 인덱스 생성 잠금**(V6) — 큰 설치처면 배포 시 쓰기 잠금. 이미 배포된 곳이 없으면 그대로, 있으면 `CREATE INDEX CONCURRENTLY` 별도 마이그레이션 검토
 
 ## C. 정리·후속
