@@ -35,6 +35,7 @@
 | #63 | 옛 흐름 호환 코드 제거(`cleanVersionIfExists`·저장 마커·PENDING 만료 판정·`VERSION_PROCESSING`·버전 롤백 쿼리) |
 | #59 | 통합 테스트를 test 프로필(`@DriveIntegrationTest`)로 고정해 항상 Testcontainers 사용, 백엔드 테스트 CI(`backend-test.yml`, `DriveAPI/**` PR·main push) 추가, CI(리눅스·UTC)에서만 나던 실패 수정 |
 | #65 | `DriveFixtures`(테스트 tx 안에서만 동작) 로 #59 에서 dev DB 의존으로 끈 16건을 다시 켬 |
+| #67 | 청크 업로드 중 대상(부모 폴더·대상 파일) 삭제 시 다음 파트 PUT 에서 FAILED(`TARGET_DELETED`) + 409 |
 | #64 | 다운로드 멈춤 수정: 스트림 전용 풀 `DriveStream-`(대기열 없음, 포화 시 503)·`spring.mvc.async.request-timeout` 해제·커밋 후 실패 시 연결 끊기(`CommittedResponseExceptionResolver`), 거절 시 열린 S3 응답 abort·닫기(`PendingDownloadStreams`)·503 전에 다운로드 헤더 제거, 감사 로그 CSV 는 요청 스레드에서 직접 씀 |
 
 **업로드 경로 정리**
@@ -53,7 +54,7 @@
      - 커밋 tx 의 행 락 안에서 S3 HEAD 를 부르는 문제
    - 현재 위치: `DefaultResourceService.java` 의 `replaceWithVersioning`·`overwriteContent`·`deleteVersion` 이 `cleanVersionIfExists` 를 부른다.
    - 완료 기준: 관련 통합 테스트 통과, `existsAliveVersion`(VERSION_PROCESSING 거절)도 함께 정리
-2. **업로드 중 대상 삭제 조기 실패**([upload-session.md](upload-session.md) B 새 항목)
+2. ~~**업로드 중 대상 삭제 조기 실패**~~ — **완료(PR #67)**. 파트 PUT 때 대상이 살아 있는지 조회하고, 없으면 FAILED(`TARGET_DELETED`) + ABORT + 409 를 준다. 아래는 기록용.
    - 문제: `UploadChunkService.uploadPart` 는 세션 상태·파트 크기만 본다. 그래서 그 사이 대상 파일·부모 폴더가 삭제돼도 수 GB 를 다 올린 뒤 complete 에서야 실패한다(데이터는 안전).
    - 수정: 파트 PUT 때 대상이 살아 있는지 가볍게 조회하고, 없으면 세션을 FAILED 로 끝내고 409 를 준다.
    - 완료 기준: `UploadChunkIntegrationTest` 에 "업로드 중 대상 삭제 → 다음 파트 409" 1~2건
