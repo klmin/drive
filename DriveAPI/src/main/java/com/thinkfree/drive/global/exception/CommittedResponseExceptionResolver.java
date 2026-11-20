@@ -1,5 +1,6 @@
 package com.thinkfree.drive.global.exception;
 
+import com.thinkfree.drive.util.LogSafe;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -29,10 +30,11 @@ public class CommittedResponseExceptionResolver implements HandlerExceptionResol
             return null;
         }
         if (DisconnectedClientHelper.isClientDisconnectedException(ex)) {
-            log.debug("Client disconnected during response: {} {}", request.getMethod(), request.getRequestURI());
+            log.debug("Client disconnected during response: {} {}", LogSafe.of(request.getMethod()), LogSafe.of(request.getRequestURI()));
             return new ModelAndView();
         }
-        log.warn("Response failed after commit, closing connection: {} {} — {}", request.getMethod(), request.getRequestURI(), ex.toString());
+        log.warn("Response failed after commit, closing connection: {} {} — {}",
+                LogSafe.of(request.getMethod()), LogSafe.of(request.getRequestURI()), LogSafe.of(ex));
         throw new ResponseAbortedException(ex);
     }
 
