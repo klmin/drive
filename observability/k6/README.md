@@ -24,6 +24,8 @@ k6 컨테이너 ──HTTP──▶ Drive (IntelliJ "DriveAPI (loadtest)", :8082
 | `seed.js` | 데이터 만들기 — 사용자 18명 × (루트 파일 10 + 폴더 10 × 파일 20) = 파일 3,780·폴더 180, 10개마다 즐겨찾기 |
 | `read.js` | 실행: 둘러보기 부하 |
 | `upload.js` | 실행: 업로드 부하 — 작은 파일·큰 파일 시나리오를 동시에 |
+| `flows/write.js` | 흐름: 정리하기 — 폴더 만들기 → 파일 복사 → 이름 바꾸기 → 다른 폴더로 옮기기 → 휴지통 → 복원 → 작업 폴더 영구 삭제 |
+| `write.js` | 실행: 쓰기 부하 — `HOT_USER=1` 이면 모든 VU 가 같은 사용자로(잠금 경합) |
 | `seed-admin.sql` | 부하 테스트 DB 의 admin 비밀번호를 테스트 값(`LoadTest!2026`)으로 |
 
 ## 처음 한 번
@@ -81,6 +83,22 @@ docker compose --profile loadtest run --rm k6 run -e CHUNK_MB=100 -e SMALL_KB=20
   `tb_storage_deletion` 에 쌓인다(대시보드 "정리 대기열"). 스토리지 볼륨이 커지면 "다시 처음부터".
 - 기준: HTTP 실패 1% 미만, 체크 99% 이상, 작은 파일 p95 2초, complete p95 5초.
 
+### 쓰기
+
+```bash
+docker compose --profile loadtest run --rm k6 run /scripts/write.js                          # 기본: 5명→15명, 약 4분
+docker compose --profile loadtest run --rm k6 run -e PROFILE=smoke /scripts/write.js         # 확인용: 1명 35초
+docker compose --profile loadtest run --rm k6 run -e HOT_USER=1 -e THINK=0 /scripts/write.js # 모든 VU 가 사용자 1 로 — 잠금 경합
+```
+
+- 반복마다 만든 폴더·복사본은 반복 끝에 영구 삭제한다 — 오래 돌려도 seed 데이터·용량이 그대로(스토리지 객체는 정리 대기열에 쌓인다).
+- 복사는 사용자 행을 잠그고(용량) 스토리지 서버측 복사를 한다. `HOT_USER=1` 이면 그 행 하나를 VU 전부가 기다린다 — "DB 잠금·느린 쿼리" 행에서 잠금 대기와 `tb_user … for no key update` 가 위로 올라온다.
+- 상위 쿼리 패널은 누적값이라, 실행 전에 비우면 그 실행만 보인다:
+  ```bash
+  docker compose exec -T loadtest-db psql -U drive_load -d drive_load -c "SELECT pg_stat_statements_reset()"
+  ```
+- 기준: HTTP 실패 1% 미만, 체크 99% 이상, 이동 p95 1초, 복사 p95 2초.
+
 ## 보는 곳
 
 Grafana http://localhost:3300 › Drive › **k6 부하 테스트**
@@ -91,6 +109,8 @@ Grafana http://localhost:3300 › Drive › **k6 부하 테스트**
   느린 요청은 WAS p95 그래프의 점을 눌러 트레이스에서 어느 SQL 인지 본다.
 - 업로드 행: 파일 하나 올리는 시간(k6) · 세션 시작·종료(앱) · 진행 중 세션(DB) · S3 호출 p95·오류(앱) · 정리 대기열(DB).
   업로드가 느려질 때 S3 p95 가 같이 오르면 스토리지, 그대로면 WAS·DB(complete 의 커밋 tx). 시작보다 completed 가 적고 진행 중 PENDING 이 계속 늘면 클라이언트가 끝내지 못하는 세션이 쌓이는 것.
+- DB 잠금·느린 쿼리 행: 잠금 대기 세션·교착 · DB 시간을 가장 많이 쓰는 쿼리 · 1회 평균 시간 · 초당 호출 수(부하 테스트 DB 의 `pg_stat_statements`).
+  잠금 대기 시간도 실행 시간에 들어간다 — 평균은 짧은데 DB 시간 상위면 잠금을 기다리는 쿼리. 초당 호출 수가 k6 초당 요청과 비슷하면 "요청마다 한 번" 쿼리(캐시 후보), 몇 배면 N+1.
 
 ### 지표가 어디서 오나
 
@@ -100,7 +120,8 @@ Grafana http://localhost:3300 › Drive › **k6 부하 테스트**
 | `http_server_requests_*`, `hikaricp_*`, `jvm_*` | Spring Boot Actuator 자동 | Alloy 가 `/actuator/prometheus` 를 가져감 → Prometheus |
 | `aws_s3_client_seconds_*` | 앱 `S3ObservationInterceptor`(Observation) | Prometheus(지표) + Tempo(구간) 둘 다 |
 | `drive_upload_session_*` | 앱 `UploadSessionMetrics`(Counter·DistributionSummary) | Prometheus 만 |
-| `drive_upload_active_*`, `drive_storage_deletion_*` | Alloy postgres exporter 커스텀 쿼리(`../alloy/pg-queries.yaml`) | Prometheus — "지금 DB 상태" 라 앱이 아니라 exporter 가 센다 |
+| `drive_upload_active_*`, `drive_storage_deletion_*`, `drive_pg_lock_wait_*` | Alloy postgres exporter 커스텀 쿼리(`../alloy/pg-queries.yaml`) | Prometheus — "지금 DB 상태" 라 앱이 아니라 exporter 가 센다 |
+| `drive_pg_statements_*{query}` | 부하 테스트 DB 전용 exporter 의 커스텀 쿼리(`../alloy/pg-statements.yaml`, `pg_stat_statements` 상위 20) | Prometheus |
 
 ## 장애 주입 — 부하 중에 DB 멈추기
 

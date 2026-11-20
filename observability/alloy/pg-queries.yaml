@@ -8,7 +8,7 @@
 #   drive_upload_active_oldest_idle_seconds{status} 가장 오래 활동 없는 세션의 경과 시간 — TTL(1h)에 가까워지면 버려진 업로드
 drive_upload_active:
   query: |
-    SELECT s.status,
+    SELECT /* exporter */ s.status,
            count(u.upload_session_id)                                      AS sessions,
            COALESCE(sum(COALESCE(u.reserve_byte, u.size_byte)), 0)         AS reserved_bytes,
            COALESCE(EXTRACT(EPOCH FROM now() - min(u.last_activity)), 0)   AS oldest_idle_seconds
@@ -29,13 +29,31 @@ drive_upload_active:
         usage: GAUGE
         description: 가장 오래 활동 없는 세션의 경과 시간(초)
 
+# 잠금 대기 — 지금 다른 트랜잭션의 잠금을 기다리는 세션(이 DB 만). 쓰기 경합(같은 사용자·폴더 행)이 보이는 곳
+#   drive_pg_lock_wait_sessions        잠금을 기다리는 세션 수
+#   drive_pg_lock_wait_max_seconds     그중 가장 오래 기다린 시간(쿼리 시작 기준)
+#   교착(deadlock) 횟수는 기본 수집기의 pg_stat_database_deadlocks
+drive_pg_lock_wait:
+  query: |
+    SELECT /* exporter */ count(*)                                                    AS sessions,
+           COALESCE(EXTRACT(EPOCH FROM max(now() - query_start)), 0)   AS max_seconds
+    FROM pg_stat_activity
+    WHERE wait_event_type = 'Lock' AND datname = current_database()
+  metrics:
+    - sessions:
+        usage: GAUGE
+        description: 잠금을 기다리는 세션 수
+    - max_seconds:
+        usage: GAUGE
+        description: 가장 오래 잠금을 기다린 시간(초)
+
 # 스토리지 정리 대기열(tb_storage_deletion) — 쌓이기만 하고 줄지 않으면 삭제 워커(배치 스케줄러)가 멈췄거나 실패 중
 #   drive_storage_deletion_pending{action}            대기 행 수(action = DELETE / ABORT_MULTIPART)
 #   drive_storage_deletion_retrying{action}           한 번 이상 실패해 재시도 중인 행 수
 #   drive_storage_deletion_oldest_age_seconds{action} 가장 오래된 행의 경과 시간
 drive_storage_deletion:
   query: |
-    SELECT a.action,
+    SELECT /* exporter */ a.action,
            count(d.storage_deletion_seq)                                    AS pending,
            count(d.storage_deletion_seq) FILTER (WHERE d.attempt_count > 0) AS retrying,
            COALESCE(EXTRACT(EPOCH FROM now() - min(d.register_date)), 0)    AS oldest_age_seconds

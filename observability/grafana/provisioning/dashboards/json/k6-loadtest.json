@@ -197,9 +197,61 @@
         { "refId": "B", "expr": "sum by (action) (drive_storage_deletion_pending{job=\"postgres-loadtest\"})", "legendFormat": "정리 대기 {{action}}" }
       ]
     },
+    { "id": 103, "type": "row", "title": "DB 잠금·느린 쿼리 (write.js 등 쓰기 부하) — 부하 테스트 DB", "collapsed": false, "gridPos": { "x": 0, "y": 50, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 18, "type": "timeseries", "title": "잠금 대기 · 교착",
+      "description": "잠금을 기다리는 세션 수와 그중 가장 오래 기다린 시간(alloy/pg-queries.yaml), 교착(deadlock) 초당 횟수(pg_stat_database). HOT_USER=1 로 같은 사용자를 두드리면 여기서 경합이 보인다.",
+      "gridPos": { "x": 0, "y": 51, "w": 8, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "가장 오래 대기" }, "properties": [ { "id": "unit", "value": "s" }, { "id": "custom.axisPlacement", "value": "right" } ] },
+          { "matcher": { "id": "byName", "options": "교착 (초당)" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] }
+        ]
+      },
+      "targets": [
+        { "refId": "A", "expr": "max(drive_pg_lock_wait_sessions{job=\"postgres-loadtest\"})", "legendFormat": "잠금 대기 세션" },
+        { "refId": "B", "expr": "max(drive_pg_lock_wait_max_seconds{job=\"postgres-loadtest\"})", "legendFormat": "가장 오래 대기" },
+        { "refId": "C", "expr": "sum(rate(pg_stat_database_deadlocks{job=\"postgres-loadtest\", datname=\"drive_load\"}[$__rate_interval]))", "legendFormat": "교착 (초당)" }
+      ]
+    },
+    {
+      "id": 19, "type": "timeseries", "title": "DB 시간을 가장 많이 쓰는 쿼리 (초당 실행 시간, 상위 8)",
+      "description": "pg_stat_statements 상위 20개(alloy/pg-statements.yaml) 중 구간 동안 실행 시간 합이 큰 것. 1 = DB 가 1초에 1초씩 그 쿼리를 실행 중(여러 세션 합). 테스트 사이에 SELECT pg_stat_statements_reset(); 로 비운다.",
+      "gridPos": { "x": 8, "y": 51, "w": 16, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] } },
+      "targets": [
+        { "refId": "A", "expr": "topk(8, sum by (queryid, query) (rate(drive_pg_statements_seconds{job=\"postgres-loadtest\"}[$__rate_interval])))", "legendFormat": "{{query}} · {{queryid}}" }
+      ]
+    },
+    {
+      "id": 20, "type": "timeseries", "title": "1회 평균 실행 시간 (느린 쿼리, 상위 8)",
+      "description": "reset 이후 누적 평균. 호출이 적어도 한 번이 느린 쿼리 — 인덱스·실행 계획을 본다.",
+      "gridPos": { "x": 0, "y": 60, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "refId": "A", "expr": "topk(8, max by (queryid, query) (drive_pg_statements_mean_seconds{job=\"postgres-loadtest\"}))", "legendFormat": "{{query}} · {{queryid}}" }
+      ]
+    },
+    {
+      "id": 21, "type": "timeseries", "title": "초당 호출 수 (많이 불리는 쿼리, 상위 8)",
+      "description": "한 요청에 같은 쿼리가 여러 번(N+1)이면 여기서 초당 호출이 k6 초당 요청보다 훨씬 크게 나온다.",
+      "gridPos": { "x": 12, "y": 60, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean"] } },
+      "targets": [
+        { "refId": "A", "expr": "topk(8, sum by (queryid, query) (rate(drive_pg_statements_calls{job=\"postgres-loadtest\"}[$__rate_interval])))", "legendFormat": "{{query}} · {{queryid}}" }
+      ]
+    },
     {
       "id": 12, "type": "logs", "title": "부하 중 WARN·ERROR 로그",
-      "gridPos": { "x": 0, "y": 50, "w": 24, "h": 8 },
+      "gridPos": { "x": 0, "y": 68, "w": 24, "h": 8 },
       "datasource": { "type": "loki", "uid": "loki" },
       "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true },
       "targets": [ { "refId": "A", "expr": "{service_name=\"drive-api\", level=~\"WARN|ERROR\"}" } ]

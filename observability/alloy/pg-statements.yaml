@@ -1,0 +1,44 @@
+# 부하 테스트 DB 전용 — 누적 실행 시간 상위 쿼리(pg_stat_statements). 확장이 없는 DB(공용 dev 등)에는 붙이지 않는다.
+# 확장: compose loadtest-db 의 shared_preload_libraries + k6/seed-admin.sql 의 CREATE EXTENSION.
+# SQL 문은 pg_stat_statements 가 바인딩 값을 $1 로 바꿔 두므로 값(개인정보)은 남지 않는다. 라벨 길이를 줄이려 앞 120자만 —
+#   앞부분이 같고 WHERE·FOR UPDATE 만 다른 쿼리는 query 라벨이 같아지므로, 집계·범례는 항상 queryid 와 같이 쓴다.
+# 상위 20개만 — 순위가 바뀌면 시계열이 생겼다 없어진다(그래서 counter 지만 rate 는 짧은 구간에서만 의미 있다).
+#   drive_pg_statements_calls{queryid, query}          누적 호출 수(counter)
+#   drive_pg_statements_seconds{queryid, query}        누적 실행 시간(counter, 초)
+#   drive_pg_statements_mean_seconds{queryid, query}   1회 평균 실행 시간
+#   drive_pg_statements_rows{queryid, query}           누적 반환·변경 행 수(counter)
+# 테스트 사이에 비우려면: SELECT pg_stat_statements_reset();
+drive_pg_statements:
+  query: |
+    SELECT /* exporter */ s.queryid::text                                   AS queryid,
+           left(regexp_replace(s.query, '\s+', ' ', 'g'), 120) AS query,
+           s.calls                                           AS calls,
+           s.total_exec_time / 1000.0                        AS seconds,
+           s.mean_exec_time / 1000.0                         AS mean_seconds,
+           s.rows                                            AS rows
+    FROM pg_stat_statements s
+    JOIN pg_database d ON d.oid = s.dbid
+    WHERE d.datname = current_database()
+      AND s.query ~* '\mtb_'                  -- 앱 테이블(tb_*) 쿼리만 — exporter 의 pg_stat_* 조회·확장 생성 등은 뺀다
+      AND s.query NOT LIKE '%/* exporter */%' -- 커스텀 쿼리(이 파일·pg-queries.yaml 의 SELECT 뒤 표시)도 뺀다
+    ORDER BY s.total_exec_time DESC
+    LIMIT 20
+  metrics:
+    - queryid:
+        usage: LABEL
+        description: 쿼리 ID
+    - query:
+        usage: LABEL
+        description: SQL 앞부분(바인딩 값 없음)
+    - calls:
+        usage: COUNTER
+        description: 누적 호출 수
+    - seconds:
+        usage: COUNTER
+        description: 누적 실행 시간(초)
+    - mean_seconds:
+        usage: GAUGE
+        description: 1회 평균 실행 시간(초)
+    - rows:
+        usage: COUNTER
+        description: 누적 행 수
