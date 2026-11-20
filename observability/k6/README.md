@@ -26,6 +26,8 @@ k6 컨테이너 ──HTTP──▶ Drive (IntelliJ "DriveAPI (loadtest)", :8082
 | `upload.js` | 실행: 업로드 부하 — 작은 파일·큰 파일 시나리오를 동시에 |
 | `flows/write.js` | 흐름: 정리하기 — 폴더 만들기 → 파일 복사 → 이름 바꾸기 → 다른 폴더로 옮기기 → 휴지통 → 복원 → 작업 폴더 영구 삭제 |
 | `write.js` | 실행: 쓰기 부하 — `HOT_USER=1` 이면 모든 VU 가 같은 사용자로(잠금 경합) |
+| `flows/download.js` | 흐름: 내려받기 — 다운로드 토큰 → 링크로 GET. 작은 파일 / 큰 파일(VU 마다 한 번 올려 두고 재사용) / 폴더 zip |
+| `download.js` | 실행: 다운로드 부하 — 작은 파일·큰 파일·zip 시나리오를 동시에 |
 | `seed-admin.sql` | 부하 테스트 DB 의 admin 비밀번호를 테스트 값(`LoadTest!2026`)으로 |
 
 ## 처음 한 번
@@ -99,6 +101,21 @@ docker compose --profile loadtest run --rm k6 run -e HOT_USER=1 -e THINK=0 /scri
   ```
 - 기준: HTTP 실패 1% 미만, 체크 99% 이상, 이동 p95 1초, 복사 p95 2초.
 
+### 다운로드
+
+```bash
+docker compose --profile loadtest run --rm k6 run /scripts/download.js                   # 기본: 작은 파일 4→8명 + 큰 파일 2→4명 + zip 1→2명, 약 3분 30초
+docker compose --profile loadtest run --rm k6 run -e PROFILE=smoke /scripts/download.js  # 확인용: 각 1명 35초
+docker compose --profile loadtest run --rm k6 run -e LARGE_MB=80 /scripts/download.js    # 큰 파일 크기(32MB 이상)
+```
+
+- 프론트(`DriveFront/hooks/useDriveDownload.js`)와 같은 순서 — 다운로드 토큰 발급 → 받은 `linkUrl` 로 GET. `linkUrl` 은 API 기준 상대경로(`/files/download?dt=…`)라 `/api/v1` 뒤에 붙인다.
+- 작은 파일은 seed 파일, zip 은 seed 폴더(파일 20개). 큰 파일은 VU 마다 처음 한 번 `k6-download-large-<MB>mb.txt` 를 청크 업로드로 올려 두고 재사용한다(크기를 바꾸면 이전 것은 지운다 — 사용자 용량 100MB).
+- 본문은 k6 메모리에 담지 않고(`responseType: none`) `Content-Length` 로 크기만 확인한다. 받은 양은 `data_received`.
+- 리다이렉트는 따라가지 않는다 — 잘못된 경로·만료 토큰은 302 → 에러 페이지(200)라 따라가면 실패가 성공으로 보인다.
+- `DOWNLOAD_TIMEOUT`(기본 120s) — 스트림이 중간에 멈추면 상태는 이미 200 이라 이 시간이 지나야 실패로 잡힌다. 너무 길면 멈춘 VU 가 끝까지 묶여 아무 결과도 남기지 않는다.
+- 기준: HTTP 실패 1% 미만, 체크 99% 이상, 작은 파일 다운로드 p95 1초, 토큰 발급 p95 0.5초.
+
 ## 보는 곳
 
 Grafana http://localhost:3300 › Drive › **k6 부하 테스트**
@@ -109,6 +126,8 @@ Grafana http://localhost:3300 › Drive › **k6 부하 테스트**
   느린 요청은 WAS p95 그래프의 점을 눌러 트레이스에서 어느 SQL 인지 본다.
 - 업로드 행: 파일 하나 올리는 시간(k6) · 세션 시작·종료(앱) · 진행 중 세션(DB) · S3 호출 p95·오류(앱) · 정리 대기열(DB).
   업로드가 느려질 때 S3 p95 가 같이 오르면 스토리지, 그대로면 WAS·DB(complete 의 커밋 tx). 시작보다 completed 가 적고 진행 중 PENDING 이 계속 늘면 클라이언트가 끝내지 못하는 세션이 쌓이는 것.
+- 다운로드 행: 다운로드 시간·받은 양(k6) · `/download` 경로별 서버 처리 시간(본문을 다 보낼 때까지) · 스레드.
+  다운로드 본문은 Tomcat 요청 스레드가 아니라 Spring MVC 비동기 스레드(`MvcAsyncN`)가 흘려보내므로, 동시 다운로드는 "Tomcat 사용 중" 이 아니라 "JVM 전체 스레드" 로 보인다.
 - DB 잠금·느린 쿼리 행: 잠금 대기 세션·교착 · DB 시간을 가장 많이 쓰는 쿼리 · 1회 평균 시간 · 초당 호출 수(부하 테스트 DB 의 `pg_stat_statements`).
   잠금 대기 시간도 실행 시간에 들어간다 — 평균은 짧은데 DB 시간 상위면 잠금을 기다리는 쿼리. 초당 호출 수가 k6 초당 요청과 비슷하면 "요청마다 한 번" 쿼리(캐시 후보), 몇 배면 N+1.
 

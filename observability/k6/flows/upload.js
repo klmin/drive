@@ -59,25 +59,21 @@ export function smallUpload(sizeKb = 512) {
   deletePermanently(saved && saved.resourceSeq);
 }
 
-// 큰 파일 — 청크 업로드 API. cancelRate 비율만큼은 절반쯤 보내다가 취소한다(abort 정리 경로)
-export function chunkUpload(sizeMb = 40, cancelRate = 0.1) {
-  ensureLogin();
-  const size = Math.round(sizeMb * MB);
-  const started = Date.now();
-
-  const plan = data(request('POST', '/api/v1/uploads', 'upload_start', JSON.stringify({ fileName: fileName('chunk'), size }), {
+// 청크 업로드 API 로 한 파일을 올린다 — 세션 → 파트(동시 maxConcurrentParts 개) → complete.
+// cancel 이면 절반쯤 보내다 취소한다. 성공하면 complete 응답(resourceSeq 등), 아니면 null. 로그인은 호출자가 한다
+function uploadChunked(name, size, cancelling = false) {
+  const plan = data(request('POST', '/api/v1/uploads', 'upload_start', JSON.stringify({ fileName: name, size }), {
     expect: 201,
     headers: { 'Content-Type': 'application/json' },
   }));
-  if (!plan) return;
+  if (!plan) return null;
   const { sessionId, partSize, partCount, maxConcurrentParts } = plan;
 
   if (!partBuffer || partBuffer.byteLength !== partSize) partBuffer = textBytes(partSize);
   const lastSize = size - partSize * (partCount - 1);
   const lastBuffer = lastSize === partSize ? partBuffer : partBuffer.slice(0, lastSize);
 
-  const canceling = Math.random() < cancelRate;
-  const sendUpTo = canceling ? Math.max(1, Math.floor(partCount / 2)) : partCount;
+  const sendUpTo = cancelling ? Math.max(1, Math.floor(partCount / 2)) : partCount;
   const params = {
     headers: roleHeaders('USER', { 'Content-Type': 'application/octet-stream' }),
     tags: { api: 'upload_part', name: 'upload_part' },
@@ -96,16 +92,29 @@ export function chunkUpload(sizeMb = 40, cancelRate = 0.1) {
     }
     if (!ok) {
       cancel(sessionId); // 실패한 세션을 남기지 않는다(브라우저도 포기하면 취소)
-      return;
+      return null;
     }
   }
 
-  if (canceling) {
+  if (cancelling) {
     cancel(sessionId);
-    return;
+    return null;
   }
 
-  const done = data(request('POST', `/api/v1/uploads/${sessionId}/complete`, 'upload_complete', null, { timeout: '120s' }));
+  return data(request('POST', `/api/v1/uploads/${sessionId}/complete`, 'upload_complete', null, { timeout: '120s' }));
+}
+
+// 큰 파일 — 청크 업로드 API. cancelRate 비율만큼은 절반쯤 보내다가 취소한다(abort 정리 경로)
+export function chunkUpload(sizeMb = 40, cancelRate = 0.1) {
+  ensureLogin();
+  const started = Date.now();
+  const done = uploadChunked(fileName('chunk'), Math.round(sizeMb * MB), Math.random() < cancelRate);
   if (done) uploadFileDuration.add(Date.now() - started, { kind: 'chunk' });
   deletePermanently(done && done.resourceSeq);
+}
+
+// 다운로드 시나리오용 — 이름이 name 인 큰 파일을 올려 두고 resourceSeq 를 돌려준다(지우지 않는다). 로그인은 호출자가 한다
+export function uploadKeptFile(name, sizeMb) {
+  const done = uploadChunked(name, Math.round(sizeMb * MB));
+  return done ? done.resourceSeq : null;
 }

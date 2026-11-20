@@ -216,6 +216,9 @@ file:
 server:
   forward-headers-strategy: native
   tomcat:
+    # Tomcat 요청 스레드 지표(tomcat_threads_busy/current/config_max) — 기본은 꺼져 있다. CPU 여유가 있는데 처리량이 안 오를 때 스레드 고갈인지 가린다
+    mbeanregistry:
+      enabled: true
     accesslog:
       enabled: ${DRIVE_WEB_LOG_ENABLED:true}
       directory: ${DRIVE_WEB_LOG_DIRECTORY:/log/drive/web}
