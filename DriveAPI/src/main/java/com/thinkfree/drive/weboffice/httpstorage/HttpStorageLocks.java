@@ -25,10 +25,10 @@ public class HttpStorageLocks {
     }
 
     // TFO coordinates editing connections. Drive retains its existing file-level lock behavior.
-    public void lock(HttpStorageSession session, String connection) {
+    public void lockDocument(HttpStorageSession session, String connection) {
         locks.lockResource(session.resourceSeq(), session.ownerUserSeq(), session.userSeq(), Instant.now());
     }
-    public void unlock(HttpStorageSession session, String connection) {
+    public void unlockDocument(HttpStorageSession session, String connection) {
         locks.unlockResource(session.resourceSeq(), session.ownerUserSeq(), session.userSeq(), Instant.now());
     }
 }

@@ -1,6 +1,7 @@
 package com.thinkfree.drive.global.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thinkfree.drive.util.LogSafe;
 import com.thinkfree.drive.apikey.exception.ApiKeyErrorCode;
 import com.thinkfree.drive.auth.cookie.AuthCookieManager;
 import com.thinkfree.drive.auth.exception.AuthErrorCode;
@@ -34,7 +35,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint, Se
                 : StringUtils.hasText(request.getHeader(AuthCookieManager.ROLE_HEADER)) ? "COOKIE" : "NONE";
         String role = AuthCookieManager.resolveCookieRole(request).map(Enum::name).orElse("-");
         log.info("{ JwtAuthenticationEntryPoint } : Unauthorized access - uri : {}, credential : {}, role : {}, reason : {}",
-                request.getRequestURI(), credential, role, authException.getMessage());
+                LogSafe.of(request.getRequestURI()), credential, role, LogSafe.of(authException.getMessage()));
 
         // Authorization Bearer 가 있으면 API Key 인증 실패, 없으면 쿠키 토큰 실패(만료·무효·사용자 없음)
         if (bearer) {

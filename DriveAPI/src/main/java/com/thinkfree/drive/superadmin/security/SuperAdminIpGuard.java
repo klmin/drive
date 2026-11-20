@@ -1,6 +1,7 @@
 package com.thinkfree.drive.superadmin.security;
 
 import com.thinkfree.drive.access.exception.AccessErrorCode;
+import com.thinkfree.drive.util.LogSafe;
 import com.thinkfree.drive.global.exception.ApiRuntimeException;
 import com.thinkfree.drive.superadmin.properties.SuperAdminIpProperty;
 import com.thinkfree.drive.util.IpMatcherUtil;
@@ -26,7 +27,7 @@ public class SuperAdminIpGuard {
             return;
         }
         if (!IpMatcherUtil.matchAny(matchers, clientIp)) {
-            log.error("[SuperAdminIpGuard] blocked clientIp: {}", clientIp);
+            log.error("[SuperAdminIpGuard] blocked clientIp: {}", LogSafe.of(clientIp));
             throw ApiRuntimeException.type(AccessErrorCode.BLOCKED_IP);
         }
     }

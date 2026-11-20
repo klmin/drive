@@ -4,7 +4,8 @@
 # 그래서 분석만 하고 결과는 업로드하지 않는다(upload: never):
 #   - 결과 = 이 실행의 Summary 화면(발견 목록) + 아티팩트 codeql-sarif-<언어>(SARIF 원본)
 #   - 안 되는 것 = Security 탭 경고 목록, PR 코드 줄 경고 표시, "이번 PR 에서 새로 생긴 경고만" 구분, 오탐으로 닫기
-#   - 발견이 있어도 지금은 체크를 실패시키지 않는다(기존 경고 확인 전). 실패시키려면 env FAIL_ON_FINDINGS 를 'true' 로
+#   - 발견이 1건이라도 있으면 체크를 실패시킨다(FAIL_ON_FINDINGS). 기존 발견은 2026-11-20 검토로 0건 — 고치거나(로그 줄바꿈 정리 등)
+#     아래 query-filters 에 이유와 함께 뺐다. 오탐을 닫는 기능이 없으므로 새 오탐은 코드로 피하거나 규칙 제외에 이유를 남긴다
 # public 으로 돌리거나 유료 기능을 켜면: analyze 의 upload·output 두 줄과 아래 두 단계를 지우고 security-events: write 권한을 다시 넣는다.
 name: CodeQL
 
@@ -32,7 +33,7 @@ jobs:
       contents: read
       actions: read
     env:
-      FAIL_ON_FINDINGS: 'false'
+      FAIL_ON_FINDINGS: 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -67,6 +68,15 @@ jobs:
               - DriveAPI/governance-sdk
               - DriveFront/public
               - '**/node_modules'
+            query-filters:
+              # CSRF 보호를 끈 체인 3곳(내부 /api/**, 외부 /api/public/**, /mcp) — 오탐.
+              #   내부: 로그인 쿠키는 커스텀 헤더 X-Drive-Role 이 있을 때만 읽는다(JwtAuthenticationFilter·AuthCookieManager.resolveCookieRole).
+              #         다른 사이트의 폼은 헤더를 붙일 수 없고, 헤더를 붙인 교차 출처 요청은 CORS 사전 요청(허용 출처 목록)에서 막힌다.
+              #         쿠키도 기본 SameSite=Lax. → SameSite=None 배포에서도 커스텀 헤더가 CSRF 방어를 겸한다
+              #   외부(/api/public)·MCP: 쿠키가 아니라 Authorization 헤더(API Key·OAuth Bearer) — 브라우저가 자동으로 싣지 않는다
+              #   쿠키 인증에 헤더 요구를 없애거나 쿠키를 읽는 다른 경로를 만들면 이 제외를 다시 검토할 것
+              - exclude:
+                  id: java/spring-disabled-csrf-protection
 
       - name: Build DriveAPI
         if: matrix.language == 'java-kotlin'

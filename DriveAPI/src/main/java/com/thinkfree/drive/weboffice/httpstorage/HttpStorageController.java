@@ -67,7 +67,8 @@ public class HttpStorageController {
                 case "lock", "unlock" -> {
                     String owner = owner(body.json());
                     if (!owner.equals(verified.connectionId())) throw HttpStorageException.forbidden();
-                    if ("lock".equals(route.operation())) service.lock(session, owner); else service.unlock(session, owner);
+                    // 문서 잠금 프로토콜(lock·unlock 은 별개 HTTP 요청) — java.util.concurrent 잠금이 아니다
+                    if ("lock".equals(route.operation())) service.lockDocument(session, owner); else service.unlockDocument(session, owner);
                     yield ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
                 }
                 default -> throw HttpStorageException.badRequest();

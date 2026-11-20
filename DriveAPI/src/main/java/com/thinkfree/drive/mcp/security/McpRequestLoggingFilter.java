@@ -1,6 +1,7 @@
 package com.thinkfree.drive.mcp.security;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.thinkfree.drive.util.LogSafe;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.AsyncEvent;
 import jakarta.servlet.AsyncListener;
@@ -62,12 +63,12 @@ public class McpRequestLoggingFilter extends OncePerRequestFilter {
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
             log.info("Request [MCP] {} {} | Accept={} | Mcp-Session-Id={} | Authorization={}",
                     request.getMethod(),
-                    request.getRequestURI(),
-                    request.getHeader(HttpHeaders.ACCEPT),
-                    request.getHeader("Mcp-Session-Id"),
+                    LogSafe.of(request.getRequestURI()),
+                    LogSafe.of(request.getHeader(HttpHeaders.ACCEPT)),
+                    LogSafe.of(request.getHeader("Mcp-Session-Id")),
                     authorization == null ? "(none)" : maskCredential(authorization));
             chain.doFilter(request, response);
-            log.info("Response [MCP] {} {} -> status={}", request.getMethod(), request.getRequestURI(), response.getStatus());
+            log.info("Response [MCP] {} {} -> status={}", request.getMethod(), LogSafe.of(request.getRequestURI()), response.getStatus());
             return;
         }
 
@@ -75,12 +76,12 @@ public class McpRequestLoggingFilter extends OncePerRequestFilter {
         byte[] requestBody = wrappedRequest.getBody();
 
         log.info("Request [MCP] POST {} | Accept={} | Mcp-Session-Id={} | Authorization={} | {}{}",
-                request.getRequestURI(),
-                request.getHeader(HttpHeaders.ACCEPT),
-                request.getHeader("Mcp-Session-Id"),
+                LogSafe.of(request.getRequestURI()),
+                LogSafe.of(request.getHeader(HttpHeaders.ACCEPT)),
+                LogSafe.of(request.getHeader("Mcp-Session-Id")),
                 authorization == null ? "(none)" : maskCredential(authorization),
-                summarizeJsonRpc(requestBody),
-                requestBody.length == 0 ? "" : " | body=" + new String(requestBody, StandardCharsets.UTF_8));
+                LogSafe.of(summarizeJsonRpc(requestBody)),
+                requestBody.length == 0 ? "" : " | body=" + LogSafe.of(new String(requestBody, StandardCharsets.UTF_8)));
 
         TeeResponseWrapper teeResponse = new TeeResponseWrapper(response);
 
@@ -96,14 +97,14 @@ public class McpRequestLoggingFilter extends OncePerRequestFilter {
 
                 @Override
                 public void onTimeout(AsyncEvent event) {
-                    log.info("Response [MCP] POST {} | {} -> async timeout", wrappedRequest.getRequestURI(),
-                            summarizeJsonRpc(requestBody));
+                    log.info("Response [MCP] POST {} | {} -> async timeout", LogSafe.of(wrappedRequest.getRequestURI()),
+                            LogSafe.of(summarizeJsonRpc(requestBody)));
                 }
 
                 @Override
                 public void onError(AsyncEvent event) {
-                    log.info("Response [MCP] POST {} | {} -> async error: {}", wrappedRequest.getRequestURI(),
-                            summarizeJsonRpc(requestBody),
+                    log.info("Response [MCP] POST {} | {} -> async error: {}", LogSafe.of(wrappedRequest.getRequestURI()),
+                            LogSafe.of(summarizeJsonRpc(requestBody)),
                             event.getThrowable() == null ? "(unknown)" : event.getThrowable().toString());
                 }
 
@@ -125,12 +126,12 @@ public class McpRequestLoggingFilter extends OncePerRequestFilter {
         }
         String responseBody = response.getCapturedBody();
         log.info("Response [MCP] POST {} | {} -> status={} session={} | Content-Type={}{}",
-                request.getRequestURI(),
-                summarizeJsonRpc(requestBody),
+                LogSafe.of(request.getRequestURI()),
+                LogSafe.of(summarizeJsonRpc(requestBody)),
                 response.getStatus(),
-                sessionId,
+                LogSafe.of(sessionId),
                 response.getContentType(),
-                responseBody == null ? "" : " | body=" + responseBody);
+                responseBody == null ? "" : " | body=" + LogSafe.of(responseBody));
     }
 
     private String summarizeJsonRpc(byte[] body) {
