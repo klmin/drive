@@ -65,12 +65,25 @@ public class UploadContentInspector {
         Family actual = familyOf(detected);
         Family expected = familyOf(declared);
 
-        if (actual == Family.EXECUTABLE && (blockExecutables || expected != Family.EXECUTABLE)) {
-            reject(fileName, storageKey, declared, detected);
+        if (actual == Family.EXECUTABLE) {
+            // 차단을 끈 설치처: 확장자가 없거나 형식을 단정하지 않는 이름(ls, app.bin)은 실행 파일로 받고,
+            // 다른 형식을 분명히 말하는 이름(.pdf·.jpg·.docx·.txt)이면 위장으로 본다
+            if (blockExecutables || claimsOtherFormat(expected, declared)) {
+                reject(fileName, storageKey, declared, detected);
+            }
+            return;
         }
         if (actual != Family.UNKNOWN && expected != Family.UNKNOWN && actual != expected) {
             reject(fileName, storageKey, declared, detected);
         }
+    }
+
+    /** 이름이 실행 파일이 아닌 형식을 분명히 말하는지 — 아는 계열(미디어·PDF·컨테이너)이거나 텍스트 형식(text/*) */
+    private static boolean claimsOtherFormat(Family expected, String declared) {
+        if (expected == Family.EXECUTABLE) {
+            return false;
+        }
+        return expected != Family.UNKNOWN || declared.toLowerCase(Locale.ROOT).startsWith("text/");
     }
 
     private static void reject(String fileName, String storageKey, String declared, String detected) {

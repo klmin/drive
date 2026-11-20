@@ -162,10 +162,13 @@ class UploadContentInspectorTest {
     }
 
     @Test
-    @DisplayName("실행 파일 그대로(.exe) — 기본은 거절, block-executable-content=false 면 통과")
+    @DisplayName("실행 파일 그대로(.exe·확장자 없음·.bin) — 기본은 거절, block-executable-content=false 면 통과")
     void executableByPolicy() {
         rejects(blocking, pe(), "setup.exe");
+        rejects(blocking, elf(), "ls");
         passes(allowingExe, pe(), "setup.exe");
+        passes(allowingExe, elf(), "ls");          // 리눅스 실행 파일은 보통 확장자가 없다
+        passes(allowingExe, elf(), "firmware.bin"); // 형식을 단정하지 않는 이름
     }
 
     // ------------------------------------------------------------------ 스토리지 읽기

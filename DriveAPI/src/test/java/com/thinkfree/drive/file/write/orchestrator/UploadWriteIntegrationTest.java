@@ -332,6 +332,27 @@ class UploadWriteIntegrationTest {
     }
 
     @Test
+    @DisplayName("매직바이트 — 버전 저장은 대상 확장자로 검사: report.pdf 에 PNG 내용을 photo.png 이름으로 올려도 거절(UPLOAD_010), 리소스·사용량 그대로")
+    void versionContentCheckedAgainstTargetExtension() {
+        rememberStoredSizes();
+        Resource r = createFile();
+        jdbc.update("UPDATE tb_resource SET ext = 'pdf' WHERE resource_seq = ?", r.getResourceSeq());
+        byte[] png = new byte[256];
+        System.arraycopy(new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0x0D, 'I', 'H', 'D', 'R'}, 0, png, 0, 16);
+        given(storageService.readRange(anyString(), Mockito.anyLong(), Mockito.anyLong())).willReturn(png);
+        Map<String, Object> before = snapshot(r.getResourceSeq());
+
+        assertThatThrownBy(() -> fileUseCase.upload(new FileUploadCommand(null, null, r.getResourceSeq(),
+                new MockMultipartFile("file", "photo.png", "image/png", new byte[300]), ResourceSaveType.VERSION), ADMIN, false, false))
+                .isInstanceOfSatisfying(ApiRuntimeException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(com.thinkfree.drive.upload.session.exception.UploadSessionErrorCode.UPLOAD_CONTENT_MISMATCH));
+
+        assertThat(snapshot(r.getResourceSeq())).isEqualTo(before);
+        assertThat(versions(r.getResourceSeq())).isEmpty();
+        assertThat(lastSession().get("fail_reason")).isEqualTo("CONTENT_MISMATCH");
+    }
+
+    @Test
     @DisplayName("OVERWRITE 사전 검사는 늘어날 양만 — 남은 50 에서 100 → 120 덮어쓰기(+20)는 통과(전체 크기 120 으로 보면 거절됐다), 세션 reserve_byte = 20")
     void overwritePrecheckUsesDelta() {
         rememberStoredSizes();

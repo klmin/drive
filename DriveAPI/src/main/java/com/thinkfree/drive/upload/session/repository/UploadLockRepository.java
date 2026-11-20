@@ -88,6 +88,24 @@ public class UploadLockRepository {
                   .fetchOptional(r -> new FileBase(r.value1(), nz(r.value2())));
     }
 
+    /**
+     * 살아 있는 파일의 확장자(잠금 없음) — 버전 저장·덮어쓰기는 대상의 이름·확장자를 그대로 두고 내용만 바꾸므로
+     * 매직바이트 검사는 업로드한 파일명이 아니라 이 확장자와 비교한다. 확장자가 없거나 대상이 없으면 empty.
+     */
+    public Optional<String> findFileExt(int userSeq, Long resourceSeq) {
+        if (resourceSeq == null) {
+            return Optional.empty();
+        }
+        return dsl.select(TB_RESOURCE.EXT)
+                  .from(TB_RESOURCE)
+                  .where(TB_RESOURCE.USER_SEQ.eq(userSeq))
+                  .and(TB_RESOURCE.RESOURCE_SEQ.eq(resourceSeq))
+                  .and(TB_RESOURCE.RESOURCE_TYPE.eq(ResourceType.FILE))
+                  .and(TB_RESOURCE.IS_DELETE.eq(false))
+                  .fetchOptional(TB_RESOURCE.EXT)
+                  .filter(ext -> !ext.isBlank());
+    }
+
     private static long nz(Long value) {
         return value == null ? 0L : value;
     }

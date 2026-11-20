@@ -304,6 +304,21 @@ class UploadSessionWriterTest {
     }
 
     @Test
+    @DisplayName("매직바이트 검사 이름 — 신규는 업로드한 파일명, 버전 저장·덮어쓰기는 대상 파일의 확장자(이름·확장자는 대상 것이 유지되므로)")
+    void inspectionUsesTargetExtension() {
+        given(storage.headContentLength(KEY)).willReturn(10L);
+        given(commit.commitDuplicate(any(), any(), any(), anyInt(), any())).willReturn(saved);
+        given(commit.commitVersion(any(), any(), any(), anyInt(), any())).willReturn(saved);
+        given(locks.findFileExt(USER, 55L)).willReturn(Optional.of("pdf"));
+
+        writer.write(streamDto(10), USER);
+        writer.write(typed(ResourceSaveType.VERSION, new FileContentSource.Stream(new FileData("image/png", new ByteArrayInputStream(new byte[10]), 10)), 10), USER);
+
+        verify(inspector).verify(eq(KEY), eq(streamDto(10).getOriginalFileName()), eq(10L));
+        verify(inspector).verify(KEY, "target.pdf", 10L);
+    }
+
+    @Test
     @DisplayName("매직바이트 불일치 — 커밋하지 않고 FAILED(CONTENT_MISMATCH) + DELETE(조립 뒤), UPLOAD_CONTENT_MISMATCH 전파")
     void contentMismatch() {
         given(storage.headContentLength(KEY)).willReturn(10L);
