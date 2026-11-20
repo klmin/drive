@@ -1,6 +1,6 @@
 # 업로드 세션 — 남은 작업
 
-> 기준: 2026-11-19. 끝난 것 = 단계 0·1(MinIO)·2·3(PR #9·#19·#22·#27 머지), 단계 4 백엔드 API(브랜치 `feat/upload-chunk-api`).
+> 기준: 2026-11-20. 끝난 것 = 단계 0·1(MinIO)·2·3(PR #9·#19·#22·#27 머지), 단계 4 백엔드 API(PR #38 머지)·`uploadingByte`(브랜치 `feat/usage-uploading-byte`).
 > 지금 구조는 [현재 구현 문서](../design/upload-session-as-built.md), 결정 이유는 [설계 문서](../design/upload-session-redesign.md)(§ 번호는 이 문서 기준).
 > 우선순위: **A** 다음에 할 것 / **B** 운영 전 필요 / **C** 여유 있을 때.
 
@@ -11,12 +11,12 @@
 지금은 큰 파일도 서버가 한 요청(multipart/form-data → Tomcat 임시 파일)으로 받는다. 브라우저가 파트를 직접 보내고 이어 올릴 수 있게 한다.
 세션·커밋·정리는 이미 있으므로 **API 계층과 complete 검증만** 새로 만든다.
 
-- [x] **세션 API 컨트롤러**(브랜치 `feat/upload-chunk-api`) — `/api/v1/uploads` 6개. `UploadSessionWriter.open` 을 분리해 재사용, 권한·크기 정책은 웹 업로드와 같게, 32MB 미만은 400(기존 단일 요청 API 사용 — 이유는 [as-built §3.5](../design/upload-session-as-built.md)), 남의 세션·내부 쓰기 세션은 404
+- [x] **세션 API 컨트롤러**(PR #38) — `/api/v1/uploads` 6개. `UploadSessionWriter.open` 을 분리해 재사용, 권한·크기 정책은 웹 업로드와 같게, 32MB 미만은 400(기존 단일 요청 API 사용 — 이유는 [as-built §3.5](../design/upload-session-as-built.md)), 남의 세션·내부 쓰기 세션은 404
 - [x] **파트 PUT** — 요청 스트림 그대로 `uploadPart`, 411·400·409·`touch`, `NO_SUCH_UPLOAD` 면 세션 FAILED
 - [x] **complete** — 선점 0행 분기(이전 결과 / 409 / 410), ListParts 검증, 선점 뒤는 `UploadSessionWriter.finishClaimed` 를 내부 쓰기와 공유. 매직바이트는 아직(B)
 - [x] **취소** — `fail(PENDING, CANCELED, BEFORE_ASSEMBLE)`, 이미 끝났어도 성공
 - [ ] **청크 API 외부 공개 여부** — 지금은 내부 웹 API 만(`@ExternalApi` 없음). API Key·MCP 로 큰 파일을 올릴 필요가 생기면 `/api/public` 노출·scope(WRITE) 검토
-- [ ] **사용량 화면 `uploadingByte`** — 사용량 조회 API 에 진행 중 합계(`UploadSessionRepository.sumActive`) 별도 필드. 알림·지표·관리자 화면·로그인 응답은 확정값만(설계 규칙 12)
+- [x] **사용량 `uploadingByte`**(브랜치 `feat/usage-uploading-byte`) — `GET /api/v1/users/quota` 에 진행 중 합계 별도 필드(용량 주인 기준, 공유 폴더에 남이 올리는 중인 크기 포함). 화면 두 구간 표시는 프론트 항목에서. 알림·지표·관리자 화면·로그인 응답은 확정값만(설계 규칙 12)
 - [ ] **프론트(DriveFront)** — Uppy `@uppy/aws-s3` 멀티파트 플러그인을 우리 API 에 연결, 세션당 동시 4, 409 받으면 중단(재시도·abort 안 함), 취소 버튼 → DELETE, 새로고침에는 abort 안 보냄, `localStorage` 지문으로 이어 올리기, 폴더 업로드 큐(동시 3~6), 사용량 막대 두 구간
 - [ ] **앞단 프록시** `client_max_body_size` > 파트 크기(16MB+), 타임아웃 — 설치 문서(DriveInstaller)
 - 완료 기준: 1GB 파일을 파트 업로드 → 중간에 끊고 `GET /uploads/{id}` 로 빠진 파트만 → complete. 동시 complete(중복 클릭)·complete 재요청 멱등·취소 후 파트 PUT 409·스케줄러 만료 후 409 통합 테스트

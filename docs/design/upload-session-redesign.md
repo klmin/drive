@@ -416,7 +416,8 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
   - `/api/v1/uploads` — 세션 생성·파트 PUT(요청 스트림 그대로)·상태(ListParts 로 올라간 파트)·목록·complete·취소(`UploadSessionController` → `UploadSessionUseCase` → `UploadChunkService`).
   - `UploadSessionWriter` 를 `open`(세션 생성)·`finishClaimed`(선점 뒤 조립→크기 확인→커밋→실패 처리)로 나눠 내부 쓰기와 complete 가 같은 코드를 쓴다.
   - 정한 것: 32MB 미만은 받지 않는다(기존 단일 요청 API — 단일 객체는 complete 뒤 늦은 PUT 이 커밋된 객체를 덮어쓸 수 있다). 청크 API 세션 = `part_count` 가 있는 세션(내부 쓰기 세션은 이 API 로 조회·complete·취소 불가). complete 의 파트 검증 실패는 설계대로 세션 FAILED + ABORT. 권한은 세션 생성과 complete 선점 전에 확인(커밋 tx 안 재확인은 todo B). 익명 사용자 불가.
-- **미착수**: 단계 4 나머지(`uploadingByte`·프론트·앞단 프록시 문서), 지표(§13), 커밋 tx 권한 재확인·매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
+- **단계 4-2 (`uploadingByte`)** — 브랜치 `feat/usage-uploading-byte`: `GET /api/v1/users/quota` 에 진행 중 세션 합계 `uploadingByte` 별도 필드(용량 주인 기준, 확정값 `useQuotaByte` 와 합치지 않음). 알림·지표·관리자 화면은 그대로 확정값.
+- **미착수**: 단계 4 나머지(프론트·앞단 프록시 문서), 지표(§13), 커밋 tx 권한 재확인·매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
 
 ---
 
