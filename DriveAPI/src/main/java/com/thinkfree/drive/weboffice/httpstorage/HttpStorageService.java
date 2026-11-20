@@ -147,8 +147,8 @@ public class HttpStorageService {
         return session.docId();
     }
 
-    public void lock(HttpStorageSession session, String owner) { requirePermission(session, true); resource(session); locks.lock(session, owner); }
-    public void unlock(HttpStorageSession session, String owner) { requirePermission(session, true); resource(session); locks.unlock(session, owner); }
+    public void lockDocument(HttpStorageSession session, String owner) { requirePermission(session, true); resource(session); locks.lockDocument(session, owner); }
+    public void unlockDocument(HttpStorageSession session, String owner) { requirePermission(session, true); resource(session); locks.unlockDocument(session, owner); }
     private void requireListingUser(int tenantSeq, int userSeq) {
         var tenant = tenants.findByTenantSeq(tenantSeq);
         if (tenant == null || tenant.getStatus() != TenantStatus.ACTIVE) throw HttpStorageException.forbidden();

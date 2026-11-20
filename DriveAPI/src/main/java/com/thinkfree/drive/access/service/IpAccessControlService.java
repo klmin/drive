@@ -1,6 +1,7 @@
 
 package com.thinkfree.drive.access.service;
 import com.maxmind.geoip2.record.Country;
+import com.thinkfree.drive.util.LogSafe;
 import com.thinkfree.drive.access.dto.IpAccessCheckCommand;
 import com.thinkfree.drive.access.exception.AccessErrorCode;
 import com.thinkfree.drive.accessrestriction.service.AccessAllowedCountryService;
@@ -68,7 +69,7 @@ public class IpAccessControlService {
         // 사설 IP(국가 없음) + 국가 목록만 있는 경우 → hasCountryCode=false → 스킵 → 통과
         if (!allowedCountryCodes.isEmpty() && hasCountryCode) {
             String countryCode = country.getIsoCode();
-            log.info("[IpAccessControlService] ip : {}, countryName : {}, countryCode : {}", clientIp, country.getName(), countryCode);
+            log.info("[IpAccessControlService] ip : {}, countryName : {}, countryCode : {}", LogSafe.of(clientIp), country.getName(), countryCode);
             if (!allowedCountryCodes.contains(countryCode)) {
                 throw ApiRuntimeException.type(AccessErrorCode.BLOCKED_COUNTRY);
             }

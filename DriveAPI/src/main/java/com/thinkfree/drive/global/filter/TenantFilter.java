@@ -1,6 +1,7 @@
 package com.thinkfree.drive.global.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thinkfree.drive.util.LogSafe;
 import com.thinkfree.drive.global.FilterResponseWriter;
 import com.thinkfree.drive.global.security.SecurityPaths;
 import com.thinkfree.drive.global.security.TenantContext;
@@ -83,7 +84,7 @@ public class TenantFilter extends OncePerRequestFilter {
         if (match.isInactive() || match.isNotFound()) {
             log.error("[TenantFilter] tenant {} — host : {}, path : {}",
                     match.isInactive() ? "inactive" : "path marker without a valid slug",
-                    request.getHeader("Host"), RequestPathUtil.pathWithinApplication(request));
+                    LogSafe.of(request.getHeader("Host")), LogSafe.of(RequestPathUtil.pathWithinApplication(request)));
             writeTenantNotFound(request, response);
             return;
         }
@@ -96,12 +97,12 @@ public class TenantFilter extends OncePerRequestFilter {
             // 주소로 테넌트를 특정할 수 없는 다중 테넌트 배포에서도 TenantContext 없이 진행한다(usecase 는 null → 기본값/미참조).
             if (SecurityPaths.isTenantOptional(RequestPathUtil.pathWithinApplication(forward))) {
                 log.debug("[TenantFilter] tenant-optional path without tenant — host : {}, path : {}",
-                        request.getHeader("Host"), RequestPathUtil.pathWithinApplication(request));
+                        LogSafe.of(request.getHeader("Host")), LogSafe.of(RequestPathUtil.pathWithinApplication(request)));
                 runWithTenant(null, forward, response, filterChain);
                 return;
             }
             log.error("[TenantFilter] tenant not found — host : {}, path : {}",
-                    request.getHeader("Host"), RequestPathUtil.pathWithinApplication(request));
+                    LogSafe.of(request.getHeader("Host")), LogSafe.of(RequestPathUtil.pathWithinApplication(request)));
             writeTenantNotFound(request, response);
             return;
         }

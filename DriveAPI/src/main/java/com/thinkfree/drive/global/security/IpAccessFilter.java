@@ -1,6 +1,7 @@
 package com.thinkfree.drive.global.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thinkfree.drive.util.LogSafe;
 import com.thinkfree.drive.access.dto.IpAccessCheckCommand;
 import com.thinkfree.drive.access.service.IpAccessControlService;
 import com.thinkfree.drive.global.FilterResponseWriter;
@@ -69,7 +70,7 @@ public class IpAccessFilter extends OncePerRequestFilter {
         // 여기서 500 을 내지 않고 통과시켜 뒤의 role 인가(403)가 판정하게 한다.
         Integer tenantSeq = TenantContext.get();
         if (role != RoleType.SUPER_ADMIN && tenantSeq == null) {
-            log.warn("[IpAccessFilter] no tenant in context for role {} path {} — skipping tenant IP policy", role, path);
+            log.warn("[IpAccessFilter] no tenant in context for role {} path {} — skipping tenant IP policy", role, LogSafe.of(path));
             chain.doFilter(request, response);
             return;
         }
@@ -82,7 +83,7 @@ public class IpAccessFilter extends OncePerRequestFilter {
                 case ANONYMOUS -> ipAccessControlService.checkAllowed(new IpAccessCheckCommand(clientIp, RoleType.USER, tenantSeq));
             }
         } catch (ApiRuntimeException e) {
-            log.error("[IpAccessFilter] blocked clientIp : {} path : {}", clientIp, path);
+            log.error("[IpAccessFilter] blocked clientIp : {} path : {}", LogSafe.of(clientIp), LogSafe.of(path));
             FilterResponseWriter.write(response, e.getCode(), objectMapper);
             return;
         }

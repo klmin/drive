@@ -1,6 +1,7 @@
 package com.thinkfree.drive.mcp.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thinkfree.drive.util.LogSafe;
 import com.thinkfree.drive.apikey.exception.ApiKeyErrorCode;
 import com.thinkfree.drive.auth.exception.AuthErrorCode;
 import com.thinkfree.drive.global.FilterResponseWriter;
@@ -62,7 +63,7 @@ public class McpAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
         String resourceMetadataUrl = McpUrls.protectedResourceMetadataUrl(request);
         log.info("{ McpAuthenticationEntryPoint } : Unauthorized MCP access : {} (resource_metadata : {})",
-                authException.getMessage(), resourceMetadataUrl);
+                LogSafe.of(authException.getMessage()), LogSafe.of(resourceMetadataUrl));
 
         response.setHeader(HttpHeaders.WWW_AUTHENTICATE,
                 "Bearer resource_metadata=\"" + resourceMetadataUrl + "\"");

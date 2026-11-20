@@ -9,9 +9,12 @@ const compactTime = kst.toISOString().replace(/[-:T]/g, '').slice(0, 12); // "20
 
 const envPath = path.join(__dirname, '../.env');
 
+// 있는지 먼저 보고 읽으면 그 사이 파일이 바뀔 수 있다(CodeQL js/file-system-race) — 바로 읽고 없으면 빈 값
 let env = '';
-if (fs.existsSync(envPath)) {
+try {
     env = fs.readFileSync(envPath, 'utf-8');
+} catch (e) {
+    if (e.code !== 'ENOENT') throw e;
 }
 
 const updatedEnv = env

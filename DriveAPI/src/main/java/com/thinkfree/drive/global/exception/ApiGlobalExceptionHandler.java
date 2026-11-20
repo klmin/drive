@@ -1,6 +1,7 @@
 package com.thinkfree.drive.global.exception;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.thinkfree.drive.util.LogSafe;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.thinkfree.drive.restclient.exception.ExternalApiException;
@@ -178,7 +179,7 @@ public class ApiGlobalExceptionHandler {
         if (!request.getServletPath().startsWith("/api/")) {
             throw e;
         }
-        log.warn("# noResourceFoundException # {} {}", e.getHttpMethod(), request.getServletPath());
+        log.warn("# noResourceFoundException # {} {}", e.getHttpMethod(), LogSafe.of(request.getServletPath()));
         return ApiExceptionResponse.error(GlobalErrorCode.NOT_SUPPORTED_URI_ERROR);
     }
 

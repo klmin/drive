@@ -1,6 +1,7 @@
 package com.thinkfree.drive.global.security;
 
 import com.thinkfree.drive.apikey.enums.ApiKeyScope;
+import com.thinkfree.drive.util.LogSafe;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authorization.AuthorizationDecision;
@@ -50,7 +51,7 @@ public class ApiScopeAuthorizationManager implements AuthorizationManager<Reques
 
         context.getRequest().setAttribute(SCOPE_DENIED_ATTRIBUTE, required.getValue());
         log.info("{ ApiScopeAuthorizationManager } : scope 미보유 - required : {}, uri : {}",
-                required.getValue(), context.getRequest().getRequestURI());
+                required.getValue(), LogSafe.of(context.getRequest().getRequestURI()));
         return new AuthorizationDecision(false);
     }
 }

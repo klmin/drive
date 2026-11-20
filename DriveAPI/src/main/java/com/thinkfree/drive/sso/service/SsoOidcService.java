@@ -1,6 +1,7 @@
 package com.thinkfree.drive.sso.service;
 
 import com.thinkfree.drive.auditlog.lookup.user.UserAuditLookupService;
+import com.thinkfree.drive.util.LogSafe;
 import com.thinkfree.drive.auditlog.service.LoginAuditService;
 import com.thinkfree.drive.auth.enums.JwtType;
 import com.thinkfree.drive.auth.model.SsoStateClaims;
@@ -97,7 +98,7 @@ public class SsoOidcService implements SsoService {
                 : ssoProviderData.getTenantSeq();
         String state = jwtProvider.createSsoStateToken(ssoProviderSeq, tenantSeqForState);
 
-        log.info("[SSO] buildAuthorizationUrl. providerSeq : {}, callbackUrl : {}", ssoProviderSeq, callbackUrl);
+        log.info("[SSO] buildAuthorizationUrl. providerSeq : {}, callbackUrl : {}", ssoProviderSeq, LogSafe.of(callbackUrl));
         return handler.buildAuthorizationUrl(ssoProtocolData, state, callbackUrl);
     }
 

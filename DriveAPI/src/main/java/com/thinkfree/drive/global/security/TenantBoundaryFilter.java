@@ -1,6 +1,7 @@
 package com.thinkfree.drive.global.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thinkfree.drive.util.LogSafe;
 import com.thinkfree.drive.global.FilterResponseWriter;
 import com.thinkfree.drive.global.exception.GlobalErrorCode;
 import com.thinkfree.drive.global.security.TenantContext;
@@ -66,7 +67,7 @@ public class TenantBoundaryFilter extends OncePerRequestFilter {
         
         if (userTenantSeq == null || !userTenantSeq.equals(requestTenantSeq)) {
             log.error("[TenantBoundaryFilter] mismatch userSeq : {} userTenant : {} requestTenant : {} path : {}",
-                    details.getUserSeq(), userTenantSeq, requestTenantSeq, request.getRequestURI());
+                    details.getUserSeq(), userTenantSeq, requestTenantSeq, LogSafe.of(request.getRequestURI()));
             FilterResponseWriter.write(response, GlobalErrorCode.INVALID_USER, objectMapper);
             return;
         }

@@ -1,6 +1,7 @@
 package com.thinkfree.drive.mcp.controller;
 
 import com.thinkfree.drive.mcp.constants.McpConstants;
+import com.thinkfree.drive.util.LogSafe;
 import com.thinkfree.drive.oauth2.enums.OAuth2Scope;
 import com.thinkfree.drive.mcp.response.McpProtectedResourceMetadataResponse;
 import com.thinkfree.drive.mcp.util.McpUrls;
@@ -36,7 +37,7 @@ public class McpProtectedResourceMetadataController {
     @GetMapping({McpConstants.PROTECTED_RESOURCE_METADATA_PATH, McpConstants.PROTECTED_RESOURCE_METADATA_MCP_PATH})
     public McpProtectedResourceMetadataResponse protectedResourceMetadata(HttpServletRequest request) {
         String baseUrl = McpUrls.baseUrl(request);
-        log.info("[McpProtectedResourceMetadata] baseUrl : {}", baseUrl);
+        log.info("[McpProtectedResourceMetadata] baseUrl : {}", LogSafe.of(baseUrl));
         return new McpProtectedResourceMetadataResponse(
                 baseUrl + McpConstants.MCP_ENDPOINT,
                 List.of(baseUrl),

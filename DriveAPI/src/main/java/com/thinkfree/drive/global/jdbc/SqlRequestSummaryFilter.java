@@ -1,6 +1,7 @@
 package com.thinkfree.drive.global.jdbc;
 
 import jakarta.servlet.FilterChain;
+import com.thinkfree.drive.util.LogSafe;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -68,7 +69,7 @@ public class SqlRequestSummaryFilter extends OncePerRequestFilter {
         stats.verbs().forEach((verb, count) -> verbs.add(verb.name().toLowerCase() + " " + count));
 
         StringBuilder sb = new StringBuilder()
-                .append(request.getMethod()).append(' ').append(request.getRequestURI())
+                .append(request.getMethod()).append(' ').append(LogSafe.of(request.getRequestURI()))
                 .append(DIM).append(" tenant=").append(orDash(stats.tenantSeq())).append(" user=").append(orDash(stats.userSeq()))
                 .append(" → ").append(RESET)
                 .append(many ? YELLOW : "").append(stats.queries()).append(stats.queries() == 1 ? " query" : " queries").append(RESET)

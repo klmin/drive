@@ -1,6 +1,7 @@
 package com.thinkfree.drive.global.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thinkfree.drive.util.LogSafe;
 import com.thinkfree.drive.auth.exception.AuthErrorCode;
 import com.thinkfree.drive.global.FilterResponseWriter;
 import com.thinkfree.drive.global.exception.GlobalErrorCode;
@@ -28,7 +29,7 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
                        AccessDeniedException accessDeniedException) throws IOException {
         
         String uri = request.getRequestURI();
-        log.info("[JwtAccessDeniedHandler] Access denied for URI: {}", uri);
+        log.info("[JwtAccessDeniedHandler] Access denied for URI: {}", LogSafe.of(uri));
 
         // 익명 계정의 거부는 기존 AnonymousAccessFilter 응답(REQUEST_006) 그대로 — 프론트가 이 코드로 공유 오류 페이지로 보낸다
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
