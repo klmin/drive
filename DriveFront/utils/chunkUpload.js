@@ -74,13 +74,20 @@ const rememberSession = (fingerprint, sessionId) => {
     writeStore(store);
 };
 
-const forgetSession = fingerprint => {
+/** 이 지문의 기록이 그 세션일 때만 지운다 — 같은 파일을 동시에 올리는 다른 작업의 기록을 지우지 않게 */
+const forgetSession = (fingerprint, sessionId) => {
     const store = readStore();
-    if (store[fingerprint]) {
+    if (store[fingerprint] && store[fingerprint].sessionId === sessionId) {
         delete store[fingerprint];
         writeStore(store);
     }
 };
+
+/**
+ * 이 탭에서 지금 전송 중인 세션 — 같은 파일을 같은 대상에 한 번 더 올리면(진행 중 다시 추가) 그 기록을 보고 같은 세션을
+ * 이어 쓰거나, 두 번째 작업만 취소해도 그 세션을 DELETE 해 첫 작업까지 실패시킨다. 쓰는 중인 세션은 건드리지 않고 새로 만든다.
+ */
+const activeSessionIds = new Set();
 
 /**
  * 같은 계정·같은 파일·같은 대상이면 같은 지문 — 다른 위치로 올리는 같은 파일은 다른 세션.
@@ -347,15 +354,38 @@ const isFinalRejection = e => e instanceof ChunkUploadError && e.status !== 0 &&
  */
 export async function uploadInChunks(file, target, { signal, onProgress, onPartsSent } = {}) {
     const fingerprint = fingerprintOf(file, target);
+    const claimed = [];
+    const claim = id => {
+        activeSessionIds.add(id);
+        claimed.push(id);
+    };
+    try {
+        return await runUpload(file, target, fingerprint, claim, {
+            signal,
+            onProgress,
+            onPartsSent,
+        });
+    } finally {
+        claimed.forEach(id => activeSessionIds.delete(id));
+    }
+}
+
+async function runUpload(file, target, fingerprint, claim, { signal, onProgress, onPartsSent }) {
     let plan = null;
     // 이어 올리려던 세션 — 조회 도중 취소돼도(plan 이 아직 없다) 이 세션을 정리해야 한다
     let resumingId = null;
     // complete 를 이미 보낸 세션(새로고침 뒤 다시 고름) — 파트를 보내지 않고 결과만 기다린다
     let finishingOnly = false;
+    const forget = () => {
+        const id = plan?.sessionId ?? resumingId;
+        if (id) forgetSession(fingerprint, id);
+    };
     try {
         const saved = readStore()[fingerprint];
-        if (saved?.sessionId) {
+        // 같은 탭의 다른 작업이 쓰는 중인 세션이면 이어 쓰지 않는다(그 기록도 그대로 둔다)
+        if (saved?.sessionId && !activeSessionIds.has(saved.sessionId)) {
             resumingId = saved.sessionId;
+            claim(resumingId); // 조회를 기다리는 동안 같은 파일의 다른 작업이 이 세션을 잡지 않게
             const resumed = await resumeSession(saved.sessionId, file, signal);
             if (resumed?.finishing) {
                 plan = { sessionId: saved.sessionId };
@@ -363,14 +393,23 @@ export async function uploadInChunks(file, target, { signal, onProgress, onParts
             } else if (resumed) {
                 plan = resumed;
             } else {
-                forgetSession(fingerprint);
+                forgetSession(fingerprint, saved.sessionId);
                 resumingId = null;
             }
         }
         if (signal?.aborted) throw CANCELLED;
         if (!plan) {
             plan = await startSession(file, target);
-            rememberSession(fingerprint, plan.sessionId);
+            claim(plan.sessionId);
+            // 다른 작업이 같은 지문으로 쓰는 중이면 그 기록을 덮어쓰지 않는다(이 작업은 이어 올리기 기록 없이 진행)
+            const current = readStore()[fingerprint];
+            if (
+                !current ||
+                !activeSessionIds.has(current.sessionId) ||
+                current.sessionId === plan.sessionId
+            ) {
+                rememberSession(fingerprint, plan.sessionId);
+            }
         }
         if (signal?.aborted) throw CANCELLED;
 
@@ -380,13 +419,13 @@ export async function uploadInChunks(file, target, { signal, onProgress, onParts
             // PENDING 이 아니면(이미 complete 중·끝남) 서버가 DELETE 를 무시하고 현재 상태로 답한다
             const id = plan?.sessionId ?? resumingId;
             if (id) cancelSession(id);
-            forgetSession(fingerprint);
+            forget();
             return null;
         }
         // 다시 시도해도 안 되는 거절 — 다음엔 새로 시작하고, 서버 세션이 아직 살아 있으면 취소.
         // 네트워크·5xx(조회 실패 포함)면 이어 올릴 수 있게 세션과 지문을 남긴다
         if (isFinalRejection(e)) {
-            forgetSession(fingerprint);
+            forget();
             if (plan) await abandonSession(plan.sessionId);
         }
         throw e;
@@ -397,11 +436,11 @@ export async function uploadInChunks(file, target, { signal, onProgress, onParts
         const result = finishingOnly
             ? await waitForCompletion(plan.sessionId)
             : await completeSession(plan.sessionId);
-        forgetSession(fingerprint);
+        forget();
         return result;
     } catch (e) {
         if (isFinalRejection(e)) {
-            forgetSession(fingerprint);
+            forget();
             await abandonSession(plan.sessionId);
         }
         throw e;

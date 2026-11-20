@@ -349,3 +349,27 @@ test('파트 PUT·상태 GET 은 실제 HTTP 상태를 받도록 validateStatus 
     assert.equal(seen[0](502), true);
     assert.equal(seen[0](401), false);
 });
+
+test('같은 파일을 같은 곳에 올리는 중 한 번 더 올려도 세션을 같이 쓰지 않고, 두 번째만 취소해도 첫 번째는 성공한다', async () => {
+    const f = mkFile(70, 'twice.bin');
+    // 첫 작업이 끊겨 기록이 남은 상태에서 다시 시작(이어 올리기) — 전송이 느리다
+    server.failPut.set(1, 10);
+    await assert.rejects(uploadInChunks(f, target));
+    server.failPut.clear();
+    server.calls = [];
+    server.putDelay = 30;
+
+    const first = uploadInChunks(f, target);
+    await new Promise(r => setTimeout(r, 5)); // 첫 작업이 세션을 잡은 뒤
+    const ac = new AbortController();
+    const second = uploadInChunks(f, target, { signal: ac.signal });
+    setTimeout(() => ac.abort(), 10);
+
+    assert.equal(await second, null);
+    const r = await first;
+    assert.equal(r.resourceSeq, 99, '첫 작업은 두 번째 취소와 상관없이 성공');
+    const sessions = [...server.sessions.values()].filter(s => s.fileName === 'twice.bin');
+    assert.equal(sessions.length, 2, '두 번째는 자기 세션을 새로 만들었다');
+    assert.deepEqual(sessions.map(s => s.status).sort(), ['COMPLETED', 'FAILED']);
+    assert.equal(saved(), 0);
+});
