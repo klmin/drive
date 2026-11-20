@@ -1,6 +1,7 @@
 # 부하 테스트 DB 전용 — 누적 실행 시간 상위 쿼리(pg_stat_statements). 확장이 없는 DB(공용 dev 등)에는 붙이지 않는다.
 # 확장: compose loadtest-db 의 shared_preload_libraries + k6/seed-admin.sql 의 CREATE EXTENSION.
-# SQL 문은 pg_stat_statements 가 바인딩 값을 $1 로 바꿔 두므로 값(개인정보)은 남지 않는다. 라벨 길이를 줄이려 앞 120자만.
+# SQL 문은 pg_stat_statements 가 바인딩 값을 $1 로 바꿔 두므로 값(개인정보)은 남지 않는다. 라벨 길이를 줄이려 앞 120자만 —
+#   앞부분이 같고 WHERE·FOR UPDATE 만 다른 쿼리는 query 라벨이 같아지므로, 집계·범례는 항상 queryid 와 같이 쓴다.
 # 상위 20개만 — 순위가 바뀌면 시계열이 생겼다 없어진다(그래서 counter 지만 rate 는 짧은 구간에서만 의미 있다).
 #   drive_pg_statements_calls{queryid, query}          누적 호출 수(counter)
 #   drive_pg_statements_seconds{queryid, query}        누적 실행 시간(counter, 초)
