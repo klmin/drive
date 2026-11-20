@@ -185,6 +185,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 | 진입점 | `file/write/orchestrator/FileWriteOrchestrator` |
 | 쓰기 흐름 | `upload/session/service/UploadSessionWriter`(`open`·`finishClaimed` 는 청크 API 와 공유) |
 | 청크 업로드 API | `api/v1/upload/controller/UploadSessionController`, `application/upload/UploadSessionUseCase`, `upload/session/service/UploadChunkService` |
+| 청크 업로드 프론트 | `DriveFront/utils/chunkUpload.js`(업로더), `components/common/dialog/UploadDialog.js`(32MB 이상만 청크), `PendingUploadsDialog.js`(IS_FULL 때 진행 중 업로드 목록·취소) |
 | 사용량 `uploadingByte` | `api/v1/user/usecase/UserUseCase.getCurrentQuota` → `UploadSessionTxService.sumUploadingByte` |
 | 세션 상태 tx | `upload/session/service/UploadSessionTxService` |
 | 커밋 tx | `upload/session/service/UploadCommitService` |
@@ -206,11 +207,12 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 - `ResourceNamingLockConcurrencyIntegrationTest` — 동시 같은 이름 생성·이름 변경·이동, 교착 회귀(부모·자식 이름 변경, 루트 폴더 이름 변경 + 자식 루트 이동, 복원 + 영구 삭제, 이름 변경 + 직접 영구 삭제). 각 교착 테스트는 해당 선행 잠금을 끄면 `deadlock detected` 로 실패하는 것을 확인함
 - `DefaultUploadSessionRepositoryTest` — 상태 전이·정리 배치(PG), `StorageDeletionProcessorTest`
 - `S3StorageServiceMultipartContractTest` — MinIO 계약, `S3BucketInitializerTest`
+- `DriveFront/tests/scripts/chunk-upload.test.mjs` — 업로더: 분할·이어 올리기·재시도·409 중단·취소·complete 대기(가짜 서버, `node --test`)
 
 ---
 
 ## 8. 알려진 한계 (자세한 내용은 todo)
-- 청크 API 는 백엔드만 — 프론트(Uppy, IS_FULL 때 진행 중 업로드 안내 포함)·앞단 프록시 설정 문서는 아직. 그 전까지 웹 화면은 큰 파일도 한 요청으로 보낸다.
+- 앞단 프록시 설정 문서(`client_max_body_size` > 16MB)는 아직 — 없으면 프록시가 파트 PUT 을 413 으로 막는다. 실제 MinIO·브라우저로 1GB 끊었다 이어 올리기는 아직 확인 안 함(업로더 로직은 가짜 서버 테스트만).
 - 커밋 tx 에서 권한 재확인 안 함(호출부 검사만 — 청크 API 는 complete 선점 전에 한 번 더), 매직바이트 검사 없음, 감사 로그 발행 시점은 호출부 그대로.
 - 청크 API 는 외부 API(`/api/public`, API Key)로 내보내지 않았다(내부 웹 API 만).
 - 옛 흐름 호환 코드 남음: `cleanVersionIfExists`(옛 PENDING 버전 정리, 저장 마커 조회 = tx 안 S3 HEAD), `ResourceRepository.revertOverwrite`(호출부 없음), 미사용 `uploadPartsFromStream`·`copyObjectAnySize`.

@@ -849,7 +849,17 @@
         "success": "Carga completada correctamente.",
         "fail": {
             "general": "Error al subir.",
-            "quotaExceeded": "Límite de almacenamiento superado. No se pudo completar la carga."
+            "quotaExceeded": "Límite de almacenamiento superado. No se pudo completar la carga.",
+            "sessionLimit": "Hay demasiadas cargas en curso. Inténtelo de nuevo cuando terminen algunas.",
+            "expired": "La carga se interrumpió. Vuelva a subir el archivo."
+        },
+        "pending": {
+            "title": "Cargas en curso",
+            "description": "Las cargas sin terminar ({size}) están reservando espacio de almacenamiento, por lo que no se puede iniciar una nueva carga.\nCancele las cargas que ya no necesite para liberar ese espacio. Puede incluir archivos que otras personas suben a sus carpetas compartidas y cargas que no aparecen en esta lista.",
+            "empty": "No hay cargas en curso que se puedan cancelar.",
+            "lastActivity": "Último envío {time}",
+            "cancel": "Cancelar",
+            "cancelFail": "No se pudo cancelar la carga."
         }
     },
     "quota": {

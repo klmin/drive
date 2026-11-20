@@ -1,6 +1,6 @@
 # 업로드 세션 — 남은 작업
 
-> 기준: 2026-11-20. 끝난 것 = 단계 0·1(MinIO)·2·3(PR #9·#19·#22·#27 머지), 단계 4 백엔드 API(PR #38 머지)·`uploadingByte`(PR #40 머지)·덮어쓰기 사전 필터(브랜치 `fix/overwrite-quota-precheck`).
+> 기준: 2026-11-20. 끝난 것 = 단계 0·1(MinIO)·2·3(PR #9·#19·#22·#27 머지), 단계 4 백엔드 API(PR #38 머지)·`uploadingByte`(PR #40 머지)·덮어쓰기 사전 필터(PR #43 머지)·프론트 청크 업로더(브랜치 `feat/front-chunk-upload`).
 > 지금 구조는 [현재 구현 문서](../design/upload-session-as-built.md), 결정 이유는 [설계 문서](../design/upload-session-redesign.md)(§ 번호는 이 문서 기준).
 > 우선순위: **A** 다음에 할 것 / **B** 운영 전 필요 / **C** 여유 있을 때.
 
@@ -17,11 +17,11 @@
 - [x] **취소** — `fail(PENDING, CANCELED, BEFORE_ASSEMBLE)`, 이미 끝났어도 성공
 - [ ] **청크 API 외부 공개 여부** — 지금은 내부 웹 API 만(`@ExternalApi` 없음). API Key·MCP 로 큰 파일을 올릴 필요가 생기면 `/api/public` 노출·scope(WRITE) 검토
 - [x] **사용량 `uploadingByte`**(PR #40) — `GET /api/v1/users/quota` 에 진행 중 합계 별도 필드(용량 주인 기준, 공유 폴더에 남이 올리는 중인 크기 포함). 막대는 확정값만 — 이 값은 IS_FULL 안내용(설계 규칙 12, 2026-11-20 결정). 알림·지표·관리자 화면·로그인 응답은 확정값만(설계 규칙 12)
-- [x] **덮어쓰기 사전 필터 증가분**(브랜치 `fix/overwrite-quota-precheck`, V7 `reserve_byte`) — 덮어쓰기 세션은 시작 검사·진행 중 합계에 새 − 기존 크기(0 이상)만. 버전 저장·새 파일은 전체 크기 그대로
-- [ ] **프론트(DriveFront)** — Uppy `@uppy/aws-s3` 멀티파트 플러그인을 우리 API 에 연결, 세션당 동시 4, 409 받으면 중단(재시도·abort 안 함), 취소 버튼 → DELETE, 새로고침에는 abort 안 보냄, `localStorage` 지문으로 이어 올리기, 폴더 업로드 큐(동시 3~6), 세션 시작 IS_FULL 이면 `uploadingByte > 0` 일 때 "진행 중 업로드가 공간을 쓰고 있음" + 목록·취소 안내(막대는 확정값만)
+- [x] **덮어쓰기 사전 필터 증가분**(PR #43, V7 `reserve_byte`) — 덮어쓰기 세션은 시작 검사·진행 중 합계에 새 − 기존 크기(0 이상)만. 버전 저장·새 파일은 전체 크기 그대로
+- [x] **프론트(DriveFront)**(브랜치 `feat/front-chunk-upload`) — Uppy 대신 직접 만든 업로더(`utils/chunkUpload.js`, 이유는 설계 §10), 세션당 동시 4, 409 받으면 중단(재시도·abort 안 함), 취소 버튼 → DELETE, 새로고침에는 abort 안 보냄, `localStorage` 지문으로 이어 올리기, 폴더 업로드 큐(기존 다이얼로그 동시 3), 세션 시작 IS_FULL 이면 `uploadingByte > 0` 일 때 "진행 중 업로드가 공간을 쓰고 있음" + 목록·취소 안내(막대는 확정값만)
 - [ ] **앞단 프록시** `client_max_body_size` > 파트 크기(16MB+), 타임아웃 — 설치 문서(DriveInstaller)
 - 완료 기준: 1GB 파일을 파트 업로드 → 중간에 끊고 `GET /uploads/{id}` 로 빠진 파트만 → complete. 동시 complete(중복 클릭)·complete 재요청 멱등·취소 후 파트 PUT 409·스케줄러 만료 후 409 통합 테스트
-  - 통합 테스트는 `UploadChunkIntegrationTest`(PG + 메모리 멀티파트 가짜, 33MB)로 끝남. 남은 것: 실제 MinIO 로 1GB 를 브라우저(프론트 연결 후)에서 끊었다 이어 올리기
+  - 통합 테스트는 `UploadChunkIntegrationTest`(PG + 메모리 멀티파트 가짜, 33MB), 업로더는 `tests/scripts/chunk-upload.test.mjs`(가짜 서버)로 끝남. 남은 것: 실제 MinIO 로 1GB 를 브라우저에서 끊었다 이어 올리기(로컬 백엔드 실행 필요)
 
 ## B. 운영 전에 필요한 것
 
