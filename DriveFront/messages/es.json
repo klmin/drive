@@ -855,7 +855,7 @@
         },
         "pending": {
             "title": "Cargas en curso",
-            "description": "Las cargas sin terminar ({size}) están reservando espacio de almacenamiento, por lo que no se puede iniciar una nueva carga.\nCancele las cargas que ya no necesite para liberar ese espacio. Puede incluir archivos que otras personas suben a sus carpetas compartidas y cargas que no aparecen en esta lista.",
+            "description": "Es posible que {count} carga(s) suya(s) sin terminar ({size}) estén reservando espacio de almacenamiento e impidan iniciar una nueva carga.\nCancele las cargas que ya no necesite para liberar ese espacio. Elija el mismo archivo de nuevo para reanudar una carga.",
             "empty": "No hay cargas en curso que se puedan cancelar.",
             "lastActivity": "Último envío {time}",
             "cancel": "Cancelar",

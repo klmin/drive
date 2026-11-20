@@ -15,7 +15,12 @@ import { useUser } from '@/context/UserContext';
 import { v4 as uuidv4 } from 'uuid';
 import { useDrivePreview } from '@/hooks/useDrivePreview';
 import { BaseTooltip } from '../tooltip/BaseTooltip';
-import { CHUNK_UPLOAD_THRESHOLD, ChunkUploadError, uploadInChunks } from '@/utils/chunkUpload';
+import {
+    CHUNK_UPLOAD_THRESHOLD,
+    ChunkUploadError,
+    listPendingUploads,
+    uploadInChunks,
+} from '@/utils/chunkUpload';
 
 // 컴포넌트 내부에 두면 매 렌더마다 새 Symbol이 생성되어
 // 비동기 흐름에서 "e === STOP" 비교가 실패할 수 있음 → 컴포넌트 외부로 이동
@@ -366,16 +371,17 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
 
     /**
      * 용량 부족(QUOTA_003) 안내. 사용량 막대는 확정값만 보여 주므로, 진행 중 업로드가 공간을 잡고 있으면
-     * 막대에는 여유가 있어 보여도 거절된다 — 그때는 진행 중 업로드 목록(취소 가능)을 띄운다(설계 규칙 12).
+     * 막대에는 여유가 있어 보여도 거절된다 — 그때 내가 취소할 수 있는 진행 중 업로드가 있으면 목록을 띄운다(설계 규칙 12).
+     * 내 사용량(users/quota 의 uploadingByte)으로 판단하지 않는다 — 공유 폴더에 올릴 때 용량 검사 대상은 폴더 주인이라,
+     * 내 uploadingByte 가 0 이어도 내가 그 폴더에 올리던 세션이 주인의 공간을 잡고 있을 수 있다.
      */
     const notifyQuotaExceeded = async () => {
         showSnackbar(t('upload.fail.quotaExceeded'), 'error');
         if (pendingNoticeShownRef.current) return;
         pendingNoticeShownRef.current = true;
-        const res = await api.Get('users/quota', {});
-        const uploadingByte = res?.data?.data?.uploadingByte;
-        if (uploadingByte > 0) {
-            openDialog('pendingUploads', { uploadingByte });
+        const sessions = await listPendingUploads();
+        if (sessions?.length > 0) {
+            openDialog('pendingUploads', { sessions });
         }
     };
 
@@ -588,7 +594,11 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
         updateStatus(node.id, undefined, UPLOAD_STATUS.WAITING, undefined, url, query);
 
         const createFunc = async () => {
-            const fileToSend = new File([node.file], node.name, { type: node.file.type });
+            const fileToSend = new File([node.file], node.name, {
+                type: node.file.type,
+                // 청크 업로드 이어 올리기 지문에 쓴다 — 빼면 지금 시각이 되어 같은 파일을 다시 골라도 못 찾는다
+                lastModified: node.file.lastModified,
+            });
             const controller = new AbortController();
             controllerMapRef.current.set(node.id, controller);
             let sentMarked = false;
@@ -915,7 +925,11 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                 }
 
                 const createFunc = async (existingResourceSeq = null, saveType = null) => {
-                    const fileToSend = new File([node.file], node.name, { type: node.file.type });
+                    const fileToSend = new File([node.file], node.name, {
+                        type: node.file.type,
+                        // 청크 업로드 이어 올리기 지문에 쓴다 — 빼면 지금 시각이 되어 같은 파일을 다시 골라도 못 찾는다
+                        lastModified: node.file.lastModified,
+                    });
 
                     const controller = new AbortController();
                     controllerMapRef.current.set(node.id, controller);

@@ -119,7 +119,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 - **청크 API 세션 = `part_count` 가 있는 세션.** 서버 내부 쓰기 세션은 같은 요청자라도 이 API 로 조회·complete·취소할 수 없다(진행 중인 내부 쓰기를 가로채지 못하게).
 - 32MB 미만을 받지 않는 이유: 단일 객체 PUT 은 complete 뒤 늦게 도착한 PUT 이 커밋된 객체를 덮어쓸 수 있다(멀티파트는 complete 뒤 파트 PUT 이 NoSuchUpload 로 실패). 작은 파일은 기존 `POST /api/v1/files`.
 - 파트 계획은 세션에 저장된 값을 쓴다 — 설정(`min-part-size`)이 바뀌어도 진행 중 세션은 시작 때 계획 그대로.
-- **사용량 `uploadingByte`** — `GET /api/v1/users/quota` 응답에 진행 중(PENDING·COMPLETING) 세션의 `reserve_byte` 합계를 `useQuotaByte` 와 별도 필드로(`UploadSessionTxService.sumUploadingByte` → `sumActive`). 기준은 용량 주인(`user_seq`)이라 공유 폴더에 남이 올리는 중인 크기도 포함된다(용량 사전 필터와 같은 기준). 사용량 막대는 확정값만 그리고, 이 값은 시작 검사가 IS_FULL 로 거절될 때 "진행 중 업로드가 공간을 쓰고 있다" 안내에 쓴다(설계 규칙 12). 알림·지표·관리자 화면·로그인 응답은 확정값만. 청크 API 세션뿐 아니라 내부 쓰기 세션도 포함.
+- **사용량 `uploadingByte`** — `GET /api/v1/users/quota` 응답에 진행 중(PENDING·COMPLETING) 세션의 `reserve_byte` 합계를 `useQuotaByte` 와 별도 필드로(`UploadSessionTxService.sumUploadingByte` → `sumActive`). 기준은 용량 주인(`user_seq`)이라 공유 폴더에 남이 올리는 중인 크기도 포함된다(용량 사전 필터와 같은 기준). 사용량 막대는 확정값만 그린다(설계 규칙 12). IS_FULL 안내는 이 값이 아니라 내 진행 중 청크 업로드 목록으로 판단한다(공유 폴더에 올릴 때 검사 대상은 폴더 주인이라 내 값으로는 못 맞춘다). 지금 프론트는 이 값을 쓰지 않는다. 알림·지표·관리자 화면·로그인 응답은 확정값만. 청크 API 세션뿐 아니라 내부 쓰기 세션도 포함.
 
 ---
 

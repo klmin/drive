@@ -143,3 +143,20 @@ test('오류 본문이 JSON 이 아니면(앞단 프록시 413 HTML 등) 재시�
         api.Put = original;
     }
 });
+
+test('토큰 재발급 뒤 api.Post 가 Axios 응답 전체를 돌려줘도 세션 생성·complete 성공', async () => {
+    const api = (await import('./chunk-upload/fakeApi.mjs')).default;
+    const original = api.Post;
+    // utils/api.js handleAuthError: 401 → 재발급 → axios(originalRequest) 결과(응답 전체)를 그대로 돌려준다
+    api.Post = async (...args) => {
+        const body = await original(...args);
+        return { status: body.code, data: body, headers: {}, config: {} };
+    };
+    try {
+        const r = await uploadInChunks(mkFile(40, 'reissue.bin'), target);
+        assert.equal(r.resourceSeq, 99);
+        assert.equal(starts(), 1);
+    } finally {
+        api.Post = original;
+    }
+});

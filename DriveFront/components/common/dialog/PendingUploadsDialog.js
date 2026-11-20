@@ -19,13 +19,15 @@ import { useSnackbarContext } from '@/provider/SnackbarProvider';
 
 /**
  * 진행 중(PENDING) 청크 업로드 목록과 취소.
- * 업로드 시작이 용량 부족으로 거절됐는데 진행 중 업로드가 공간을 잡고 있을 때 연다
+ * 업로드 시작이 용량 부족으로 거절됐는데 내가 취소할 수 있는 진행 중 업로드가 있을 때 연다
  * (사용량 막대는 확정값만 보여 주므로 "공간이 있는데 왜 안 되지"를 여기서 설명 — 설계 규칙 12).
+ *
+ * @param sessions 여는 쪽이 이미 읽은 목록(없으면 열 때 읽는다)
  */
-export default function PendingUploadsDialog({ open, onClose, uploadingByte }) {
+export default function PendingUploadsDialog({ open, onClose, sessions: initialSessions }) {
     const t = useTranslations();
     const { showSnackbar } = useSnackbarContext();
-    const [sessions, setSessions] = useState(null);
+    const [sessions, setSessions] = useState(initialSessions ?? null);
     const [busyId, setBusyId] = useState(null);
 
     const load = useCallback(async () => {
@@ -34,8 +36,10 @@ export default function PendingUploadsDialog({ open, onClose, uploadingByte }) {
     }, []);
 
     useEffect(() => {
-        if (open) load();
-    }, [open, load]);
+        if (open && !initialSessions) load();
+    }, [open, initialSessions, load]);
+
+    const totalByte = (sessions || []).reduce((sum, s) => sum + (s.size || 0), 0);
 
     const handleCancel = async sessionId => {
         setBusyId(sessionId);
@@ -76,7 +80,8 @@ export default function PendingUploadsDialog({ open, onClose, uploadingByte }) {
                     component="p"
                 >
                     {t('upload.pending.description', {
-                        size: convertBytesToReadableSize(uploadingByte || 0),
+                        count: (sessions || []).length,
+                        size: convertBytesToReadableSize(totalByte),
                     })}
                 </Typography>
 

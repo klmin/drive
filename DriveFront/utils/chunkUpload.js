@@ -105,8 +105,18 @@ const toError = (res, signal) => {
     return new ChunkUploadError(status, res?.errorCode, res?.message);
 };
 
+/**
+ * api.Post 는 평소 응답 본문(ApiResponse)을 돌려주지만, 401 → 토큰 재발급 → 재시도가 일어나면 Axios 응답 전체를 돌려준다
+ * (utils/api.js handleAuthError). 둘 다 본문으로 맞춘다 — 안 맞추면 성공한 세션 생성·complete 를 실패로 본다.
+ */
+const postBody = async (url, body, config) => {
+    const res = await api.Post(url, body, null, config);
+    const isAxiosResponse = res && typeof res === 'object' && 'config' in res && 'headers' in res;
+    return isAxiosResponse ? res.data : res;
+};
+
 const startSession = async (file, target, signal) => {
-    const res = await api.Post(
+    const res = await postBody(
         'uploads',
         {
             sharedByUserSeq: target.sharedByUserSeq ?? undefined,
@@ -116,7 +126,6 @@ const startSession = async (file, target, signal) => {
             fileName: file.name,
             size: file.size,
         },
-        null,
         { signal }
     );
     const data = res?.data;
@@ -229,7 +238,7 @@ const uploadParts = async (file, plan, signal, onProgress) => {
 /** complete — 재요청해도 안전(완료된 세션은 같은 결과). 처리 중(409 UPLOAD_005)이면 상태를 읽어 끝날 때까지 기다린다 */
 const completeSession = async sessionId => {
     for (let attempt = 1; attempt <= PART_ATTEMPTS; attempt++) {
-        const res = await api.Post(`uploads/${sessionId}/complete`, null);
+        const res = await postBody(`uploads/${sessionId}/complete`, null);
         if (res?.data?.resourceSeq) return res.data;
         const err = toError(res);
         if (err.errorCode === 'UPLOAD_005') return waitForCompletion(sessionId);
