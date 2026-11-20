@@ -26,7 +26,7 @@ public class UsersCsvRegisteredListener {
     @Async
     public void onUsersCsvRegistered(UserCsvRegisteredEvent event) {
         log.info("## onUsersCsvRegistered ##");
-        log.info("userCsvRegisteredEvent : {}", event);
+        log.info("userCsvRegisteredEvent - tenantSeq : {}, users : {}명", event.tenantSeq(), event.users().size());   // 이벤트에 초기 비밀번호가 있어 통째로 남기지 않는다
 
         var baseUrl = clientDomainService.getDomain(event.tenantSeq());
         var loginUrl = StringUtil.buildUrl(baseUrl + appFrontProperty.loginPath());

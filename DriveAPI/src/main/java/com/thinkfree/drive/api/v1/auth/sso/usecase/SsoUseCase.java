@@ -84,7 +84,7 @@ public class SsoUseCase {
 
     @AuditLog
     public SsoCallbackResponse handleOidcCallback(SsoOidcCallbackRequest request) {
-        log.info("code : {}, state : {}", request.code(), request.state());
+        log.info("[SSO] OIDC callback 수신");   // code·state 는 인가 코드·서명 값이라 남기지 않는다
         var ssoService = ssoServiceRegistry.get(SsoProviderProtocolType.OIDC);
         try {
             var result = ssoService.handleCallback(request.code(), request.state());
@@ -111,10 +111,10 @@ public class SsoUseCase {
             SsoProviderProtocolType protocolType = SsoProviderProtocolType.from(protocol);
             SsoService ssoService = ssoServiceRegistry.get(protocolType);
             var result = ssoService.resolveSessionToken(claims, httpRequest);
-            log.info("result : {}", result);
+            log.info("[SSO] session 교환 결과 : {}", result.getClass().getSimpleName());   // 결과에 Drive access·refresh 토큰이 있어 타입만
             return ssoResponseConverter.toSsoSessionResponse(result);
         }catch(JwtException e){
-            log.error("[Invalid ssoSessionToken] token : {}", ssoSessionToken, e);
+            log.error("[SSO] 유효하지 않은 ssoSessionToken", e);
             throw ApiRuntimeException.type(SsoErrorCode.INVALID_SSO_SESSION_TOKEN);
         }
 

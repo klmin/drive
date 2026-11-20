@@ -113,10 +113,8 @@ public class OidcAuthHandler implements SsoAuthHandler {
 
         OidcTokenResponse tokenResponse = exchangeCode(oidcConfig, discovery, oidcParams.code(), oidcParams.redirectUri());
         log.info("[OIDC] token exchange 완료. providerSeq : {}", oidcConfig.getSsoProviderSeq());
-        log.info("tokenResponse : {}", tokenResponse);
         
         Jwt idToken = validateIdToken(tokenResponse.idToken(), discovery.jwksUri(), oidcConfig.getClientId(), discovery.issuer());
-        log.info("idToken.getClaims : {}", idToken.getClaims());
         
         String subject = idToken.getSubject();
         String email   = idToken.getClaimAsString(DriveConstants.EMAIL);

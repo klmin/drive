@@ -58,7 +58,6 @@ public class SsoController {
             description = "Exchanges the SSO session cookie from the callback for a sign-in result.")
     @GetMapping("/session")
     public ResponseEntity<ApiResponse<SsoSessionResponse>> session(@CookieValue(value=SsoConstants.SSO_SESSION_TOKEN, required = false) String ssoSessionToken, HttpServletResponse httpResponse, HttpServletRequest httpRequest) {
-        log.info("ssoSessionToken : {}", ssoSessionToken);
         clearSsoSessionCookie(httpRequest, httpResponse);
         var response = ssoUseCase.resolveSession(ssoSessionToken, httpRequest);
         if (response instanceof SsoSessionResponse.Login login) {

@@ -33,7 +33,7 @@ public class DefaultResourceShareTokenService implements ResourceShareTokenServi
         String token = Base62TokenGenerator.generate(TOKEN_LENGTH);
         
         if (resourceFindService.existsByShareToken(token)) {
-            log.error("[Link is Duplicate] retryCount: {}, token: {}", RetryUtil.getRetryCount(), token);
+            log.error("[Link is Duplicate] retryCount: {}", RetryUtil.getRetryCount());   // 겹친 토큰은 이미 쓰이는 공유 링크라 남기지 않는다
             throw ApiRuntimeException.type(ResourceErrorCode.CREATE_LINK_FAILED);
         }
 

@@ -23,7 +23,7 @@ public class UserPasswordResetListener {
     @Async
     public void onUserPasswordResetRequested(UserPasswordResetRequestedEvent event) {
         log.info("## onUserPasswordResetRequested ##");
-        log.info("UserPasswordResetRequestedEvent : {}", event);
+        log.info("UserPasswordResetRequestedEvent - tenantSeq : {}", event.tenantSeq());   // 이벤트에 재설정 토큰이 있어 통째로 남기지 않는다
 
         var domainUrl = clientDomainService.getDomain(event.tenantSeq());
 
