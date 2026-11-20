@@ -1,5 +1,6 @@
 package com.thinkfree.drive.share.target.service;
 
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import com.thinkfree.drive.global.time.DriveTime;
 import com.thinkfree.drive.api.page.query.CursorPaginationQuery;
 import com.thinkfree.drive.common.search.enums.FileType;
@@ -9,11 +10,10 @@ import com.thinkfree.drive.share.target.enums.ShareTargetSortField;
 import com.thinkfree.drive.share.target.query.ShareTargetListQuery;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.LocalDate;
 
-@SpringBootTest
+@DriveIntegrationTest
 class ShareTargetFindServiceTest {
     
     @Autowired

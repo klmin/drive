@@ -1,13 +1,13 @@
 package com.thinkfree.drive.auth.utils;
 
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import com.thinkfree.drive.user.enums.RoleType;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 
-@SpringBootTest
+@DriveIntegrationTest
 @TestPropertySource(properties = {
         "jwt.accessExp=315360000000"
 })

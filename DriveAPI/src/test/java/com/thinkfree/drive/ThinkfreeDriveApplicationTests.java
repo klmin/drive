@@ -1,9 +1,9 @@
 package com.thinkfree.drive;
 
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+@DriveIntegrationTest
 class ThinkfreeDriveApplicationTests {
 
     @Test

@@ -187,6 +187,7 @@ class ResourceControllerTest extends AbstractMvcTest {
     
     @WithMockUserCustom(roles = "ROLE_USER", userSeq = 669)
     @Test
+    @Disabled("dev DB 데이터 의존 — 잠긴 리소스 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void unlock(){
         
         Long resourceSeq = 25285L;

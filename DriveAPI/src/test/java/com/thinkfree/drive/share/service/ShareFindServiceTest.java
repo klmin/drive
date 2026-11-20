@@ -1,12 +1,12 @@
 package com.thinkfree.drive.share.service;
 
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import com.thinkfree.drive.config.security.WithMockUserCustom;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+@DriveIntegrationTest
 @Slf4j
 class ShareFindServiceTest {
     

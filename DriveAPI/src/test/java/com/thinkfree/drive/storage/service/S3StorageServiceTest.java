@@ -1,15 +1,15 @@
 package com.thinkfree.drive.storage.service;
 
+import com.thinkfree.drive.common.DriveIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Files;
 
-@SpringBootTest
+@DriveIntegrationTest
 class S3StorageServiceTest {
     
     @Autowired
