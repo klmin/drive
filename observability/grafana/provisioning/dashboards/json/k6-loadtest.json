@@ -129,9 +129,77 @@
         { "refId": "B", "expr": "sum(rate(jvm_gc_pause_seconds_sum{job=\"drive-api\"}[$__rate_interval]))", "legendFormat": "GC 멈춤(초/초)" }
       ]
     },
+    { "id": 102, "type": "row", "title": "업로드 (upload.js) — k6 체감 시간 · 서버 세션 · S3 · 정리 대기열", "collapsed": false, "gridPos": { "x": 0, "y": 32, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 13, "type": "timeseries", "title": "파일 하나 올리는 시간 p95 (k6, 종류별) · 보낸 양",
+      "description": "k6 커스텀 지표 upload_file_duration — 첫 요청부터 마지막 응답까지(청크는 세션 생성~complete). 오른쪽 축은 k6 가 보낸 바이트/초.",
+      "gridPos": { "x": 0, "y": 33, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "min": 0 },
+        "overrides": [ { "matcher": { "id": "byName", "options": "보낸 양" }, "properties": [ { "id": "unit", "value": "Bps" }, { "id": "custom.axisPlacement", "value": "right" } ] } ]
+      },
+      "targets": [
+        { "refId": "A", "expr": "max by (kind) (k6_upload_file_duration_p95{testid=~\"$testid\"})", "legendFormat": "{{kind}}" },
+        { "refId": "B", "expr": "sum(rate(k6_data_sent_total{testid=~\"$testid\"}[$__rate_interval]))", "legendFormat": "보낸 양" }
+      ]
+    },
+    {
+      "id": 14, "type": "timeseries", "title": "업로드 세션 시작·종료 (초당, 서버)",
+      "description": "앱 지표 — 시작 drive_upload_session_size_bytes_count{kind}(chunk = 청크 API, server = 기존 업로드 API·복사 등), 종료 drive_upload_session_ended_total{result, reason}. 시작보다 completed 가 적으면 실패·취소·진행 중.",
+      "gridPos": { "x": 8, "y": 33, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (kind) (rate(drive_upload_session_size_bytes_count{job=\"drive-api\"}[$__rate_interval]))", "legendFormat": "시작 {{kind}}" },
+        { "refId": "B", "expr": "sum by (result, reason) (rate(drive_upload_session_ended_total{job=\"drive-api\"}[$__rate_interval])) > 0", "legendFormat": "{{result}} {{reason}}" }
+      ]
+    },
+    {
+      "id": 15, "type": "timeseries", "title": "진행 중 업로드 세션 (DB 상태)",
+      "description": "postgres exporter 커스텀 쿼리(alloy/pg-queries.yaml) — PENDING·COMPLETING 세션 수. 오른쪽 축은 가장 오래 활동 없는 세션의 경과 시간(TTL 1시간에 가까우면 버려진 업로드).",
+      "gridPos": { "x": 16, "y": 33, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0 },
+        "overrides": [ { "matcher": { "id": "byRegexp", "options": "가장 오래.*" }, "properties": [ { "id": "unit", "value": "s" }, { "id": "custom.axisPlacement", "value": "right" } ] } ]
+      },
+      "targets": [
+        { "refId": "A", "expr": "sum by (status) (drive_upload_active_sessions{job=\"postgres-loadtest\"})", "legendFormat": "{{status}}" },
+        { "refId": "B", "expr": "max by (status) (drive_upload_active_oldest_idle_seconds{job=\"postgres-loadtest\"})", "legendFormat": "가장 오래 멈춘 {{status}}" }
+      ]
+    },
+    {
+      "id": 16, "type": "timeseries", "title": "S3 호출 p95 · 초당 (operation별) — 점을 누르면 트레이스",
+      "description": "앱 지표 aws_s3_client_seconds(S3ObservationInterceptor). GetObject 는 응답 헤더까지(본문 읽기 제외). 같은 시간대 WAS p95 가 오르는데 여기도 오르면 스토리지 쪽.",
+      "gridPos": { "x": 0, "y": 41, "w": 12, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "min": 0 },
+        "overrides": [ { "matcher": { "id": "byRegexp", "options": "초당 .*" }, "properties": [ { "id": "unit", "value": "reqps" }, { "id": "custom.axisPlacement", "value": "right" }, { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [6, 4] } } ] } ]
+      },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le, rpc_method) (rate(aws_s3_client_seconds_bucket{job=\"drive-api\"}[$__rate_interval])))", "legendFormat": "{{rpc_method}}", "exemplar": true },
+        { "refId": "B", "expr": "sum by (rpc_method) (rate(aws_s3_client_seconds_count{job=\"drive-api\"}[$__rate_interval]))", "legendFormat": "초당 {{rpc_method}}" }
+      ]
+    },
+    {
+      "id": 17, "type": "timeseries", "title": "S3 오류 (초당) · 스토리지 정리 대기열",
+      "description": "S3 오류 = aws_s3_client_seconds_count 중 error 가 none 이 아닌 것(404 는 정상 결과라 제외). 정리 대기열 = tb_storage_deletion 행 수(DELETE 객체 삭제 / ABORT_MULTIPART 미완성 업로드 정리). 부하 테스트 실행 구성은 배치 스케줄러가 꺼져 있어 대기열이 줄지 않는다.",
+      "gridPos": { "x": 12, "y": 41, "w": 12, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0 },
+        "overrides": [ { "matcher": { "id": "byRegexp", "options": "S3 오류.*" }, "properties": [ { "id": "unit", "value": "reqps" }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] } ]
+      },
+      "targets": [
+        { "refId": "A", "expr": "sum by (rpc_method, http_status_code) (rate(aws_s3_client_seconds_count{job=\"drive-api\", error!=\"none\"}[$__rate_interval])) > 0", "legendFormat": "S3 오류 {{rpc_method}} {{http_status_code}}" },
+        { "refId": "B", "expr": "sum by (action) (drive_storage_deletion_pending{job=\"postgres-loadtest\"})", "legendFormat": "정리 대기 {{action}}" }
+      ]
+    },
     {
       "id": 12, "type": "logs", "title": "부하 중 WARN·ERROR 로그",
-      "gridPos": { "x": 0, "y": 32, "w": 24, "h": 8 },
+      "gridPos": { "x": 0, "y": 50, "w": 24, "h": 8 },
       "datasource": { "type": "loki", "uid": "loki" },
       "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true },
       "targets": [ { "refId": "A", "expr": "{service_name=\"drive-api\", level=~\"WARN|ERROR\"}" } ]

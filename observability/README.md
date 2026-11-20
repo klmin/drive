@@ -142,6 +142,11 @@ Alloy 내장 exporter — 컨테이너 추가 없음. DB 접속 정보는 `obser
 
 PostgreSQL 수집기는 앱 계정으로 되는 것만 켠다(`enabled_collectors`) — `wal` 은 `pg_monitor` 권한이 필요하다.
 
+앱 테이블에서 읽는 "지금 상태" 지표는 커스텀 쿼리로 같이 모은다(`alloy/pg-queries.yaml`, 두 PG exporter 모두):
+`drive_upload_active_*{status}`(진행 중 업로드 세션 수·잡아 둔 용량·가장 오래 멈춘 시간), `drive_storage_deletion_*{action}`(스토리지 정리 대기열·재시도 중·가장 오래된 행).
+앱이 DB 를 조회해 Gauge 로 내면 수집 때마다 SQL 트레이스가 생기고 WAS 가 여럿이면 같은 값이 겹치므로, DB 상태는 exporter 가 센다.
+전용 계정이면 `tb_upload_session`·`tb_storage_deletion` SELECT 권한이 필요하다(없으면 이 쿼리만 실패하고 나머지 PG 지표는 나온다).
+
 ## 알림 (Grafana Alerting)
 
 `grafana/provisioning/alerting/drive-rules.yaml` — 파일로 관리(화면에서 수정 불가, 파일을 고치고 Grafana 재시작).
