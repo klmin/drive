@@ -288,6 +288,45 @@ class UploadChunkIntegrationTest {
     }
 
     @Test
+    @DisplayName("업로드 중 부모 폴더가 휴지통으로 — 다음 파트 PUT 409, 세션 FAILED(TARGET_DELETED) + ABORT, 그 파트는 스토리지로 보내지 않음")
+    void parentFolderDeletedDuringUpload() {
+        Long folder = jdbc.queryForObject("INSERT INTO tb_resource (user_seq, resource_type, resource_name, register_user_seq, is_delete) "
+                + "VALUES (?, 'FOLDER', ?, ?, 'N') RETURNING resource_seq", Long.class, ADMIN, "target-" + System.nanoTime(), ADMIN);
+        var started = useCase.start(new UploadSessionStartCommand(null, folder, null, "in-folder.bin", SIZE, ResourceSaveType.DUPLICATE), ADMIN);
+        put(started.sessionId(), 1, PART);
+
+        jdbc.update("UPDATE tb_resource SET is_delete = 'Y' WHERE resource_seq = ?", folder);
+
+        assertThatThrownBy(() -> put(started.sessionId(), 2, PART))
+                .isInstanceOfSatisfying(ApiRuntimeException.class, e -> assertThat(e.getCode()).isEqualTo(UploadSessionErrorCode.UPLOAD_SESSION_FAILED));
+        assertThat(sessionStatus(started.sessionId())).isEqualTo("FAILED");
+        assertThat(failReason(started.sessionId())).isEqualTo(UploadSessionFailReason.TARGET_DELETED.name());
+        assertThat(abortRows(started.sessionId())).isEqualTo(1);
+        assertThat(fake.listParts(fake.uploadIdOf(started.sessionId()))).extracting(StoragePart::partNumber).containsExactly(1);
+        assertThatThrownBy(() -> useCase.complete(started.sessionId(), ADMIN))
+                .isInstanceOfSatisfying(ApiRuntimeException.class, e -> assertThat(e.getCode()).isEqualTo(UploadSessionErrorCode.UPLOAD_SESSION_GONE));
+        assertThat(quota()).isEqualTo(1000);
+    }
+
+    @Test
+    @DisplayName("새 버전 업로드 중 대상 파일이 삭제됨 — 다음 파트 PUT 409, 세션 FAILED(TARGET_DELETED) + ABORT")
+    void targetFileDeletedDuringVersionUpload() {
+        Long file = jdbc.queryForObject("INSERT INTO tb_resource (user_seq, resource_type, resource_name, resource_save_name, ext, size_byte, register_user_seq, is_delete) "
+                + "VALUES (?, 'FILE', ?, ?, 'bin', 10, ?, 'N') RETURNING resource_seq", Long.class,
+                ADMIN, "target-" + System.nanoTime() + ".bin", "1/target-" + System.nanoTime(), ADMIN);
+        var started = useCase.start(new UploadSessionStartCommand(null, null, file, "target.bin", SIZE, ResourceSaveType.VERSION), ADMIN);
+        put(started.sessionId(), 1, PART);
+
+        jdbc.update("UPDATE tb_resource SET is_delete = 'Y' WHERE resource_seq = ?", file);
+
+        assertThatThrownBy(() -> put(started.sessionId(), 2, PART))
+                .isInstanceOfSatisfying(ApiRuntimeException.class, e -> assertThat(e.getCode()).isEqualTo(UploadSessionErrorCode.UPLOAD_SESSION_FAILED));
+        assertThat(failReason(started.sessionId())).isEqualTo(UploadSessionFailReason.TARGET_DELETED.name());
+        assertThat(abortRows(started.sessionId())).isEqualTo(1);
+        assertThat(fake.listParts(fake.uploadIdOf(started.sessionId()))).extracting(StoragePart::partNumber).containsExactly(1);
+    }
+
+    @Test
     @DisplayName("다른 사용자 — 조회·파트·complete·취소 모두 404(존재 숨김)")
     void otherUserCannotSee() {
         var started = start("mine.bin", SIZE);

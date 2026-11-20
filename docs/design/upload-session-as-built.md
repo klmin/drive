@@ -105,7 +105,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 
 - 조건부 UPDATE 가 0행이면 커밋이 실제로는 성공했을 수 있다(커밋 뒤 예외·응답 유실) — 세션을 다시 읽어 COMPLETED 면 저장된 결과를 돌려준다(**DB 상태가 정본**).
 - 실패 기록조차 못 하면 세션은 PENDING/COMPLETING 으로 남고 스케줄러가 정리한다.
-- `fail_reason`: `QUOTA_EXCEEDED`(IS_FULL), `VALIDATION`(그 밖의 업무 오류), `STORAGE_ERROR`(조립 전 스토리지 오류), `COMMIT_ERROR`(그 외), `CONTENT_MISMATCH`(매직바이트 — 확장자 위장·실행 파일), 청크 API 에서 `CANCELED`(취소)·`NO_SUCH_UPLOAD`(파트 PUT 중 스토리지 업로드 사라짐)·`PERMISSION_DENIED`(커밋 tx 권한 재확인 실패).
+- `fail_reason`: `QUOTA_EXCEEDED`(IS_FULL), `VALIDATION`(그 밖의 업무 오류), `STORAGE_ERROR`(조립 전 스토리지 오류), `COMMIT_ERROR`(그 외), `CONTENT_MISMATCH`(매직바이트 — 확장자 위장·실행 파일), 청크 API 에서 `CANCELED`(취소)·`NO_SUCH_UPLOAD`(파트 PUT 중 스토리지 업로드 사라짐)·`PERMISSION_DENIED`(커밋 tx 권한 재확인 실패)·`TARGET_DELETED`(파트 PUT 때 대상 파일·부모 폴더가 삭제됨).
 
 ### 3.5 청크 업로드 API (`/api/v1/uploads`)
 `UploadSessionController` → `UploadSessionUseCase`(권한·감사) → `UploadChunkService`(트랜잭션 없음). 로그인 사용자(USER)만, 익명 불가.
@@ -113,7 +113,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 | 요청 | 동작 |
 |---|---|
 | `POST /api/v1/uploads` `{sharedByUserSeq?, parentFolderSeq?, resourceSeq?, fileName, size, saveType?}` | 권한(신규 = 부모 폴더 UPLOAD, 그 외 = 대상 EDIT) → 32MB 미만 400 `UPLOAD_008` → 절대 상한·테넌트 크기 정책 → `open`(용량 사전 필터·세션 수, 파트 계획을 `part_size`·`part_count` 에 저장) → `createMultipartUpload` → uploadId 기록. 응답 `{sessionId, partSize, partCount, maxConcurrentParts}` |
-| `PUT /{id}/parts/{n}` (octet-stream) | PENDING 아니면 409 `UPLOAD_001`, `Content-Length` 없으면 411, 번호 범위 밖·크기 다르면 400 `UPLOAD_008` → 요청 스트림을 `uploadPart` 로 그대로 → `touch`(0행 409). `NoSuchUpload` 면 FAILED(NO_SUCH_UPLOAD) + 409 |
+| `PUT /{id}/parts/{n}` (octet-stream) | PENDING 아니면 409 `UPLOAD_001`, `Content-Length` 없으면 411, 번호 범위 밖·크기 다르면 400 `UPLOAD_008` → 대상(신규는 부모 폴더, 버전·덮어쓰기는 대상 파일)이 휴지통·삭제면 FAILED(TARGET_DELETED) + ABORT 등록 + 409 `UPLOAD_001`(`UploadLockRepository.existsLive`, 잠금 없는 조회 — 최종 판정은 커밋 tx) → 요청 스트림을 `uploadPart` 로 그대로 → `touch`(0행 409). `NoSuchUpload` 면 FAILED(NO_SUCH_UPLOAD) + 409 |
 | `GET /{id}` | 상태 + PENDING 이면 ListParts 에서 기대 크기와 같은 파트 번호(`uploadedParts`) |
 | `GET /?status=PENDING` | 내 청크 세션 목록(최근 순, 최대 50) — 스토리지 호출 없음 |
 | `POST /{id}/complete` | (PENDING 이면) 권한 재확인 → 선점. 0행이면 COMPLETED = 이전 결과(감사 기록 안 함), COMPLETING = 409 `UPLOAD_005`, FAILED = 410 `UPLOAD_006` → ListParts 검증(개수·1..N·각 크기, 실패 시 400 `UPLOAD_009` + FAILED(VALIDATION) + ABORT) → `finishClaimed` → 감사(FILE_UPLOAD, 덮어쓰기면 FILE_EDIT) |

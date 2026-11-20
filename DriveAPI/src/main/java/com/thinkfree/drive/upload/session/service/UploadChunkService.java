@@ -17,7 +17,9 @@ import com.thinkfree.drive.upload.session.enums.UploadSessionStatus;
 import com.thinkfree.drive.upload.session.exception.UploadSessionErrorCode;
 import com.thinkfree.drive.upload.session.model.UploadPartPlan;
 import com.thinkfree.drive.upload.session.properties.UploadSessionProperty;
+import com.thinkfree.drive.upload.session.repository.UploadLockRepository;
 import com.thinkfree.drive.upload.session.repository.UploadSessionRepository;
+import com.thinkfree.drive.resource.enums.ResourceType;
 import com.thinkfree.drive.upload.session.service.UploadSessionTxService.CleanupPhase;
 import com.thinkfree.drive.upload.session.service.UploadSessionWriter.OpenedSession;
 import com.thinkfree.drive.user.service.UserFindService;
@@ -50,6 +52,7 @@ public class UploadChunkService {
     private final UploadSessionWriter uploadSessionWriter;
     private final UploadSessionTxService uploadSessionTxService;
     private final UploadSessionRepository uploadSessionRepository;
+    private final UploadLockRepository uploadLockRepository;
     private final StorageService storageService;
     private final SystemConfigFindService systemConfigFindService;
     private final UserFindService userFindService;
@@ -110,7 +113,8 @@ public class UploadChunkService {
      * §6.2 — 파트 하나를 받은 그대로 스토리지로 흘린다(메모리·임시 파일에 담지 않음). 같은 번호 재전송은 덮어쓴다(규칙 15).
      *
      * @param contentLength 요청의 Content-Length(없으면 음수)
-     * @throws ApiRuntimeException 세션 없음 404, PENDING 아님 409 UPLOAD_SESSION_FAILED, 길이 없음 411, 번호·크기 다름 400 UPLOAD_PART_INVALID
+     * @throws ApiRuntimeException 세션 없음 404, PENDING 아님·대상 삭제됨(세션을 FAILED(TARGET_DELETED) 로 끝냄) 409 UPLOAD_SESSION_FAILED,
+     *                             길이 없음 411, 번호·크기 다름 400 UPLOAD_PART_INVALID
      */
     public void uploadPart(UUID sessionId, int requestUserSeq, int partNumber, long contentLength, InputStream in) {
         UploadSessionData session = find(sessionId, requestUserSeq);
@@ -125,6 +129,12 @@ public class UploadChunkService {
         if (contentLength != expected) {
             throw ApiRuntimeException.type(UploadSessionErrorCode.UPLOAD_PART_INVALID)
                                      .with("partNumber", partNumber).with("expected", expected).with("received", contentLength);
+        }
+        if (!isTargetAlive(session)) {
+            // 그 사이 대상이 삭제됐다 — 나머지 수 GB 를 다 받고 complete 에서야 실패하지 않도록 지금 끝낸다(ABORT 등록)
+            failQuietly(sessionId, UploadSessionStatus.PENDING, UploadSessionFailReason.TARGET_DELETED,
+                        new IllegalStateException("upload target deleted"), CleanupPhase.BEFORE_ASSEMBLE);
+            throw ApiRuntimeException.type(UploadSessionErrorCode.UPLOAD_SESSION_FAILED).with("reason", UploadSessionFailReason.TARGET_DELETED);
         }
         try {
             storageService.uploadPart(session.storageKey(), session.uploadId(), partNumber, in, contentLength);
@@ -251,6 +261,19 @@ public class UploadChunkService {
             }
             throw e;
         }
+    }
+
+    /**
+     * 커밋 대상이 아직 살아 있는지 — 신규는 부모 폴더(루트면 확인할 것 없음), 버전·덮어쓰기는 대상 파일.
+     * 소유자(userSeq) 기준 — 커밋 tx 와 같은 조건(공유 폴더에 올리는 중이면 공유한 사용자의 리소스).
+     */
+    private boolean isTargetAlive(UploadSessionData session) {
+        return switch (session.saveType()) {
+            case DUPLICATE -> session.parentFolderSeq() == null
+                    || uploadLockRepository.existsLive(session.userSeq(), session.parentFolderSeq(), ResourceType.FOLDER);
+            case VERSION, OVERWRITE, RESTORE -> session.resourceSeq() != null
+                    && uploadLockRepository.existsLive(session.userSeq(), session.resourceSeq(), ResourceType.FILE);
+        };
     }
 
     /** 청크 API 세션 — 세션 생성 때 파트 계획을 남긴다(서버 내부 쓰기는 남기지 않는다). */

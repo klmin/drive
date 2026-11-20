@@ -29,7 +29,7 @@
 - [x] **커밋 tx 권한 재확인**(PR #51, 설계 규칙 14) — 청크 업로드 complete 는 커밋 tx 에서 행 잠금 뒤 `ResourcePermissionService.checkPermission` 을 다시(요청자 = 로그인 사용자, 청크 API 는 익명 불가라 컬럼 추가 없이 `RequestActor.user`). 실패 = `PERMISSION_DENIED` FAILED + DELETE. 서버 내부 쓰기는 호출부 검사만 유지(짧고, 익명 공유 링크 업로드는 세션에 맥락이 없어 재구성 불가) — 필요해지면 세션에 `request_anonymous` 컬럼 추가
 - [x] **매직바이트 검사**(PR #53, 규칙 3) — 조립 뒤 커밋 전 앞 64KB 를 Tika 로 판별해 확장자와 형식 계열이 다르거나 실행 파일이면 FAILED(`CONTENT_MISMATCH`) + DELETE, 415 `UPLOAD_010`. 사용자 업로드(단일·청크·웹오피스 저장) 모두, 복사·복원은 제외. 실행 파일 차단은 `drive.upload.block-executable-content`(기본 true). 텍스트류는 판별 불가(통과)
 - [x] **Content-Type 서버 결정 강제**(PR #55, 규칙 3) — 클라이언트 값은 버리고 항상 확장자(Tika 확장자 사전)로, 모르면 `application/octet-stream`. 버전 저장·덮어쓰기·복원은 대상 파일의 확장자. PR #19 에서 클라이언트 값을 남긴 건 값이 없을 때 NOT NULL 오류를 막으려던 것이라 의도된 결정이 아니었다
-- [ ] **업로드 중 대상 삭제 조기 실패**(2026-11-20 검토에서 확인, 다음 작업 2순위)
+- [x] **업로드 중 대상 삭제 조기 실패**(PR #67) — 파트 PUT 때 대상이 살아 있는지 조회해 없으면 FAILED(`TARGET_DELETED`) + ABORT + 409 `UPLOAD_001`
   - 문제: `UploadChunkService.uploadPart` 는 세션 상태·파트 크기만 보고, 대상 파일(버전·덮어쓰기)·부모 폴더(신규)가 살아 있는지는 보지 않는다. 그 사이 삭제되면 수 GB 를 다 올린 뒤 complete 커밋 tx 에서야 실패한다(데이터는 안전: FAILED + DELETE).
   - 수정: 파트 PUT 때 가벼운 존재 조회를 하고, 없으면 `fail(PENDING, …, BEFORE_ASSEMBLE)` + 409.
   - 완료 기준: `UploadChunkIntegrationTest` 에 "업로드 중 대상·부모 삭제 → 다음 파트 409" 추가
