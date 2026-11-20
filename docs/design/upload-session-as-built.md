@@ -64,7 +64,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 `IS_FULL` 이면 tx 밖에서 용량 초과 알림(`QuotaService.notifyQuotaExceeded`).
 
 그 전에 `UploadSessionWriter` 가 하는 것:
-- Content-Type: 클라이언트 값이 없으면 확장자로(`MediaTypeFactory`), 모르면 `application/octet-stream`.
+- Content-Type: **클라이언트 값은 버리고 서버가 확장자로**(Tika 확장자 사전 — MCP 업로드·매직바이트 검사와 같은 사전), 모르면 `application/octet-stream`(규칙 3). 버전 저장·덮어쓰기·복원은 대상 파일의 확장자(이름·확장자가 대상 것으로 유지되므로). MCP 가 확장자 없는 평문에 붙이던 `text/plain` 도 이제 `application/octet-stream` — 미리보기·읽기는 확장자 기준이라 영향 없음.
 - OVERWRITE: 대상의 현재 key 를 `base_storage_key` 로(대상이 없으면 `NOT_FOUND`).
 - 복원(`unlockedRequired`): 잠긴 파일이면 스토리지 복사 전에 미리 `RESOURCE_LOCKED`(최종 판정은 커밋 tx).
 

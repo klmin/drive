@@ -27,7 +27,7 @@
 
 - [x] **커밋 tx 권한 재확인**(브랜치 `feat/commit-tx-permission-recheck`, 설계 규칙 14) — 청크 업로드 complete 는 커밋 tx 에서 행 잠금 뒤 `ResourcePermissionService.checkPermission` 을 다시(요청자 = 로그인 사용자, 청크 API 는 익명 불가라 컬럼 추가 없이 `RequestActor.user`). 실패 = `PERMISSION_DENIED` FAILED + DELETE. 서버 내부 쓰기는 호출부 검사만 유지(짧고, 익명 공유 링크 업로드는 세션에 맥락이 없어 재구성 불가) — 필요해지면 세션에 `request_anonymous` 컬럼 추가
 - [x] **매직바이트 검사**(브랜치 `feat/upload-magic-bytes`, 규칙 3) — 조립 뒤 커밋 전 앞 64KB 를 Tika 로 판별해 확장자와 형식 계열이 다르거나 실행 파일이면 FAILED(`CONTENT_MISMATCH`) + DELETE, 415 `UPLOAD_010`. 사용자 업로드(단일·청크·웹오피스 저장) 모두, 복사·복원은 제외. 실행 파일 차단은 `drive.upload.block-executable-content`(기본 true). 텍스트류는 판별 불가(통과)
-- [ ] **Content-Type 서버 결정 강제** — 지금은 클라이언트 값이 없을 때만 확장자로(Codex 리뷰 반영, PR #19). 규칙 3 대로 항상 서버가 정할지 결정(다운로드 `Content-Disposition: attachment`·`nosniff` 는 이미 적용)
+- [x] **Content-Type 서버 결정 강제**(브랜치 `feat/server-content-type`, 규칙 3) — 클라이언트 값은 버리고 항상 확장자(Tika 확장자 사전)로, 모르면 `application/octet-stream`. 버전 저장·덮어쓰기·복원은 대상 파일의 확장자. PR #19 에서 클라이언트 값을 남긴 건 값이 없을 때 NOT NULL 오류를 막으려던 것이라 의도된 결정이 아니었다
 - [ ] **감사 로그 발행 시점**(규칙 13) — 지금 `resourceAuditService.record` 는 호출부(`FileUseCase` 등)에서 커밋 뒤. 커밋 tx 안에서 발행 + `AFTER_COMMIT` 으로 옮길지 검토(감사 코드 자체는 수정하지 않음)
 - [ ] **지표·알림**(설계 §13) — Micrometer: 상태별 세션 수, 가장 오래된 PENDING/COMPLETING 나이, 삭제 대기 적체·최고령·최종 실패 수. 알림: COMPLETING 30분 초과(`UploadSessionCleanupProcessor` 가 지금 WARN 로그만), 삭제 최종 실패 행(`REFERENCED` 포함)
 - [ ] **Ceph·RustFS 계약 테스트**(단계 1 나머지) — `S3StorageServiceMultipartContractTest` 를 이미지만 바꿔 실행. 확인할 것: abort 직후 동작, NoSuchUpload 코드, `AbortIncompleteMultipartUpload` lifecycle 지원(MinIO 는 미지원), 파트 체크섬·`If-None-Match`

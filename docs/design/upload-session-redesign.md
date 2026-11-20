@@ -404,7 +404,7 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
   - `UploadSessionWriter`(tx 없음): 세션 생성 → key `{tenantSeq}/{세션 ID}` → 32MB 미만 단일 PUT / 이상 멀티파트(16MB) / 복사는 `copyObjectAnySize` → COMPLETING → (조립) → 크기 확인 → 커밋(일시적 DB 오류 3회 재시도). 실패는 진행 위치에 맞춰 FAILED + 정리 등록, uploadId 기록 실패는 `failWithAbort`, 커밋 뒤 예외는 세션이 COMPLETED 면 저장 결과 반환.
   - `UploadSessionTxService`(각 단계 REQUIRES_NEW), `UploadCommitService.commitDuplicate`(사용자 행 → 부모 폴더 행 `FOR NO KEY UPDATE`, 용량 최종 판정·증가, `saveUploadedFile`, COMPLETED, `FileUploadedEvent` 를 tx 안에서 발행), `UploadLockRepository`.
   - 용량 사전 필터는 확정 + 진행 중 + 신고 크기(덮어쓰기는 증가분 — 단계 4-3). IS_FULL 이면 트랜잭션 밖에서 알림(`QuotaService.notifyQuotaExceeded`).
-  - 아직 아님: ~~커밋 tx 의 권한 재확인~~(청크 업로드는 단계 B 에서 추가), 확장자 기반 Content-Type 은 클라이언트 값이 없을 때만(Codex 리뷰 반영)·~~매직바이트 검사~~(단계 B 에서 추가), 감사 로그 발행 시점(호출부 그대로).
+  - 아직 아님: ~~커밋 tx 의 권한 재확인~~(청크 업로드는 단계 B 에서 추가), ~~확장자 기반 Content-Type 은 클라이언트 값이 없을 때만~~(단계 B 에서 항상 서버 결정으로)·~~매직바이트 검사~~(단계 B 에서 추가), 감사 로그 발행 시점(호출부 그대로).
 - **단계 3-2 (VERSION·OVERWRITE·RESTORE)** — 브랜치 `feat/upload-session-version`:
   - 모든 저장 유형이 `UploadSessionWriter.write` 하나로. `FileWriteOrchestrator` 는 크기 정책 확인 후 넘기기만 한다. `Version/OverwriteFileWriteService`·`FileWriteService`·`ResourceVersionRetryService`·`S3StorageService.copyAndUpload/backUpAndRestore`·`ResourceService.updateWithVersioning/updateWithOverwrite/rollbackVersion/saveWithCopyCheck` 제거.
   - VERSION·RESTORE 커밋(`commitVersion`): 사용자 행 → 리소스 행 → 버전 행 잠금, 현재 key·크기·등록일을 SUCCESS 버전 행으로 그대로 넘김(S3 복사 없음, `pushCurrentAsVersion`), 한도 초과 시 가장 오래된 버전 행 삭제 + 사용량 차감 + key 24h 유예 삭제 등록, 리소스는 세션 key.
@@ -422,6 +422,7 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
 - **단계 4-5 (앞단 프록시)** — 브랜치 `docs/proxy-chunk-upload`: 설치 문서(`DriveInstaller/thinkfree/TFD/template/httpd/README.md`), 번들 Apache `ProxyTimeout 300`.
 - **커밋 tx 권한 재확인(B)** — 브랜치 `feat/commit-tx-permission-recheck`: 청크 업로드 complete 는 커밋 tx 에서 행 잠금 뒤 요청자 권한을 다시 확인(규칙 14), 실패 시 `PERMISSION_DENIED`. 서버 내부 쓰기는 호출부 검사만.
 - **매직바이트 검사(B)** — 브랜치 `feat/upload-magic-bytes`: `UploadContentInspector`, 조립 뒤 커밋 전 앞 64KB 를 Tika 로 판별(형식 계열 불일치·실행 파일 → `CONTENT_MISMATCH`). 계열은 넓게(미디어·PDF·컨테이너·실행 파일), 텍스트류는 통과. 파트 1 에서 미리 거르는 선택안(§6.2)은 하지 않음 — complete 에서 한 번만.
+- **Content-Type 서버 결정(B)** — 브랜치 `feat/server-content-type`: 클라이언트 값을 버리고 항상 확장자로(Tika 확장자 사전), 버전 저장·덮어쓰기·복원은 대상 확장자.
 - **미착수**: 단계 4 나머지(실제 MinIO 1GB 브라우저 확인, Developers 저장소 k8s ingress 값), 지표(§13), 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
 
 ---
