@@ -74,6 +74,7 @@ public class UploadSessionWriter {
     private final UploadLockRepository uploadLockRepository;
     private final ResourceLockUnlockService resourceLockUnlockService;
     private final UploadSessionProperty property;
+    private final UploadContentInspector uploadContentInspector;
 
     /** 세션 key — 계산은 여기 한 곳(세션 생성 시)뿐이고, 이후 조회·삭제는 DB 에 저장된 값으로만 한다(규칙 1). */
     static String storageKey(Integer tenantSeq, UUID uploadSessionId) {
@@ -186,11 +187,31 @@ public class UploadSessionWriter {
             if (stored != size) {
                 throw ApiRuntimeException.type(UploadSessionErrorCode.UPLOAD_SIZE_MISMATCH).with("expected", size).with("stored", stored);
             }
+            // 매직바이트(규칙 3) — 사용자가 올린 내용만. 복사·복원(StorageCopy)은 이미 저장소에 있던 내용이라 건너뛴다
+            if (!(session.dto().resolveContentSource() instanceof FileContentSource.StorageCopy)) {
+                uploadContentInspector.verify(session.key(), inspectionName(session), size);
+            }
             return commitWithRetry(session.saveType(), session.id(), session.key(), session.baseStorageKey(), session.dto(), requestUserSeq,
                                    recheckActor);
         } catch (RuntimeException e) {
             return recoverOrThrow(session, requestUserSeq, progress, e);
         }
+    }
+
+    /**
+     * 매직바이트 검사에서 확장자로 쓸 이름 — 신규는 업로드한 파일명, 버전 저장·덮어쓰기는 대상 파일의 확장자.
+     * 기존 파일 갱신은 대상의 이름·확장자를 그대로 두고 내용만 바꾸므로, 업로드한 이름(photo.png)으로 보면 report.pdf 에
+     * PNG 내용이 들어가는 위장을 놓친다. 대상 확장자를 모르면 업로드한 이름으로 본다.
+     */
+    private String inspectionName(OpenedSession session) {
+        FileUploadDto dto = session.dto();
+        if (session.saveType() == UploadSaveType.VERSION || session.saveType() == UploadSaveType.OVERWRITE) {
+            var ext = uploadLockRepository.findFileExt(dto.getUserSeq(), dto.getResourceSeq());
+            if (ext.isPresent()) {
+                return "target." + ext.get();
+            }
+        }
+        return dto.getOriginalFileName();
     }
 
     /** 실패 처리 후 다시 던진다 — 단, 실제로는 커밋이 끝나 있었으면 그 결과를 돌려준다. */
@@ -383,6 +404,9 @@ public class UploadSessionWriter {
         if (e instanceof ApiRuntimeException api) {
             if (api.getCode() instanceof PermissionErrorCode) {
                 return UploadSessionFailReason.PERMISSION_DENIED;
+            }
+            if (api.getCode() == UploadSessionErrorCode.UPLOAD_CONTENT_MISMATCH) {
+                return UploadSessionFailReason.CONTENT_MISMATCH;
             }
             return api.getCode() == QuotaErrorCode.IS_FULL ? UploadSessionFailReason.QUOTA_EXCEEDED : UploadSessionFailReason.VALIDATION;
         }

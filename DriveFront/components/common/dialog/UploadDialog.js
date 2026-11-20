@@ -391,7 +391,7 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
         }
     };
 
-    /** 서버 거절 중 청크 업로드에만 있는 것 — 처리했으면 true */
+    /** 업로드 세션 오류 코드(UPLOAD_*)별 안내 — 처리했으면 true */
     const notifyChunkFailure = res => {
         if (res?.errorCode === 'UPLOAD_002') {
             showSnackbar(t('upload.fail.sessionLimit'), 'error');
@@ -399,6 +399,11 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
         }
         if (res?.errorCode === 'UPLOAD_001' || res?.errorCode === 'UPLOAD_006') {
             showSnackbar(t('upload.fail.expired'), 'error');
+            return true;
+        }
+        // 매직바이트 검사 — 내용이 확장자와 다르거나 실행 파일(단일 요청·청크 공통)
+        if (res?.errorCode === 'UPLOAD_010') {
+            showSnackbar(t('upload.fail.contentMismatch'), 'error');
             return true;
         }
         return false;

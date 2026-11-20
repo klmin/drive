@@ -16,6 +16,7 @@ import com.thinkfree.drive.upload.session.data.UploadSessionData;
 import com.thinkfree.drive.upload.session.enums.UploadSaveType;
 import com.thinkfree.drive.upload.session.enums.UploadSessionFailReason;
 import com.thinkfree.drive.upload.session.enums.UploadSessionStatus;
+import com.thinkfree.drive.upload.session.exception.UploadSessionErrorCode;
 import com.thinkfree.drive.upload.session.properties.UploadSessionProperty;
 import com.thinkfree.drive.upload.session.service.UploadSessionTxService.CleanupPhase;
 import com.thinkfree.drive.user.service.UserFindService;
@@ -59,12 +60,13 @@ class UploadSessionWriterTest {
     private final UploadSessionTxService tx = Mockito.mock(UploadSessionTxService.class);
     private final UploadCommitService commit = Mockito.mock(UploadCommitService.class);
     private final StorageService storage = Mockito.mock(StorageService.class);
+    private final UploadContentInspector inspector = Mockito.mock(UploadContentInspector.class);
     private final UserFindService userFindService = Mockito.mock(UserFindService.class);
     private final QuotaService quotaService = Mockito.mock(QuotaService.class);
     private final UploadSessionProperty property = new UploadSessionProperty(Duration.ofHours(1), Duration.ofMinutes(30), Duration.ofDays(7),
             Duration.ofHours(24), DataSize.ofMegabytes(16), DataSize.ofMegabytes(32), DataSize.ofTerabytes(5), 4, 50, 500, true, 1);
     private final com.thinkfree.drive.upload.session.repository.UploadLockRepository locks = Mockito.mock(com.thinkfree.drive.upload.session.repository.UploadLockRepository.class);
-    private final UploadSessionWriter writer = new UploadSessionWriter(tx, commit, storage, userFindService, quotaService, locks, Mockito.mock(com.thinkfree.drive.resource.service.ResourceLockUnlockService.class), property);
+    private final UploadSessionWriter writer = new UploadSessionWriter(tx, commit, storage, userFindService, quotaService, locks, Mockito.mock(com.thinkfree.drive.resource.service.ResourceLockUnlockService.class), property, inspector);
 
     private final ResourceSaveResult saved = new ResourceSaveResult(100L, USER, null, null, null, "a.docx", KEY, null, null, null,
             null, null, null, null, null, null, null, null, null);
@@ -184,6 +186,7 @@ class UploadSessionWriterTest {
         verify(tx).attachStorage(ID, KEY, null);
         verify(storage).copy("1/src", KEY);
         verify(storage, never()).createMultipartUpload(anyString(), anyString());
+        verify(inspector, never()).verify(anyString(), any(), anyLong());   // 복사는 이미 저장소에 있던 내용 — 매직바이트 검사 안 함
     }
 
     @Test
@@ -298,6 +301,36 @@ class UploadSessionWriterTest {
 
         verify(tx).fail(eq(ID), eq(UploadSessionStatus.COMPLETING), eq(UploadSessionFailReason.QUOTA_EXCEEDED), anyString(), eq(CleanupPhase.AFTER_ASSEMBLE));
         verify(quotaService).notifyQuotaExceeded(USER, USER);
+    }
+
+    @Test
+    @DisplayName("매직바이트 검사 이름 — 신규는 업로드한 파일명, 버전 저장·덮어쓰기는 대상 파일의 확장자(이름·확장자는 대상 것이 유지되므로)")
+    void inspectionUsesTargetExtension() {
+        given(storage.headContentLength(KEY)).willReturn(10L);
+        given(commit.commitDuplicate(any(), any(), any(), anyInt(), any())).willReturn(saved);
+        given(commit.commitVersion(any(), any(), any(), anyInt(), any())).willReturn(saved);
+        given(locks.findFileExt(USER, 55L)).willReturn(Optional.of("pdf"));
+
+        writer.write(streamDto(10), USER);
+        writer.write(typed(ResourceSaveType.VERSION, new FileContentSource.Stream(new FileData("image/png", new ByteArrayInputStream(new byte[10]), 10)), 10), USER);
+
+        verify(inspector).verify(eq(KEY), eq(streamDto(10).getOriginalFileName()), eq(10L));
+        verify(inspector).verify(KEY, "target.pdf", 10L);
+    }
+
+    @Test
+    @DisplayName("매직바이트 불일치 — 커밋하지 않고 FAILED(CONTENT_MISMATCH) + DELETE(조립 뒤), UPLOAD_CONTENT_MISMATCH 전파")
+    void contentMismatch() {
+        given(storage.headContentLength(KEY)).willReturn(10L);
+        willThrow(ApiRuntimeException.type(UploadSessionErrorCode.UPLOAD_CONTENT_MISMATCH)).given(inspector).verify(eq(KEY), any(), eq(10L));
+        given(tx.fail(any(), any(), any(), any(), any())).willReturn(true);
+
+        assertThatThrownBy(() -> writer.write(streamDto(10), USER))
+                .isInstanceOfSatisfying(ApiRuntimeException.class, e -> assertThat(e.getCode()).isEqualTo(UploadSessionErrorCode.UPLOAD_CONTENT_MISMATCH));
+
+        verify(commit, never()).commitDuplicate(any(), any(), any(), anyInt(), any());
+        verify(tx).fail(eq(ID), eq(UploadSessionStatus.COMPLETING), eq(UploadSessionFailReason.CONTENT_MISMATCH), anyString(),
+                eq(CleanupPhase.AFTER_ASSEMBLE));
     }
 
     @Test

@@ -27,7 +27,9 @@ public enum UploadSessionErrorCode implements ErrorCode {
     /** 파트 번호가 범위 밖이거나 파트 크기가 서버가 정한 크기와 다르다 */
     UPLOAD_PART_INVALID(HttpStatus.BAD_REQUEST, "UPLOAD_008", "파트 번호 또는 크기가 올바르지 않습니다."),
     /** complete 시 빠지거나 크기가 다른 파트가 있다 — 세션은 실패로 끝난다 */
-    UPLOAD_PARTS_INCOMPLETE(HttpStatus.BAD_REQUEST, "UPLOAD_009", "올라가지 않았거나 크기가 다른 파트가 있습니다.")
+    UPLOAD_PARTS_INCOMPLETE(HttpStatus.BAD_REQUEST, "UPLOAD_009", "올라가지 않았거나 크기가 다른 파트가 있습니다."),
+    /** 매직바이트 검사 — 내용이 확장자와 다른 형식이거나 실행 파일이다. 세션은 실패로 끝난다 */
+    UPLOAD_CONTENT_MISMATCH(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UPLOAD_010", "파일 내용이 확장자와 맞지 않거나 올릴 수 없는 형식입니다.")
     ;
 
     private final HttpStatus status;
