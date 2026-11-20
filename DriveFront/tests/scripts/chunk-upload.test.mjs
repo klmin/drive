@@ -190,20 +190,38 @@ test('complete 뒤 상태 조회가 일시적으로 실패해도 기다려서 �
     assert.equal(r.resourceSeq, 99);
 });
 
-test('토큰 재발급 뒤 api.Post 가 Axios 응답 전체를 돌려줘도 세션 생성·complete 성공', async () => {
+test('complete 중 프록시가 HTML 504 를 줘도(서버는 완료) 재요청으로 결과를 받는다 — 기록을 지워 중복 저장하지 않게', async () => {
     const api = (await import('./chunk-upload/fakeApi.mjs')).default;
-    const original = api.Post;
-    // utils/api.js handleAuthError: 401 → 재발급 → axios(originalRequest) 결과(응답 전체)를 그대로 돌려준다
-    api.Post = async (...args) => {
-        const body = await original(...args);
-        return { status: body.code, data: body, headers: {}, config: {} };
+    const original = api.PostRaw;
+    let gatewayTimeouts = 1;
+    api.PostRaw = async (url, body, t, cfg) => {
+        if (String(url).endsWith('complete') && gatewayTimeouts > 0) {
+            gatewayTimeouts--;
+            await original(url, body, t, cfg); // 서버는 완료했다
+            return { status: 504, data: '<html>504 Gateway Time-out</html>' };
+        }
+        return original(url, body, t, cfg);
     };
     try {
-        const r = await uploadInChunks(mkFile(40, 'reissue.bin'), target);
+        const r = await uploadInChunks(mkFile(40, 'gateway-complete.bin'), target);
         assert.equal(r.resourceSeq, 99);
-        assert.equal(starts(), 1);
+        assert.equal(saved(), 0);
     } finally {
-        api.Post = original;
+        api.PostRaw = original;
+    }
+});
+
+test('재발급 뒤 재시도까지 실패해 오류 본문만 오면 본문의 code 로 판단한다', async () => {
+    const api = (await import('./chunk-upload/fakeApi.mjs')).default;
+    const original = api.PostRaw;
+    api.PostRaw = async () => ({ result: false, code: 403, errorCode: 'AUTH_007' });
+    try {
+        await assert.rejects(
+            uploadInChunks(mkFile(40, 'body-only.bin'), target),
+            e => e.status === 403 && e.errorCode === 'AUTH_007'
+        );
+    } finally {
+        api.PostRaw = original;
     }
 });
 

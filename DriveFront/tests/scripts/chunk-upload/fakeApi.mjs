@@ -69,6 +69,13 @@ const api = {
         return { code: 200, data: { resourceSeq: 99, resourceName: s.fileName } };
     },
 
+    // 실제 api.PostRaw: 응답 전체. validateStatus 가 받는 오류도 응답 전체, 아니면(재발급 재시도 실패 등) 오류 본문
+    PostRaw: async (url, body, _t, cfg) => {
+        const r = await api.Post(url, body);
+        if (r.result === false && !cfg?.validateStatus?.(r.code)) return r;
+        return { status: r.code, data: r };
+    },
+
     Put: async (url, blob, _t, cfg) => {
         const cfgOf = cfg;
         const [, id, n] = url.match(/^uploads\/(\w+)\/parts\/(\d+)$/);

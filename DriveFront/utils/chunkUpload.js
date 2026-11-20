@@ -128,21 +128,20 @@ const responseError = (res, signal) => {
 };
 
 /**
- * api.Post 는 평소 응답 본문(ApiResponse)을 돌려주지만, 401 → 토큰 재발급 → 재시도가 일어나면 Axios 응답 전체를 돌려준다
- * (utils/api.js handleAuthError). 둘 다 본문으로 맞춘다 — 안 맞추면 성공한 세션 생성·complete 를 실패로 본다.
+ * POST — api.PostRaw(응답 전체)에 validateStatus 를 넘겨 성공·오류 모두 실제 HTTP 상태와 본문을 받는다.
+ * api.Post 는 쓰지 않는다: 성공이면 본문만, 401 재발급 뒤엔 응답 전체를 돌려줘 모양이 달라지고, 프록시 HTML 오류(502·504)의
+ * 상태도 잃는다(그러면 complete 중 게이트웨이 오류를 영구 실패로 보고 기록을 지워, 다시 고르면 같은 파일이 두 번 저장된다).
+ *
+ * @returns {{status:number, data:any} | object | undefined} 응답 전체, 재발급 뒤 재시도까지 실패하면 오류 본문, 네트워크 오류면 undefined
  */
-const postBody = async (url, body, config) => {
-    const res = await api.Post(url, body, null, config);
-    const isAxiosResponse = res && typeof res === 'object' && 'config' in res && 'headers' in res;
-    return isAxiosResponse ? res.data : res;
-};
+const post = (url, body) => api.PostRaw(url, body, null, { validateStatus: KEEP_HTTP_STATUS });
 
 /**
  * 세션 생성 — 사용자 취소로 요청을 끊지 않는다(signal 을 넘기지 않음). 서버가 세션을 만든 뒤 응답 전에 끊으면
  * ID 를 몰라 정리하지 못하므로, 응답을 받은 다음 호출부가 취소 여부를 보고 DELETE 한다.
  */
 const startSession = async (file, target) => {
-    const res = await postBody('uploads', {
+    const res = await post('uploads', {
         sharedByUserSeq: target.sharedByUserSeq ?? undefined,
         parentFolderSeq: target.parentFolderSeq ?? undefined,
         resourceSeq: target.resourceSeq ?? undefined,
@@ -150,9 +149,9 @@ const startSession = async (file, target) => {
         fileName: file.name,
         size: file.size,
     });
-    const data = res?.data;
+    const data = res?.status === 201 ? res.data?.data : null;
     if (!data?.sessionId) {
-        const err = toError(res);
+        const err = responseError(res);
         err.atStart = true;
         throw err;
     }
@@ -277,9 +276,9 @@ const uploadParts = async (file, plan, signal, onProgress) => {
 /** complete — 재요청해도 안전(완료된 세션은 같은 결과). 처리 중(409 UPLOAD_005)이면 상태를 읽어 끝날 때까지 기다린다 */
 const completeSession = async sessionId => {
     for (let attempt = 1; attempt <= PART_ATTEMPTS; attempt++) {
-        const res = await postBody(`uploads/${sessionId}/complete`, null);
-        if (res?.data?.resourceSeq) return res.data;
-        const err = toError(res);
+        const res = await post(`uploads/${sessionId}/complete`, null);
+        if (res?.status === 200 && res.data?.data?.resourceSeq) return res.data.data;
+        const err = responseError(res);
         if (err.errorCode === 'UPLOAD_005') return waitForCompletion(sessionId);
         if (!isRetryable(err)) throw err;
         await sleep(RETRY_BASE_MS * 2 ** (attempt - 1));
