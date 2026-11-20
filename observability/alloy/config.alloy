@@ -100,6 +100,30 @@ prometheus.exporter.postgres "loadtest" {
   custom_queries_config_path = "/etc/alloy/pg-queries.yaml"
 }
 
+// 부하 테스트 DB 의 쿼리별 누적 시간(pg_stat_statements 상위) — 확장이 있는 이 DB 에만. 기본 지표는 위 exporter 가 내므로 끈다
+prometheus.exporter.postgres "loadtest_statements" {
+  data_source_names          = ["postgresql://drive_load:drive_load_pw@loadtest-db:5432/drive_load?sslmode=disable"]
+  disable_default_metrics    = true
+  disable_settings_metrics   = true
+  enabled_collectors         = []
+  custom_queries_config_path = "/etc/alloy/pg-statements.yaml"
+}
+
+discovery.relabel "postgres_loadtest_statements" {
+  targets = prometheus.exporter.postgres.loadtest_statements.targets
+  rule {
+    target_label = "job"
+    replacement  = "postgres-loadtest"
+  }
+}
+
+prometheus.scrape "postgres_loadtest_statements" {
+  targets         = discovery.relabel.postgres_loadtest_statements.output
+  job_name        = "postgres-loadtest"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.default.receiver]
+}
+
 discovery.relabel "postgres_loadtest" {
   targets = prometheus.exporter.postgres.loadtest.targets
   rule {

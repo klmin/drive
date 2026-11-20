@@ -5,3 +5,6 @@ UPDATE tb_user
    SET enc_pwd = '{bcrypt}$2a$10$5OowjmKjmx501v0bYtTsjOe6RGu/59s3J94gPcWMbGR/SRqxUInVW',
        login_failure_count = 0
  WHERE user_id = 'admin' AND tenant_seq = 1;
+
+-- 쿼리별 누적 시간 수집(Grafana "DB 잠금·느린 쿼리") — compose 의 shared_preload_libraries 와 짝. 이미 있으면 그대로
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
