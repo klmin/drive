@@ -31,6 +31,12 @@ import java.util.List;
  * <p>
  * lifecycle: 업로드 세션 정리(abort 등록)의 최종 안전망으로 {@code AbortIncompleteMultipartUpload} 규칙({@link #ABORT_RULE_ID})을 둔다.
  * PutBucketLifecycleConfiguration 은 전체 교체라 기존 규칙을 읽어 우리 규칙만 더한다(운영자가 넣은 규칙 유지). 지원하지 않거나 권한이 없으면 경고만 남긴다.
+ * <ul>
+ *   <li>운영자가 버킷 전체에 같거나 더 짧은 AbortIncompleteMultipartUpload 규칙을 이미 두었으면 우리 규칙을 더하지 않는다</li>
+ *   <li>예전 형식(규칙 바로 아래 Prefix) 규칙은 같은 뜻의 Filter 형식으로 바꿔 다시 쓴다 — 두 형식이 섞이면 PUT 이 거절될 수 있다</li>
+ *   <li>객체를 만료(삭제)하는 규칙이 있으면 경고만 한다 — Drive 객체에 걸리면 사용자 파일이 지워진다</li>
+ * </ul>
+ * 수동 설정 안내: DriveInstaller/docs/storage-bucket-lifecycle.md
  */
 @ConditionalOnStorageType({StorageType.CEPH, StorageType.S3, StorageType.RUSTFS})
 @Component
@@ -83,15 +89,35 @@ public class S3BucketInitializer {
         String bucket = connection.bucketName();
         int days = uploadSessionProperty.abortIncompleteMultipartDays();
         try {
-            List<LifecycleRule> rules = new ArrayList<>(currentRules(bucket));
-            boolean present = rules.stream().anyMatch(r -> ABORT_RULE_ID.equals(r.id())
+            List<LifecycleRule> current = currentRules(bucket);
+            warnObjectExpiration(bucket, current);
+
+            boolean present = current.stream().anyMatch(r -> ABORT_RULE_ID.equals(r.id())
                     && r.abortIncompleteMultipartUpload() != null
                     && Integer.valueOf(days).equals(r.abortIncompleteMultipartUpload().daysAfterInitiation())
                     && r.status() == ExpirationStatus.ENABLED);
             if (present) {
                 return;
             }
-            rules.removeIf(r -> ABORT_RULE_ID.equals(r.id()));
+            // 운영자가 이미 버킷 전체에 같거나 더 짧은 미완성 멀티파트 정리 규칙을 두었으면 그 정책을 따른다(겹치는 규칙을 더하지 않음)
+            var covering = current.stream()
+                                  .filter(r -> !ABORT_RULE_ID.equals(r.id()) && r.status() == ExpirationStatus.ENABLED && coversWholeBucket(r))
+                                  .filter(r -> r.abortIncompleteMultipartUpload() != null
+                                          && r.abortIncompleteMultipartUpload().daysAfterInitiation() != null
+                                          && r.abortIncompleteMultipartUpload().daysAfterInitiation() <= days)
+                                  .findFirst();
+            if (covering.isPresent()) {
+                log.info("[Storage init] lifecycle: existing rule already aborts incomplete multipart uploads, keep it. bucket: {}, rule: {}, days: {}",
+                         bucket, covering.get().id(), covering.get().abortIncompleteMultipartUpload().daysAfterInitiation());
+                return;
+            }
+
+            List<LifecycleRule> rules = new ArrayList<>();
+            for (LifecycleRule r : current) {
+                if (!ABORT_RULE_ID.equals(r.id())) {
+                    rules.add(withFilter(r));
+                }
+            }
             rules.add(LifecycleRule.builder()
                                    .id(ABORT_RULE_ID)
                                    .status(ExpirationStatus.ENABLED)
@@ -105,6 +131,49 @@ public class S3BucketInitializer {
             log.warn("[Storage init] lifecycle rule not set (configure AbortIncompleteMultipartUpload manually). bucket: {}, reason: {}",
                      bucket, e.getMessage());
         }
+    }
+
+    /**
+     * 객체를 만료(삭제)하는 규칙이 켜져 있으면 경고한다 — Drive 객체 key 에 걸리면 사용자 파일이 지워진다(DB 행은 남아 다운로드 실패).
+     * 고치지는 않는다: 다른 용도(다른 prefix)일 수 있어 운영자가 판단한다. 이전 버전 만료(Noncurrent*)·삭제 마커 정리는 현재 객체를 지우지 않아 제외.
+     */
+    private void warnObjectExpiration(String bucket, List<LifecycleRule> rules) {
+        for (LifecycleRule r : rules) {
+            if (r.status() == ExpirationStatus.ENABLED && r.expiration() != null
+                    && (r.expiration().days() != null || r.expiration().date() != null)) {
+                log.warn("[Storage init] lifecycle rule expires objects — if it matches Drive object keys, user files will be deleted. "
+                                 + "bucket: {}, rule: {}, scope: {}, days: {}, date: {}",
+                         bucket, r.id(), coversWholeBucket(r) ? "whole bucket" : describeFilter(r), r.expiration().days(), r.expiration().date());
+            }
+        }
+    }
+
+    /** 필터가 없거나 빈 prefix 뿐이면 버킷 전체 — 태그·크기·and 조건이 있으면 일부만 해당 */
+    @SuppressWarnings("deprecation")
+    static boolean coversWholeBucket(LifecycleRule rule) {
+        LifecycleRuleFilter f = rule.filter();
+        if (f == null) {
+            return rule.prefix() == null || rule.prefix().isEmpty();
+        }
+        return (f.prefix() == null || f.prefix().isEmpty()) && f.tag() == null && f.and() == null
+                && f.objectSizeGreaterThan() == null && f.objectSizeLessThan() == null;
+    }
+
+    /**
+     * 예전 형식(규칙 바로 아래 Prefix, 필터 없음) 규칙을 같은 뜻의 Filter 형식으로 바꾼다.
+     * 우리 규칙은 Filter 형식이라, 한 설정에 두 형식이 섞이면 스토리지가 PUT 을 거절(MalformedXML)할 수 있다.
+     */
+    @SuppressWarnings("deprecation")
+    static LifecycleRule withFilter(LifecycleRule rule) {
+        if (rule.filter() != null || rule.prefix() == null) {
+            return rule;
+        }
+        return rule.toBuilder().prefix(null).filter(LifecycleRuleFilter.builder().prefix(rule.prefix()).build()).build();
+    }
+
+    @SuppressWarnings("deprecation")
+    private static String describeFilter(LifecycleRule rule) {
+        return rule.filter() != null ? rule.filter().toString() : "prefix=" + rule.prefix();
     }
 
     private List<LifecycleRule> currentRules(String bucket) {

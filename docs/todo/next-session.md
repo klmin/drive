@@ -71,7 +71,7 @@
 4. ~~**테스트 기반 정리**~~ — **완료(PR #59·#65)**. 통합 테스트는 이제 test 프로필·Testcontainers 로만 돌고, PR CI(`backend-test.yml`)가 전체 백엔드 테스트를 돌린다. Docker 없는 PC 에서는 컴파일·단위 테스트만 하고 통합 테스트는 PR CI 로 확인한다.
 5. ~~**다운로드 전송 멈춤**~~ — **완료(PR #64)**. Codex 지적 3건(거절 시 S3 응답 정리, 정리는 close 대신 abort, 503 전 Content-Length 제거)과 CodeQL log-injection 2건까지 반영했다.
 
-그 다음 후보(운영 전): 운영 버킷 lifecycle 확인, Developers 저장소 k8s ingress 본문 크기·타임아웃. Ceph·RustFS 계약 테스트는 그 스토리지를 쓰는 설치처가 생길 때 한다.
+그 다음 후보(운영 전): Developers 저장소 k8s ingress 본문 크기·타임아웃. Ceph·RustFS 계약 테스트는 그 스토리지를 쓰는 설치처가 생길 때 한다.
 
 ## 4. 바로 알아야 할 것
 - **작업 폴더**: `C:\intelliJProject\klmin-drive` 는 다른 세션들도 같이 쓴다. 브랜치가 중간에 바뀐 적이 있다. 작업은 `git worktree add ../wt-<이름> -b <브랜치> origin/main` 으로 따로 만들고, 끝나면 `git worktree remove` 로 지운다.
