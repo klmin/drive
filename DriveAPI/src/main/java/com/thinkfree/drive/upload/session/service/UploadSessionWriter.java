@@ -2,6 +2,8 @@ package com.thinkfree.drive.upload.session.service;
 
 import com.thinkfree.drive.common.file.model.FileData;
 import com.thinkfree.drive.global.exception.ApiRuntimeException;
+import com.thinkfree.drive.permission.enums.PermissionErrorCode;
+import com.thinkfree.drive.permission.support.RequestActor;
 import com.thinkfree.drive.quota.exception.QuotaErrorCode;
 import com.thinkfree.drive.quota.service.QuotaService;
 import com.thinkfree.drive.resource.dto.file.FileContentSource;
@@ -96,7 +98,8 @@ public class UploadSessionWriter {
             return recoverOrThrow(session, requestUserSeq, progress, e);
         }
         List<StoragePart> parts = progress.parts;
-        return finishClaimed(session, requestUserSeq, progress.uploadId, () -> parts);
+        // 서버 내부 쓰기 — 권한은 호출부(aspect·툴)가 직전에 확인했다
+        return finishClaimed(session, requestUserSeq, progress.uploadId, () -> parts, null);
     }
 
     /**
@@ -163,8 +166,11 @@ public class UploadSessionWriter {
      *
      * @param uploadId 멀티파트 uploadId(단일 요청이면 null)
      * @param parts    조립할 파트 — 여기서 던지는 예외는 조립 전 실패(멀티파트 ABORT / 단일 DELETE 등록)
+     * @param recheckActor 커밋 tx 에서 권한을 다시 볼 요청자(규칙 14). 청크 업로드 complete 는 업로드가 길어 그 사이 공유가 해제될 수 있으므로
+     *                     넘기고, 서버 내부 쓰기는 호출부가 직전에 확인했으므로 null
      */
-    public ResourceSaveResult finishClaimed(OpenedSession session, int requestUserSeq, String uploadId, PartsResolver parts) {
+    public ResourceSaveResult finishClaimed(OpenedSession session, int requestUserSeq, String uploadId, PartsResolver parts,
+                                            RequestActor recheckActor) {
         Progress progress = new Progress();
         progress.status = UploadSessionStatus.COMPLETING;
         progress.uploadId = uploadId;
@@ -180,7 +186,8 @@ public class UploadSessionWriter {
             if (stored != size) {
                 throw ApiRuntimeException.type(UploadSessionErrorCode.UPLOAD_SIZE_MISMATCH).with("expected", size).with("stored", stored);
             }
-            return commitWithRetry(session.saveType(), session.id(), session.key(), session.baseStorageKey(), session.dto(), requestUserSeq);
+            return commitWithRetry(session.saveType(), session.id(), session.key(), session.baseStorageKey(), session.dto(), requestUserSeq,
+                                   recheckActor);
         } catch (RuntimeException e) {
             return recoverOrThrow(session, requestUserSeq, progress, e);
         }
@@ -320,18 +327,20 @@ public class UploadSessionWriter {
         };
     }
 
-    private ResourceSaveResult commit(UploadSaveType saveType, UUID id, String key, String baseStorageKey, FileUploadDto dto, int requestUserSeq) {
+    private ResourceSaveResult commit(UploadSaveType saveType, UUID id, String key, String baseStorageKey, FileUploadDto dto, int requestUserSeq,
+                                      RequestActor recheckActor) {
         return switch (saveType) {
-            case DUPLICATE -> uploadCommitService.commitDuplicate(id, key, dto, requestUserSeq);
-            case VERSION, RESTORE -> uploadCommitService.commitVersion(id, key, dto, requestUserSeq);
-            case OVERWRITE -> uploadCommitService.commitOverwrite(id, key, baseStorageKey, dto, requestUserSeq);
+            case DUPLICATE -> uploadCommitService.commitDuplicate(id, key, dto, requestUserSeq, recheckActor);
+            case VERSION, RESTORE -> uploadCommitService.commitVersion(id, key, dto, requestUserSeq, recheckActor);
+            case OVERWRITE -> uploadCommitService.commitOverwrite(id, key, baseStorageKey, dto, requestUserSeq, recheckActor);
         };
     }
 
-    private ResourceSaveResult commitWithRetry(UploadSaveType saveType, UUID id, String key, String baseStorageKey, FileUploadDto dto, int requestUserSeq) {
+    private ResourceSaveResult commitWithRetry(UploadSaveType saveType, UUID id, String key, String baseStorageKey, FileUploadDto dto, int requestUserSeq,
+                                               RequestActor recheckActor) {
         for (int attempt = 1; ; attempt++) {
             try {
-                return commit(saveType, id, key, baseStorageKey, dto, requestUserSeq);
+                return commit(saveType, id, key, baseStorageKey, dto, requestUserSeq, recheckActor);
             } catch (TransientDataAccessException e) {
                 // 교착(40P01)·잠금 대기 실패 등 — 커밋 tx 는 통째로 롤백됐으므로 다시 해도 안전
                 if (attempt >= COMMIT_ATTEMPTS) {
@@ -372,6 +381,9 @@ public class UploadSessionWriter {
 
     private static UploadSessionFailReason reasonOf(RuntimeException e, Progress progress) {
         if (e instanceof ApiRuntimeException api) {
+            if (api.getCode() instanceof PermissionErrorCode) {
+                return UploadSessionFailReason.PERMISSION_DENIED;
+            }
             return api.getCode() == QuotaErrorCode.IS_FULL ? UploadSessionFailReason.QUOTA_EXCEEDED : UploadSessionFailReason.VALIDATION;
         }
         if (e instanceof StorageException) {

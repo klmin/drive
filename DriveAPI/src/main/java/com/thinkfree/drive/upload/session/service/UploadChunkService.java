@@ -1,6 +1,7 @@
 package com.thinkfree.drive.upload.session.service;
 
 import com.thinkfree.drive.global.exception.ApiRuntimeException;
+import com.thinkfree.drive.permission.support.RequestActor;
 import com.thinkfree.drive.resource.dto.file.FileUploadDto;
 import com.thinkfree.drive.resource.enums.ResourceSaveType;
 import com.thinkfree.drive.resource.result.ResourceSaveResult;
@@ -202,7 +203,9 @@ public class UploadChunkService {
         FileUploadDto dto = toDto(session.userSeq(), requestUserSeq, saveType, session.parentFolderSeq(), session.resourceSeq(),
                 session.fileName(), session.contentType(), session.sizeByte());
         OpenedSession opened = new OpenedSession(sessionId, session.storageKey(), session.saveType(), session.baseStorageKey(), dto);
-        ResourceSaveResult result = uploadSessionWriter.finishClaimed(opened, requestUserSeq, session.uploadId(), () -> verifiedParts(session));
+        // 업로드가 길어 그 사이 공유가 해제됐을 수 있다 — 커밋 tx 에서 요청자 권한을 다시 본다(규칙 14). 청크 API 는 익명 불가
+        ResourceSaveResult result = uploadSessionWriter.finishClaimed(opened, requestUserSeq, session.uploadId(), () -> verifiedParts(session),
+                                                                      RequestActor.user(requestUserSeq));
         return new Completed(result, saveType, false);
     }
 
