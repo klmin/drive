@@ -1,10 +1,14 @@
 package com.thinkfree.drive.abstracts;
 
-import org.junit.jupiter.api.Disabled;
+import com.thinkfree.drive.common.DriveFixtures;
+import com.thinkfree.drive.tenant.cache.HostTenantCache;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -17,15 +21,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 전환 실행: {@code TENANT_RESOLUTION_MODE=SUBDOMAIN mvn test -Dtest=TenantModeSwitchMvcTest}
  *
  * <p>테넌트 선언 4경로({@code setTestTenant}·{@code setTestSlug}·{@code setTestHost}·{@code setTenantLess})가 모두 같은 규칙으로 요청에 반영되는지 본다.
- * 로컬 DB 전제: {@code default}(DOMAIN default.drive.thinkfree.com)·{@code default-add}(DOMAIN default-add.drive.thinkfree.com) 테넌트 존재.
+ * 테넌트 {@code default}(DOMAIN default.drive.thinkfree.com)·{@code default-add}(DOMAIN default-add.drive.thinkfree.com)는
+ * 테스트마다 {@link DriveFixtures#tenantAddresses()} 로 만들고 테스트 트랜잭션으로 되돌린다.
  */
 @DisplayName("AbstractMvcTest — tenant.resolution-mode 스위치")
+@Transactional
 class TenantModeSwitchMvcTest extends AbstractMvcTest {
 
     private static final String BRANDING = "/api/v1/branding";
 
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Autowired
+    private HostTenantCache hostTenantCache;
+
     @BeforeEach
     void pinHost() {
+        DriveFixtures.of(jdbc, hostTenantCache).tenantAddresses();
         setTestHost(DEFAULT_TEST_HOST);
     }
 
@@ -33,7 +46,6 @@ class TenantModeSwitchMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("setTestHost 매치 host: PATH 면 /{slug} 접두 + servletPath 전체, SUBDOMAIN 이면 접두 없음 — 둘 다 200")
-    @Disabled("dev DB 데이터 의존 — SUBDOMAIN='default-add' 테넌트 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void matchedHostFollowsMode() throws Exception {
         MvcResult result = mockMvc.perform(get(BRANDING)).andExpect(status().isOk()).andReturn();
         String uri = result.getRequest().getRequestURI();
@@ -76,7 +88,6 @@ class TenantModeSwitchMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("setTestTenant(slug): Host 는 그 테넌트 DOMAIN, PATH 면 /t/{slug} 접두 — 둘 다 200")
-    @Disabled("dev DB 데이터 의존 — SUBDOMAIN='default-add' 테넌트 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void setTestTenantFillsHostAndPrefix() throws Exception {
         setTestTenant("default-add");
 
@@ -93,7 +104,6 @@ class TenantModeSwitchMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("setTestTenant 와 setTestHost 는 같은 테넌트에 대해 같은 (host, slug) 로 귀결된다")
-    @Disabled("dev DB 데이터 의존 — SUBDOMAIN='default-add' 테넌트 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void setTestTenantAndSetTestHostConverge() {
         setTestTenant("default-add");
         String hostBySlug = getTestHost();
@@ -126,7 +136,6 @@ class TenantModeSwitchMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("setTestSlug(slug): static 으로 슬러그만 두고, 첫 요청 때 Host=DOMAIN 파생 + PATH 면 /t/{slug} 접두 — 둘 다 200")
-    @Disabled("dev DB 데이터 의존 — SUBDOMAIN='default-add' 테넌트 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void setTestSlugResolvesHostLazily() throws Exception {
         setTestSlug("default-add");
 
@@ -143,7 +152,6 @@ class TenantModeSwitchMvcTest extends AbstractMvcTest {
 
     @Test
     @DisplayName("setTestSlug 와 setTestTenant 는 같은 슬러그에 대해 같은 (host, slug) 로 귀결된다")
-    @Disabled("dev DB 데이터 의존 — SUBDOMAIN='default-add' 테넌트 필요(test 프로필 Testcontainers 에 없음). 테스트 픽스처로 옮길 때 다시 켠다")
     void setTestSlugAndSetTestTenantConverge() {
         setTestTenant("default-add");
         String hostByTenant = getTestHost();
