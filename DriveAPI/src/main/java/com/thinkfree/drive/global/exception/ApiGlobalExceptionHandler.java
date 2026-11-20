@@ -14,6 +14,7 @@ import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -209,6 +210,15 @@ public class ApiGlobalExceptionHandler {
     public ResponseEntity<ApiExceptionResponse> httpMediaTypeNotSupportedException(HttpMediaTypeNotSupportedException e) {
         log.error("# HttpRequestMethodNotSupportedException # ", e);
         return ApiExceptionResponse.error(GlobalErrorCode.NOT_SUPPORTED_MEDIA_TYPE_ERROR);
+    }
+
+    /**
+     * 실행기 포화로 작업을 넘기지 못함 — 다운로드 스트리밍 스레드(StreamingAsyncConfig)가 모두 사용 중일 때 등. 잠시 뒤 다시 시도할 수 있는 상태라 503
+     */
+    @ExceptionHandler(TaskRejectedException.class)
+    public ResponseEntity<ApiExceptionResponse> handleTaskRejectedException(TaskRejectedException e) {
+        log.warn("# TaskRejectedException # {}", e.getMessage());
+        return ApiExceptionResponse.error(GlobalErrorCode.SERVICE_UNAVAILABLE);
     }
 
     /**

@@ -229,16 +229,19 @@
       ]
     },
     {
-      "id": 24, "type": "timeseries", "title": "스레드 — Tomcat 요청 스레드 · JVM 전체 · 처리 중 요청",
-      "description": "다운로드 본문은 Tomcat 요청 스레드가 아니라 Spring MVC 비동기 스레드(MvcAsyncN — 기본 SimpleAsyncTaskExecutor: 다운로드마다 새 스레드, 상한 없음, 실행기 지표 없음)가 흘려보낸다. 그래서 동시 다운로드는 Tomcat 사용 중이 아니라 JVM 전체 스레드 수로 보인다. 처리 중 요청은 끝나기 전이라 경로를 모른다(uri=UNKNOWN) — 전체 합.",
+      "id": 24, "type": "timeseries", "title": "스레드 — 다운로드 스트림 · Tomcat 요청 스레드 · JVM 전체 · 처리 중 요청",
+      "description": "다운로드 본문은 Tomcat 요청 스레드가 아니라 다운로드 스트림 풀(DriveStream-N, StreamingAsyncConfig — executor_*{name=\"driveStreamExecutor\"})이 흘려보낸다. 동시 다운로드 수 = 스트림 사용 중. 최대에 닿으면 새 다운로드는 503 으로 거절된다(거절/초 — drive_download_stream_rejected_total). 처리 중 요청은 끝나기 전이라 경로를 모른다(uri=UNKNOWN) — 전체 합.",
       "gridPos": { "x": 16, "y": 51, "w": 8, "h": 9 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [ { "matcher": { "id": "byName", "options": "Tomcat 최대" }, "properties": [ { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [6, 4] } } ] } ] },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [ { "matcher": { "id": "byRegexp", "options": ".* 최대" }, "properties": [ { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [6, 4] } } ] }, { "matcher": { "id": "byName", "options": "스트림 거절/초" }, "properties": [ { "id": "unit", "value": "reqps" }, { "id": "custom.axisPlacement", "value": "right" }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] } ] },
       "targets": [
         { "refId": "A", "expr": "sum(tomcat_threads_busy_threads{job=\"drive-api\"})", "legendFormat": "Tomcat 사용 중" },
         { "refId": "B", "expr": "sum(tomcat_threads_config_max_threads{job=\"drive-api\"})", "legendFormat": "Tomcat 최대" },
         { "refId": "C", "expr": "sum(jvm_threads_live_threads{job=\"drive-api\"})", "legendFormat": "JVM 전체 스레드" },
-        { "refId": "D", "expr": "sum(http_server_requests_active_seconds_gcount{job=\"drive-api\"})", "legendFormat": "처리 중 요청" }
+        { "refId": "D", "expr": "sum(http_server_requests_active_seconds_gcount{job=\"drive-api\"})", "legendFormat": "처리 중 요청" },
+        { "refId": "E", "expr": "sum(executor_active_threads{job=\"drive-api\", name=\"driveStreamExecutor\"})", "legendFormat": "스트림 사용 중" },
+        { "refId": "F", "expr": "sum(executor_pool_max_threads{job=\"drive-api\", name=\"driveStreamExecutor\"})", "legendFormat": "스트림 최대" },
+        { "refId": "G", "expr": "sum(rate(drive_download_stream_rejected_total{job=\"drive-api\"}[$__rate_interval]))", "legendFormat": "스트림 거절/초" }
       ]
     },
     { "id": 103, "type": "row", "title": "DB 잠금·느린 쿼리 (write.js 등 쓰기 부하) — 부하 테스트 DB", "collapsed": false, "gridPos": { "x": 0, "y": 60, "w": 24, "h": 1 }, "panels": [] },

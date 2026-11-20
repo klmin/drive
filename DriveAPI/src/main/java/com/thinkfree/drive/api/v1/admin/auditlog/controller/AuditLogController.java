@@ -51,8 +51,8 @@ public class AuditLogController {
 
     /**
      * 파일 전체를 힙에 들지 않도록 조각을 받는 즉시 흘려보낸다 — 크기를 미리 모르므로 Content-Length는 없다.
-     * StreamingResponseBody(서블릿 비동기) 대신 요청 스레드에서 직접 쓰는 이유는
-     * {@code spring.mvc.async.request-timeout}(5분)을 받지 않기 위해서다 — 기간이 길면 그보다 오래 걸린다.
+     * StreamingResponseBody(서블릿 비동기) 대신 요청 스레드에서 직접 쓴다 — 다운로드 스트림 풀(StreamingAsyncConfig)과
+     * {@code spring.mvc.async.request-timeout} 설정에 묶이지 않게 한다. 동시 실행은 유스케이스가 따로 제한한다.
      */
     @ExternalApi
     @Operation(summary = "Export tenant audit events",
