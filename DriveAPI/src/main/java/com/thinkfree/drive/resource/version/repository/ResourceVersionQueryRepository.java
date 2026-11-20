@@ -12,7 +12,7 @@ import java.util.List;
 
 /**
  * 읽기 전용(FindService 가 주입). 버전 목록 DTO·단건(JdbcClient)·버전 키 DTO(JPQL 생성자 식 — 엔티티 반환 없음).
- * 쓰기와 쓰기 흐름 안의 읽기(FOR UPDATE 잠금·처리 중/만료 버전 조회)는 {@link ResourceVersionRepository}.
+ * 쓰기와 쓰기 흐름 안의 읽기(FOR UPDATE 잠금)는 {@link ResourceVersionRepository}.
  */
 public interface ResourceVersionQueryRepository {
 

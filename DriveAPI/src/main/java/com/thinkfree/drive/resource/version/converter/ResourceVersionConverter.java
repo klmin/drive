@@ -20,12 +20,6 @@ public interface ResourceVersionConverter {
     ResourceVersionDeleteQuery toDeleteResourceVersionQuery(Long resourceVersionSeq, Long resourceSeq, int userSeq);
     @Mapping(target = "tempOffset", constant = "100000")
     ResourceVersionNumberQuery toResourceVersionDecreaseNumberQuery(Long resourceSeq, int userSeq, ResourceVersionStatus status, Integer versionNumber);
-    @Mapping(target = "tempOffset", constant = "100000")
-    ResourceVersionNumberQuery toResourceVersionIncreaseNumberQuery(Long resourceSeq, int userSeq, ResourceVersionStatus status, Integer versionNumber);
-    
-    @Mapping(target = "minute", constant = "3")
-    ResourceVersionFindQuery toResourceVersionFindQuery(Long resourceSeq, int userSeq, ResourceVersionStatus status);
-            
     @Mapping(target = "status", expression = "java(ResourceVersionStatus.SUCCESS)")
     ResourceVersionFindQuery toResourceVersionFindQuery(Long resourceVersionSeq, Long resourceSeq, int userSeq);
     

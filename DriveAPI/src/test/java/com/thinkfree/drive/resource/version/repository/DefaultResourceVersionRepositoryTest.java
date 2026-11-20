@@ -106,8 +106,8 @@ class DefaultResourceVersionRepositoryTest extends RepositoryTest {
         return jdbc.queryForObject("SELECT " + column + " FROM tb_resource_version WHERE resource_version_seq = ?", type, resourceVersionSeq);
     }
 
-    private static ResourceVersionFindQuery find(Long versionSeq, long resourceSeq, int userSeq, ResourceVersionStatus status, Integer minute) {
-        return ResourceVersionFindQuery.builder().resourceVersionSeq(versionSeq).resourceSeq(resourceSeq).userSeq(userSeq).status(status).minute(minute).build();
+    private static ResourceVersionFindQuery find(Long versionSeq, long resourceSeq, int userSeq, ResourceVersionStatus status) {
+        return ResourceVersionFindQuery.builder().resourceVersionSeq(versionSeq).resourceSeq(resourceSeq).userSeq(userSeq).status(status).build();
     }
 
     private static ResourceVersionListQuery list(long resourceSeq, int userSeq, boolean isDelete, ResourceVersionStatus status, Integer pageIndex, Integer pageSize) {
@@ -148,7 +148,7 @@ class DefaultResourceVersionRepositoryTest extends RepositoryTest {
             assertThat(col(noAudit.getResourceVersionSeq(), "update_user_seq", Integer.class)).isNull();
 
             // 단건 = 버전 키 DTO 6필드(호출부가 읽는 값 전부), 4조건 모두 맞아야
-            ResourceVersionKeyData found = queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, ResourceVersionStatus.SUCCESS, null));
+            ResourceVersionKeyData found = queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, ResourceVersionStatus.SUCCESS));
             assertThat(found).isNotNull();
             assertThat(found.getResourceVersionSeq()).isEqualTo(v.getResourceVersionSeq());
             assertThat(found.getResourceSeq()).isEqualTo(f.getResourceSeq());
@@ -157,10 +157,10 @@ class DefaultResourceVersionRepositoryTest extends RepositoryTest {
             assertThat(found.getSizeByte()).isEqualTo(5L);
             assertThat(found.getResourceSaveName()).isEqualTo(v.getResourceSaveName());
 
-            assertThat(queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, ResourceVersionStatus.PENDING, null))).as("상태 불일치").isNull();
-            assertThat(queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), f.getResourceSeq(), SUPER_ADMIN, ResourceVersionStatus.SUCCESS, null))).as("다른 소유자").isNull();
-            assertThat(queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), 999999L, ADMIN, ResourceVersionStatus.SUCCESS, null))).as("다른 리소스").isNull();
-            assertThat(queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, null, null))).as("null 조건은 0건").isNull();
+            assertThat(queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, ResourceVersionStatus.PENDING))).as("상태 불일치").isNull();
+            assertThat(queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), f.getResourceSeq(), SUPER_ADMIN, ResourceVersionStatus.SUCCESS))).as("다른 소유자").isNull();
+            assertThat(queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), 999999L, ADMIN, ResourceVersionStatus.SUCCESS))).as("다른 리소스").isNull();
+            assertThat(queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, null))).as("null 조건은 0건").isNull();
         }
 
         @Test
@@ -172,7 +172,7 @@ class DefaultResourceVersionRepositoryTest extends RepositoryTest {
             ResourceVersion v2 = version(f, ADMIN, 2, 22L, ResourceVersionStatus.PENDING);
             ResourceVersion o1 = version(other, ADMIN, 1, 33L, ResourceVersionStatus.SUCCESS);
 
-            ResourceVersionWithResourceData data = queryRepository.findResourceVersionWithResource(find(v1.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, ResourceVersionStatus.SUCCESS, null));
+            ResourceVersionWithResourceData data = queryRepository.findResourceVersionWithResource(find(v1.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, ResourceVersionStatus.SUCCESS));
             assertThat(data).isNotNull();
             assertThat(data.getResourceName()).isEqualTo("joined.txt");
             assertThat(data.getResourceSaveName()).as("리소스의 저장명").isEqualTo(f.getResourceSaveName());
@@ -184,7 +184,7 @@ class DefaultResourceVersionRepositoryTest extends RepositoryTest {
             assertThat(data.getVersionRegisterDate()).isEqualTo(V_DATE);
             assertThat(data.getRegisterUserSeq()).isEqualTo(ADMIN);
             assertThat(data.getRegisterDate()).isNotNull();
-            assertThat(queryRepository.findResourceVersionWithResource(find(v2.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, ResourceVersionStatus.SUCCESS, null))).as("PENDING 은 SUCCESS 조회에 없음").isNull();
+            assertThat(queryRepository.findResourceVersionWithResource(find(v2.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, ResourceVersionStatus.SUCCESS))).as("PENDING 은 SUCCESS 조회에 없음").isNull();
 
             List<ResourceVersionKeyData> byResource = queryRepository.findAllByResource(list(f.getResourceSeq(), ADMIN, false, null, null, null));
             assertThat(byResource).as("상태 무관 전부").extracting(ResourceVersionKeyData::getResourceVersionSeq).containsExactlyInAnyOrder(v1.getResourceVersionSeq(), v2.getResourceVersionSeq());
@@ -314,29 +314,6 @@ class DefaultResourceVersionRepositoryTest extends RepositoryTest {
         }
 
         @Test
-        @DisplayName("existsAliveVersion(status 외 + 최근 N분) · findExpiredVersion(status + N분 경과, 최신 번호 1건)")
-        void aliveAndExpired() {
-            Resource f = file(ADMIN, "pending.txt", 1L);
-            ResourceVersion pending = version(f, ADMIN, 1, 9L, ResourceVersionStatus.PENDING);
-            ResourceVersionFindQuery notSuccess = find(null, f.getResourceSeq(), ADMIN, ResourceVersionStatus.SUCCESS, 3);
-            ResourceVersionFindQuery pendingWindow = find(null, f.getResourceSeq(), ADMIN, ResourceVersionStatus.PENDING, 3);
-
-            assertThat(repository.existsAliveVersion(notSuccess)).as("방금 등록된 PENDING = 처리 중").isTrue();
-            assertThat(repository.findExpiredVersion(pendingWindow)).as("아직 3분 안 지남").isNull();
-
-            jdbc.update("UPDATE tb_resource_version SET register_date = NOW() - INTERVAL '10 minutes' WHERE resource_version_seq = ?", pending.getResourceVersionSeq());
-            assertThat(repository.existsAliveVersion(notSuccess)).isFalse();
-            ResourceVersionRowData expired = repository.findExpiredVersion(pendingWindow);
-            assertThat(expired).isNotNull();
-            assertThat(expired.getResourceVersionSeq()).isEqualTo(pending.getResourceVersionSeq());
-            assertThat(expired.getSizeByte()).isEqualTo(9L);
-            assertThat(expired.getVersionNumber()).isEqualTo(1);
-            assertThat(expired.getUserSeq()).isEqualTo(ADMIN);
-            assertThat(repository.findExpiredVersion(find(null, f.getResourceSeq(), ADMIN, ResourceVersionStatus.DELETE, 3))).as("DELETE 상태 없음").isNull();
-            assertThat(repository.findExpiredVersion(find(null, f.getResourceSeq(), ADMIN, ResourceVersionStatus.PENDING, 60))).as("60분 기준으론 미만료").isNull();
-        }
-
-        @Test
         @DisplayName("updateUserSeqForResource(s)(파티션 키 변경) · delete 4종(IN·빈 목록 가드) · findStorageKeysByUserSeqList · findUsageSummaryByUserSeq")
         void ownerTransferDeletesAndSummary() {
             Resource a = file(ADMIN, "a.txt", 10L);
@@ -423,7 +400,7 @@ class DefaultResourceVersionRepositoryTest extends RepositoryTest {
 
             assertThat(queryRepository.findAllByResource(list(f.getResourceSeq(), ADMIN, false, null, null, null)))
                     .extracting(ResourceVersionKeyData::getVersionNumber).as("DB 현재 값").containsExactly(2);
-            assertThat(queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, ResourceVersionStatus.SUCCESS, null)).getVersionNumber()).isEqualTo(2);
+            assertThat(queryRepository.findResourceVersion(find(v.getResourceVersionSeq(), f.getResourceSeq(), ADMIN, ResourceVersionStatus.SUCCESS)).getVersionNumber()).isEqualTo(2);
             assertThat(queryRepository.findAllByResourceList(ResourceVersionListQuery.builder().userSeq(ADMIN).resourceSeqList(List.of(f.getResourceSeq())).build()))
                     .extracting(ResourceVersionKeyData::getVersionNumber).containsExactly(2);
             assertThat(entityManager.contains(managed)).as("Query 조회가 관리 엔티티를 떼어내지 않음").isTrue();

@@ -200,27 +200,6 @@ public class S3StorageService implements StorageService {
         }
     }
 
-    /** 404(객체 없음)·마커 없음은 empty — 나머지 실패는 GET_FAILED. SDK 는 사용자 메타데이터 키를 접두사 없이 돌려준다. */
-    @Override
-    public Optional<String> findSaveMarker(String key) {
-        try {
-            HeadObjectResponse response = s3Client.headObject(req -> req.bucket(connection.bucketName()).key(key));
-            return response.metadata().entrySet().stream()
-                    .filter(entry -> StorageConstants.SAVE_MARKER_METADATA_KEY.equalsIgnoreCase(entry.getKey()))
-                    .map(Map.Entry::getValue)
-                    .findFirst();
-        } catch (NoSuchKeyException e) {
-            return Optional.empty();
-        } catch (S3Exception e) {
-            if (e.statusCode() == 404) {
-                return Optional.empty();
-            }
-            throw mapAndLog("findSaveMarker", key, e, StorageErrorCode.GET_FAILED);
-        } catch (Exception e) {
-            throw mapAndLog("findSaveMarker", key, e, StorageErrorCode.GET_FAILED);
-        }
-    }
-
     @Override
     public void delete(String key) {
         try {

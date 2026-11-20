@@ -37,7 +37,6 @@ public interface ResourceRepository {
     int delete(ResourceDeleteQuery query);
     /** 폴더 삭제 — full_path_seq 하위 전체 + 자기 자신(UPDATE … FROM) */
     int updateIsDeleteByFullPathSeq(ResourceDeleteStateQuery query);
-    int rollbackResourceVersionData(ResourceVersionRollbackQuery query);
     int updateFullPathForChildFolders(ResourcePathUpdateQuery query);
     int restoreChildResources(ResourceRestoreChildQuery query);
     int deleteByResourceSeqList(ResourceDeleteSeqListQuery query);

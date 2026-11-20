@@ -23,8 +23,6 @@ public interface StorageService {
     FileMetadata getFileMetadata(String key);
     /** 객체의 마지막 수정 시각(스토리지 서버 시각) — 객체가 없으면 empty. */
     Optional<Instant> findLastModified(String key);
-    /** 옛 버전 저장 흐름이 남긴 저장 마커 — 전환 기간의 미완료 버전 정리(cleanVersionIfExists)만 쓴다. 객체가 없거나 마커가 없으면 empty. */
-    Optional<String> findSaveMarker(String key);
     void delete(String key);
     CompletableFuture<Void> deleteAsync(String key);
     void deleteObjects(List<String> keys);

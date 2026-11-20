@@ -26,10 +26,4 @@ public class ResourceVersionRowData {
     private Instant versionRegisterDate;
     private Integer updateUserSeq;
     private Instant updateDate;
-
-    /** 버전 번호만 다른 복사본 — 결과 조립용(행을 고치지 않는다) */
-    public ResourceVersionRowData withVersionNumber(Integer versionNumber) {
-        return new ResourceVersionRowData(resourceVersionSeq, userSeq, ownerSeq, resourceSeq, resourceSaveName, versionNumber, sizeByte,
-                status, versionRegisterDate, updateUserSeq, updateDate);
-    }
 }

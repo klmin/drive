@@ -410,7 +410,7 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
   - VERSION·RESTORE 커밋(`commitVersion`): 사용자 행 → 리소스 행 → 버전 행 잠금, 현재 key·크기·등록일을 SUCCESS 버전 행으로 그대로 넘김(S3 복사 없음, `pushCurrentAsVersion`), 한도 초과 시 가장 오래된 버전 행 삭제 + 사용량 차감 + key 24h 유예 삭제 등록, 리소스는 세션 key.
   - OVERWRITE 커밋(`commitOverwrite`): 세션 시작 때 저장한 base key 와 잠근 뒤 현재 key 를 비교해 같을 때만 교체(JPQL `overwrite` 에 `resource_save_name = :baseKey` 조건), 이전 key 24h 유예 삭제. 다르면(그 사이 다른 저장) 버전 저장으로.
   - 복원은 출처가 스토리지 객체인 VERSION = 세션 RESTORE. 잠긴 파일은 세션 시작 전에 미리 거절(최종 판정은 커밋 tx).
-  - 남겨 둔 것(전환 기간): `cleanVersionIfExists`(옛 흐름이 남긴 PENDING·DELETE 버전 정리 — 저장 마커 `findSaveMarker`, `finalizeAfterStorageUpload`, `rollbackResourceVersionMetadata` 포함). 옛 PENDING 행이 없다고 확인된 뒤 제거. `ResourceRepository.revertOverwrite` 는 호출부 없음(다음 정리 때 제거).
+  - 남겨 둔 것(전환 기간): `cleanVersionIfExists`(옛 흐름이 남긴 PENDING·DELETE 버전 정리 — 저장 마커 `findSaveMarker`, `finalizeAfterStorageUpload`, `rollbackResourceVersionMetadata` 포함) — 배포된 설치처가 없어 PR #__PR__ 에서 제거. `ResourceRepository.revertOverwrite` 는 호출부 없음(다음 정리 때 제거).
 - **이름 결정 경로 잠금 통일** — 브랜치 `fix/name-lock-parent-folder`: `DefaultResourceService.lockNamingScope` 가 폴더 생성·파일/폴더 이름 변경·이동(소유자 변경 시 받는 사용자 기준)·휴지통 복원에서 대상 행 잠금 뒤 부모 폴더 행(루트면 사용자 행)을 `FOR NO KEY UPDATE`(`ResourceNamingLockRepository`). 업로드 커밋은 3-1 에서 이미 같은 잠금. 동시 같은 이름 생성·이름 변경·이동 테스트(잠금을 끄면 4건 모두 이름 중복으로 실패하는 것 확인).
 - **단계 4-1 (청크 API 백엔드)** — 브랜치 `feat/upload-chunk-api`:
   - `/api/v1/uploads` — 세션 생성·파트 PUT(요청 스트림 그대로)·상태(ListParts 로 올라간 파트)·목록·complete·취소(`UploadSessionController` → `UploadSessionUseCase` → `UploadChunkService`).
@@ -423,7 +423,7 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
 - **커밋 tx 권한 재확인(B)** — 브랜치 `feat/commit-tx-permission-recheck`: 청크 업로드 complete 는 커밋 tx 에서 행 잠금 뒤 요청자 권한을 다시 확인(규칙 14), 실패 시 `PERMISSION_DENIED`. 서버 내부 쓰기는 호출부 검사만.
 - **매직바이트 검사(B)** — 브랜치 `feat/upload-magic-bytes`: `UploadContentInspector`, 조립 뒤 커밋 전 앞 64KB 를 Tika 로 판별(형식 계열 불일치·실행 파일 → `CONTENT_MISMATCH`). 계열은 넓게(미디어·PDF·컨테이너·실행 파일), 텍스트류는 통과. 파트 1 에서 미리 거르는 선택안(§6.2)은 하지 않음 — complete 에서 한 번만.
 - **Content-Type 서버 결정(B)** — 브랜치 `feat/server-content-type`: 클라이언트 값을 버리고 항상 확장자로(Tika 확장자 사전), 버전 저장·덮어쓰기·복원은 대상 확장자.
-- **미착수**: 단계 4 나머지(실제 MinIO 1GB 브라우저 확인, Developers 저장소 k8s ingress 값), 지표(§13), 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
+- **미착수**: 단계 4 나머지(실제 MinIO 1GB 브라우저 확인, Developers 저장소 k8s ingress 값), 지표(§13), 호출부 없는 코드(`revertOverwrite` 등) 제거. `cleanVersionIfExists` 는 PR #__PR__ 에서 제거.
 
 ---
 

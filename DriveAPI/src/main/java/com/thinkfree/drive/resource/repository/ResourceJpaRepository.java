@@ -184,25 +184,6 @@ interface ResourceJpaRepository extends JpaRepository<Resource, Long> {
     int updateIsDeleteByFullPathSeq(@Param("userSeq") Integer userSeq, @Param("resourceSeq") Long resourceSeq, @Param("fullPathSeq") String fullPathSeq,
                                     @Param("isDelete") Boolean isDelete, @Param("no") Boolean no, @Param("stamp") UpdateStamp stamp);
 
-    /** 저장 실패 롤백 — 버전 데이터와 수정자·수정일을 NULL 포함 저장 전 값 그대로(감사 보정 없음) */
-    @Transactional
-    @Modifying
-    @Query("update Resource r set r.latestOwnerSeq = :latestOwnerSeq, r.currentVersionNumber = :currentVersionNumber, r.versionRegisterDate = :versionRegisterDate, "
-            + "r.sizeByte = :sizeByte, r.updateUserSeq = :updateUserSeq, r.updateDate = :updateDate where r.userSeq = :userSeq and r.resourceSeq = :resourceSeq")
-    int rollbackVersionDataRestoringUpdate(@Param("userSeq") Integer userSeq, @Param("resourceSeq") Long resourceSeq, @Param("latestOwnerSeq") Integer latestOwnerSeq,
-                                           @Param("currentVersionNumber") Integer currentVersionNumber, @Param("versionRegisterDate") Instant versionRegisterDate,
-                                           @Param("sizeByte") Long sizeByte, @Param("updateUserSeq") Integer updateUserSeq, @Param("updateDate") Instant updateDate);
-
-    /** 미완료 버전 정리 — 버전 데이터, 수정자·수정일은 값이 있을 때만(null 이면 그대로 — 구 동적 SET) */
-    @Transactional
-    @Modifying
-    @Query("update Resource r set r.latestOwnerSeq = :latestOwnerSeq, r.currentVersionNumber = :currentVersionNumber, r.versionRegisterDate = :versionRegisterDate, "
-            + "r.sizeByte = :sizeByte, r.updateUserSeq = coalesce(:updateUserSeq, r.updateUserSeq), r.updateDate = coalesce(:updateDate, r.updateDate) "
-            + "where r.userSeq = :userSeq and r.resourceSeq = :resourceSeq")
-    int rollbackVersionData(@Param("userSeq") Integer userSeq, @Param("resourceSeq") Long resourceSeq, @Param("latestOwnerSeq") Integer latestOwnerSeq,
-                            @Param("currentVersionNumber") Integer currentVersionNumber, @Param("versionRegisterDate") Instant versionRegisterDate,
-                            @Param("sizeByte") Long sizeByte, @Param("updateUserSeq") Integer updateUserSeq, @Param("updateDate") Instant updateDate);
-
     /**
      * 폴더 이동·이름 변경 뒤 하위 폴더 경로 치환 — 자기 행 제외(자기는 변경 감지), 같은 삭제 상태만. full_path_seq 는 새 seq 경로가 있을 때만(null 이면 그대로),
      * 소유자는 changeUserSeq 가 있을 때만(파티션 키 — 행이 새 소유자 파티션으로). 구 동적 SET 을 case·coalesce 로(W10d).
