@@ -19,5 +19,7 @@ public enum UploadSessionFailReason {
     /** 세션 생성 중 스토리지 준비 실패 */
     STORAGE_ERROR,
     /** 커밋 직전 권한 재확인 실패 — 업로드하는 동안 공유가 해제됨 등(규칙 14) */
-    PERMISSION_DENIED
+    PERMISSION_DENIED,
+    /** 업로드하는 동안 대상 파일(버전·덮어쓰기)이나 부모 폴더(신규)가 삭제·휴지통 이동됨 — 파트 PUT 때 미리 끝낸다 */
+    TARGET_DELETED
 }

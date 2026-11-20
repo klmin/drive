@@ -106,6 +106,20 @@ public class UploadLockRepository {
                   .filter(ext -> !ext.isBlank());
     }
 
+    /**
+     * 살아 있는(휴지통 아님) 리소스인지(잠금 없음) — 청크 업로드 파트 PUT 의 조기 실패용 가벼운 확인.
+     * 커밋 tx 의 판정({@link #lockLiveFolder}·대상 파일 조회)과 같은 조건이라, 여기서 없으면 complete 도 NOT_FOUND 로 실패한다.
+     * 여기서 있어도 커밋 tx 가 잠근 뒤 다시 보므로 최종 판정은 커밋 쪽이다.
+     */
+    public boolean existsLive(int userSeq, long resourceSeq, ResourceType type) {
+        return dsl.fetchExists(dsl.selectOne()
+                                  .from(TB_RESOURCE)
+                                  .where(TB_RESOURCE.USER_SEQ.eq(userSeq))
+                                  .and(TB_RESOURCE.RESOURCE_SEQ.eq(resourceSeq))
+                                  .and(TB_RESOURCE.RESOURCE_TYPE.eq(type))
+                                  .and(TB_RESOURCE.IS_DELETE.eq(false)));
+    }
+
     private static long nz(Long value) {
         return value == null ? 0L : value;
     }
