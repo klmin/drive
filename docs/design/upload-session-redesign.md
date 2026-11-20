@@ -119,7 +119,7 @@ PENDING ──complete 선점──▶ COMPLETING ──커밋 tx──▶ COMPL
    │                          │
    └──────── 취소·만료 ────────┴── 검증·커밋 실패 ──▶ FAILED (fail_reason)
 ```
-- `fail_reason`: `VALIDATION`, `QUOTA_EXCEEDED`, `CONTENT_MISMATCH`, `EXPIRED`, `CANCELED`, `COMMIT_ERROR`, `NO_SUCH_UPLOAD` …
+- `fail_reason`: `VALIDATION`, `QUOTA_EXCEEDED`, `CONTENT_MISMATCH`, `EXPIRED`, `CANCELED`, `COMMIT_ERROR`, `NO_SUCH_UPLOAD`, `PERMISSION_DENIED` …
 - 성공 아닌 끝 상태는 정리 방식이 같으므로 상태 하나 + 사유로 구분. `QUOTA_EXCEEDED`/`CONFLICT` 를 별도 상태로 두는 건 "객체 유지 후 재커밋"·resolve 기능을 만들 때.
 - **`COMPLETED` 전환은 resource INSERT/UPDATE 와 같은 커밋 tx** → "COMPLETING = 미반영, COMPLETED = 반영" 이 항상 성립(장애 판정의 근거).
 
@@ -404,7 +404,7 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
   - `UploadSessionWriter`(tx 없음): 세션 생성 → key `{tenantSeq}/{세션 ID}` → 32MB 미만 단일 PUT / 이상 멀티파트(16MB) / 복사는 `copyObjectAnySize` → COMPLETING → (조립) → 크기 확인 → 커밋(일시적 DB 오류 3회 재시도). 실패는 진행 위치에 맞춰 FAILED + 정리 등록, uploadId 기록 실패는 `failWithAbort`, 커밋 뒤 예외는 세션이 COMPLETED 면 저장 결과 반환.
   - `UploadSessionTxService`(각 단계 REQUIRES_NEW), `UploadCommitService.commitDuplicate`(사용자 행 → 부모 폴더 행 `FOR NO KEY UPDATE`, 용량 최종 판정·증가, `saveUploadedFile`, COMPLETED, `FileUploadedEvent` 를 tx 안에서 발행), `UploadLockRepository`.
   - 용량 사전 필터는 확정 + 진행 중 + 신고 크기(덮어쓰기는 증가분 — 단계 4-3). IS_FULL 이면 트랜잭션 밖에서 알림(`QuotaService.notifyQuotaExceeded`).
-  - 아직 아님: 커밋 tx 의 권한 재확인(호출부 검사만), 확장자 기반 Content-Type 은 클라이언트 값이 없을 때만(Codex 리뷰 반영)·매직바이트 검사(규칙 3), 감사 로그 발행 시점(호출부 그대로).
+  - 아직 아님: ~~커밋 tx 의 권한 재확인~~(청크 업로드는 단계 B 에서 추가), 확장자 기반 Content-Type 은 클라이언트 값이 없을 때만(Codex 리뷰 반영)·매직바이트 검사(규칙 3), 감사 로그 발행 시점(호출부 그대로).
 - **단계 3-2 (VERSION·OVERWRITE·RESTORE)** — 브랜치 `feat/upload-session-version`:
   - 모든 저장 유형이 `UploadSessionWriter.write` 하나로. `FileWriteOrchestrator` 는 크기 정책 확인 후 넘기기만 한다. `Version/OverwriteFileWriteService`·`FileWriteService`·`ResourceVersionRetryService`·`S3StorageService.copyAndUpload/backUpAndRestore`·`ResourceService.updateWithVersioning/updateWithOverwrite/rollbackVersion/saveWithCopyCheck` 제거.
   - VERSION·RESTORE 커밋(`commitVersion`): 사용자 행 → 리소스 행 → 버전 행 잠금, 현재 key·크기·등록일을 SUCCESS 버전 행으로 그대로 넘김(S3 복사 없음, `pushCurrentAsVersion`), 한도 초과 시 가장 오래된 버전 행 삭제 + 사용량 차감 + key 24h 유예 삭제 등록, 리소스는 세션 key.
@@ -420,7 +420,8 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
 - **단계 4-3 (덮어쓰기 사전 필터)** — 브랜치 `fix/overwrite-quota-precheck`, V7 `reserve_byte`: 덮어쓰기 세션은 시작 검사·진행 중 합계에 증가분(새 − 시작 시 대상 크기, 0 이상)만. 전체 크기로 보던 탓에 용량이 거의 찬 사용자의 수정 저장이 커밋에선 통과할 텐데 시작에서 거절됐다. 그 사이 다른 저장이 끼어 버전 저장으로 바뀌면 커밋 tx 가 전체 크기로 다시 판정.
 - **단계 4-4 (프론트)** — 브랜치 `feat/front-chunk-upload`: `utils/chunkUpload.js`(분할·세션당 동시 4·5xx·네트워크 재시도·409 중단·`localStorage` 지문 이어 올리기·취소 DELETE·complete 409 이면 상태 조회) + `UploadDialog` 에서 32MB 이상만 청크로(설치처가 `drive.upload.single-request-threshold` 를 더 크게 잡아 세션 생성이 400 `UPLOAD_008` 이면 단일 요청으로 전환, complete 를 이미 보낸 세션을 다시 고르면 결과만 기다림), 진행률 표시, IS_FULL 때 내 진행 중 청크 업로드가 있으면 목록(`PendingUploadsDialog`, 취소 가능).
 - **단계 4-5 (앞단 프록시)** — 브랜치 `docs/proxy-chunk-upload`: 설치 문서(`DriveInstaller/thinkfree/TFD/template/httpd/README.md`), 번들 Apache `ProxyTimeout 300`.
-- **미착수**: 단계 4 나머지(실제 MinIO 1GB 브라우저 확인, Developers 저장소 k8s ingress 값), 지표(§13), 커밋 tx 권한 재확인·매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
+- **커밋 tx 권한 재확인(B)** — 브랜치 `feat/commit-tx-permission-recheck`: 청크 업로드 complete 는 커밋 tx 에서 행 잠금 뒤 요청자 권한을 다시 확인(규칙 14), 실패 시 `PERMISSION_DENIED`. 서버 내부 쓰기는 호출부 검사만.
+- **미착수**: 단계 4 나머지(실제 MinIO 1GB 브라우저 확인, Developers 저장소 k8s ingress 값), 지표(§13), 매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
 
 ---
 

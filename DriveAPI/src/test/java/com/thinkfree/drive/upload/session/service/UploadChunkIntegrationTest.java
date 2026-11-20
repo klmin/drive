@@ -5,6 +5,7 @@ import com.thinkfree.drive.application.upload.command.UploadSessionStartCommand;
 import com.thinkfree.drive.auditlog.service.ResourceAuditService;
 import com.thinkfree.drive.global.exception.ApiRuntimeException;
 import com.thinkfree.drive.notification.service.NotificationRetryService;
+import com.thinkfree.drive.permission.enums.PermissionErrorCode;
 import com.thinkfree.drive.postprocess.orchestrator.PostProcessingOrchestratorRetry;
 import com.thinkfree.drive.resource.enums.ResourceSaveType;
 import com.thinkfree.drive.storage.exception.StorageErrorCode;
@@ -77,6 +78,8 @@ class UploadChunkIntegrationTest {
     private UploadSessionCleanupService cleanupService;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private UploadChunkService chunkService;
     @MockitoBean
     private StorageService storageService;
     @MockitoBean
@@ -312,6 +315,92 @@ class UploadChunkIntegrationTest {
     }
 
     // ------------------------------------------------------------------ helpers
+
+    // ------------------------------------------------------------------ 커밋 tx 권한 재확인(규칙 14)
+
+    private static final int RECEIVER = 900_001;
+
+    /** ADMIN 의 폴더를 RECEIVER 에게 업로드 권한으로 공유한다. 돌려주는 값: [폴더 seq, share seq] */
+    private long[] shareFolderWithReceiver() {
+        jdbc.update("INSERT INTO tb_user (user_seq, tenant_seq, user_id, user_name, register_user_seq, status) VALUES (?, 1, ?, ?, ?, 'ACTIVE')",
+                RECEIVER, "chunk_recv_" + RECEIVER, "chunk_recv", RECEIVER);
+        Long folder = jdbc.queryForObject("INSERT INTO tb_resource (user_seq, resource_type, resource_name, register_user_seq, is_delete) "
+                + "VALUES (?, 'FOLDER', ?, ?, 'N') RETURNING resource_seq", Long.class, ADMIN, "shared-" + System.nanoTime(), ADMIN);
+        Long share = jdbc.queryForObject("INSERT INTO tb_share (user_seq, resource_seq, share_type, can_view, can_edit, can_download, can_upload, can_delete, can_share, register_user_seq) "
+                + "VALUES (?, ?, 'SPECIFIC_USERS', 'Y', 'N', 'Y', 'Y', 'N', 'N', ?) RETURNING share_seq", Long.class, ADMIN, folder, ADMIN);
+        jdbc.update("INSERT INTO tb_share_target (user_seq, share_seq, resource_seq, shared_by_user_seq, share_date, can_view, can_download, can_upload, register_user_seq) "
+                + "VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, 'Y', 'Y', 'Y', ?)", RECEIVER, share, folder, ADMIN, ADMIN);
+        return new long[]{folder, share};
+    }
+
+    private void revokeShare(long folder) {
+        jdbc.update("DELETE FROM tb_share_target WHERE resource_seq = ? AND shared_by_user_seq = ?", folder, ADMIN);
+        jdbc.update("DELETE FROM tb_share WHERE resource_seq = ? AND user_seq = ?", folder, ADMIN);
+    }
+
+    private void dropReceiver(long folder) {
+        revokeShare(folder);
+        jdbc.update("DELETE FROM tb_user WHERE user_seq = ?", RECEIVER);
+    }
+
+    /** 공유받은 사용자가 ADMIN 의 폴더에 파트를 다 올린다 */
+    private UploadChunkService.Started uploadAllAsReceiver(long folder) {
+        loginAs(RECEIVER);
+        var started = useCase.start(new UploadSessionStartCommand(ADMIN, folder, null, "shared.bin", SIZE, ResourceSaveType.DUPLICATE), RECEIVER);
+        useCase.uploadPart(started.sessionId(), 1, PART, zeros(PART), RECEIVER);
+        useCase.uploadPart(started.sessionId(), 2, PART, zeros(PART), RECEIVER);
+        useCase.uploadPart(started.sessionId(), 3, SIZE - 2 * PART, zeros(SIZE - 2 * PART), RECEIVER);
+        return started;
+    }
+
+    private int filesIn(long folder) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM tb_resource WHERE user_seq = ? AND parent_folder_seq = ? AND resource_type = 'FILE'", Integer.class, ADMIN, folder);
+    }
+
+    @Test
+    @DisplayName("공유 폴더 업로드 — 공유가 유지되면 커밋 tx 재확인을 통과해 폴더 주인의 파일·사용량으로 저장")
+    void sharedFolderUploadPassesRecheck() {
+        long folder = shareFolderWithReceiver()[0];
+        try {
+            var started = uploadAllAsReceiver(folder);
+            long before = quota();
+
+            var completed = useCase.complete(started.sessionId(), RECEIVER);
+
+            assertThat(completed.replayed()).isFalse();
+            assertThat(filesIn(folder)).isEqualTo(1);
+            assertThat(quota()).isEqualTo(before + SIZE);
+            assertThat(sessionStatus(started.sessionId())).isEqualTo("COMPLETED");
+        } finally {
+            dropReceiver(folder);
+            loginAs(ADMIN);
+        }
+    }
+
+    @Test
+    @DisplayName("올리는 중 공유가 해제되면 커밋 tx 재확인에서 거절 — 파일 없음·사용량 그대로·FAILED(PERMISSION_DENIED)·조립된 객체 DELETE 등록")
+    void shareRevokedBeforeCommit() {
+        long folder = shareFolderWithReceiver()[0];
+        try {
+            var started = uploadAllAsReceiver(folder);
+            revokeShare(folder);
+            long before = quota();
+
+            // 유스케이스의 선점 전 확인을 지나 해제된 상황 — 서비스로 바로 complete 해 커밋 tx 의 재확인만 본다
+            assertThatThrownBy(() -> chunkService.complete(started.sessionId(), RECEIVER))
+                    .isInstanceOfSatisfying(ApiRuntimeException.class, e -> assertThat(e.getCode()).isInstanceOf(PermissionErrorCode.class));
+
+            assertThat(filesIn(folder)).isZero();
+            assertThat(quota()).isEqualTo(before);
+            assertThat(sessionStatus(started.sessionId())).isEqualTo("FAILED");
+            assertThat(failReason(started.sessionId())).isEqualTo(UploadSessionFailReason.PERMISSION_DENIED.name());
+            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tb_storage_deletion d JOIN tb_upload_session s ON d.storage_key = s.storage_key "
+                    + "WHERE s.upload_session_id = ? AND d.action = 'DELETE'", Integer.class, started.sessionId())).isEqualTo(1);
+        } finally {
+            dropReceiver(folder);
+            loginAs(ADMIN);
+        }
+    }
 
     private static void loginAs(int userSeq) {
         CustomUserDetails details = Mockito.mock(CustomUserDetails.class);

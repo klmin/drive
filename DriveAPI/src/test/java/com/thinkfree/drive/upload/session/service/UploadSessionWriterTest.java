@@ -93,7 +93,7 @@ class UploadSessionWriterTest {
     @DisplayName("32MB 미만 — key 기록 → 단일 PUT → COMPLETING → 크기 확인 → 커밋")
     void singlePut() {
         given(storage.headContentLength(KEY)).willReturn(10L);
-        given(commit.commitDuplicate(eq(ID), eq(KEY), any(), eq(USER))).willReturn(saved);
+        given(commit.commitDuplicate(eq(ID), eq(KEY), any(), eq(USER), Mockito.isNull())).willReturn(saved);
 
         assertThat(writer.write(streamDto(10), USER)).isSameAs(saved);
 
@@ -103,7 +103,7 @@ class UploadSessionWriterTest {
         order.verify(storage).putObject(eq(KEY), anyString(), any(), eq(10L));
         order.verify(tx).markCompleting(ID, USER);
         order.verify(storage).headContentLength(KEY);
-        order.verify(commit).commitDuplicate(eq(ID), eq(KEY), any(), eq(USER));
+        order.verify(commit).commitDuplicate(eq(ID), eq(KEY), any(), eq(USER), Mockito.isNull());
         verify(storage, never()).createMultipartUpload(anyString(), anyString());
     }
 
@@ -114,7 +114,7 @@ class UploadSessionWriterTest {
         given(storage.createMultipartUpload(eq(KEY), anyString())).willReturn("up-1");
         given(storage.uploadPart(eq(KEY), eq("up-1"), anyInt(), any(), anyLong())).willAnswer(inv -> "e" + inv.getArgument(2));
         given(storage.headContentLength(KEY)).willReturn(size);
-        given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
+        given(commit.commitDuplicate(any(), any(), any(), anyInt(), any())).willReturn(saved);
 
         writer.write(streamDto(size), USER);
 
@@ -157,7 +157,7 @@ class UploadSessionWriterTest {
         given(storage.headContentLength(KEY)).willReturn(sixGiB);
         given(storage.createMultipartUpload(KEY, "video/mp4")).willReturn("up-copy");
         given(storage.uploadPartCopy(eq("1/src"), eq(KEY), eq("up-copy"), anyInt(), anyLong(), anyLong())).willReturn("e");
-        given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
+        given(commit.commitDuplicate(any(), any(), any(), anyInt(), any())).willReturn(saved);
 
         writer.write(dto, USER);
 
@@ -177,7 +177,7 @@ class UploadSessionWriterTest {
                 .resourceSaveType(ResourceSaveType.DUPLICATE).contentSource(new FileContentSource.StorageCopy("1/src")).build();
         given(storage.headContentLength("1/src")).willReturn(40L);
         given(storage.headContentLength(KEY)).willReturn(40L);
-        given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
+        given(commit.commitDuplicate(any(), any(), any(), anyInt(), any())).willReturn(saved);
 
         writer.write(dto, USER);
 
@@ -194,14 +194,14 @@ class UploadSessionWriterTest {
         assertThat(UploadSessionWriter.resolveContentType("text/plain", "a.pdf")).isEqualTo("text/plain");
 
         given(storage.headContentLength(KEY)).willReturn(10L);
-        given(commit.commitDuplicate(any(), any(), any(), anyInt())).willReturn(saved);
+        given(commit.commitDuplicate(any(), any(), any(), anyInt(), any())).willReturn(saved);
         var dto = streamDto(10).toBuilder().contentType(null).originalFileName("report.pdf").build();
 
         writer.write(dto, USER);
 
         verify(tx).create(Mockito.argThat(q -> "application/pdf".equals(q.contentType())));
         verify(storage).putObject(eq(KEY), eq("application/pdf"), any(), eq(10L));
-        verify(commit).commitDuplicate(eq(ID), eq(KEY), Mockito.argThat(d -> "application/pdf".equals(d.getContentType())), eq(USER));
+        verify(commit).commitDuplicate(eq(ID), eq(KEY), Mockito.argThat(d -> "application/pdf".equals(d.getContentType())), eq(USER), Mockito.isNull());
     }
 
     @Test
@@ -226,7 +226,7 @@ class UploadSessionWriterTest {
         assertThatThrownBy(() -> writer.write(streamDto(10), USER)).isInstanceOf(StorageException.class);
 
         verify(tx).fail(eq(ID), eq(UploadSessionStatus.PENDING), eq(UploadSessionFailReason.STORAGE_ERROR), anyString(), eq(CleanupPhase.BEFORE_ASSEMBLE));
-        verify(commit, never()).commitDuplicate(any(), any(), any(), anyInt());
+        verify(commit, never()).commitDuplicate(any(), any(), any(), anyInt(), any());
     }
 
     @Test
@@ -246,14 +246,14 @@ class UploadSessionWriterTest {
     @DisplayName("커밋 tx 의 일시적 DB 오류(교착 등)는 커밋만 재시도 — 스토리지는 다시 부르지 않는다")
     void commitRetriedOnTransientError() {
         given(storage.headContentLength(KEY)).willReturn(10L);
-        given(commit.commitDuplicate(any(), any(), any(), anyInt()))
+        given(commit.commitDuplicate(any(), any(), any(), anyInt(), any()))
                 .willThrow(new CannotAcquireLockException("deadlock"))
                 .willThrow(new CannotAcquireLockException("deadlock"))
                 .willReturn(saved);
 
         assertThat(writer.write(streamDto(10), USER)).isSameAs(saved);
 
-        verify(commit, times(3)).commitDuplicate(any(), any(), any(), anyInt());
+        verify(commit, times(3)).commitDuplicate(any(), any(), any(), anyInt(), any());
         verify(storage, times(1)).putObject(anyString(), anyString(), any(), anyLong());
         verify(tx, never()).fail(any(), any(), any(), any(), any());
     }
@@ -262,12 +262,12 @@ class UploadSessionWriterTest {
     @DisplayName("커밋 재시도 소진 — COMPLETING 에서 FAILED, 조립 뒤 정리(DELETE)")
     void commitRetriesExhausted() {
         given(storage.headContentLength(KEY)).willReturn(10L);
-        given(commit.commitDuplicate(any(), any(), any(), anyInt())).willThrow(new CannotAcquireLockException("deadlock"));
+        given(commit.commitDuplicate(any(), any(), any(), anyInt(), any())).willThrow(new CannotAcquireLockException("deadlock"));
         given(tx.fail(any(), any(), any(), any(), any())).willReturn(true);
 
         assertThatThrownBy(() -> writer.write(streamDto(10), USER)).isInstanceOf(CannotAcquireLockException.class);
 
-        verify(commit, times(UploadSessionWriter.COMMIT_ATTEMPTS)).commitDuplicate(any(), any(), any(), anyInt());
+        verify(commit, times(UploadSessionWriter.COMMIT_ATTEMPTS)).commitDuplicate(any(), any(), any(), anyInt(), any());
         verify(tx).fail(eq(ID), eq(UploadSessionStatus.COMPLETING), eq(UploadSessionFailReason.COMMIT_ERROR), anyString(), eq(CleanupPhase.AFTER_ASSEMBLE));
     }
 
@@ -275,7 +275,7 @@ class UploadSessionWriterTest {
     @DisplayName("커밋 뒤 예외(응답 유실) — FAILED 전환이 0행이고 세션이 COMPLETED 면 저장된 결과를 돌려준다(DB 상태가 정본)")
     void commitSucceededDespiteError() {
         given(storage.headContentLength(KEY)).willReturn(10L);
-        given(commit.commitDuplicate(any(), any(), any(), anyInt())).willThrow(new IllegalStateException("connection reset after commit"));
+        given(commit.commitDuplicate(any(), any(), any(), anyInt(), any())).willThrow(new IllegalStateException("connection reset after commit"));
         given(tx.fail(any(), any(), any(), any(), any())).willReturn(false);
         given(tx.find(ID, USER)).willReturn(Optional.of(new UploadSessionData(ID, TENANT, USER, USER, UploadSaveType.DUPLICATE, null, null, null, null,
                 "a.docx", "application/octet-stream", 10, KEY, null, null, null, UploadSessionStatus.COMPLETED, null, 100L, "a (1).docx", null, null, null)));
@@ -290,7 +290,7 @@ class UploadSessionWriterTest {
     @DisplayName("커밋 시 용량 초과 — FAILED(QUOTA_EXCEEDED) + DELETE, 용량 초과 알림, IS_FULL 전파")
     void commitQuotaExceeded() {
         given(storage.headContentLength(KEY)).willReturn(10L);
-        given(commit.commitDuplicate(any(), any(), any(), anyInt())).willThrow(ApiRuntimeException.type(QuotaErrorCode.IS_FULL));
+        given(commit.commitDuplicate(any(), any(), any(), anyInt(), any())).willThrow(ApiRuntimeException.type(QuotaErrorCode.IS_FULL));
         given(tx.fail(any(), any(), any(), any(), any())).willReturn(true);
 
         assertThatThrownBy(() -> writer.write(streamDto(10), USER))
@@ -298,6 +298,23 @@ class UploadSessionWriterTest {
 
         verify(tx).fail(eq(ID), eq(UploadSessionStatus.COMPLETING), eq(UploadSessionFailReason.QUOTA_EXCEEDED), anyString(), eq(CleanupPhase.AFTER_ASSEMBLE));
         verify(quotaService).notifyQuotaExceeded(USER, USER);
+    }
+
+    @Test
+    @DisplayName("커밋 tx 권한 재확인 실패 — FAILED(PERMISSION_DENIED) + DELETE(조립 뒤), ACCESS_DENIED 전파, 용량 알림 없음")
+    void commitPermissionDenied() {
+        given(storage.headContentLength(KEY)).willReturn(10L);
+        given(commit.commitDuplicate(any(), any(), any(), anyInt(), any()))
+                .willThrow(ApiRuntimeException.type(com.thinkfree.drive.permission.enums.PermissionErrorCode.ACCESS_DENIED));
+        given(tx.fail(any(), any(), any(), any(), any())).willReturn(true);
+
+        assertThatThrownBy(() -> writer.write(streamDto(10), USER))
+                .isInstanceOfSatisfying(ApiRuntimeException.class,
+                        e -> assertThat(e.getCode()).isEqualTo(com.thinkfree.drive.permission.enums.PermissionErrorCode.ACCESS_DENIED));
+
+        verify(tx).fail(eq(ID), eq(UploadSessionStatus.COMPLETING), eq(UploadSessionFailReason.PERMISSION_DENIED), anyString(),
+                eq(CleanupPhase.AFTER_ASSEMBLE));
+        verify(quotaService, never()).notifyQuotaExceeded(anyInt(), anyInt());
     }
 
     @Test
@@ -336,13 +353,13 @@ class UploadSessionWriterTest {
     void overwriteRecordsBaseKey() {
         given(locks.findFileBase(USER, 55L)).willReturn(Optional.of(new com.thinkfree.drive.upload.session.repository.UploadLockRepository.FileBase("3/base", 4L)));
         given(storage.headContentLength(KEY)).willReturn(10L);
-        given(commit.commitOverwrite(any(), any(), any(), any(), anyInt())).willReturn(saved);
+        given(commit.commitOverwrite(any(), any(), any(), any(), anyInt(), any())).willReturn(saved);
 
         writer.write(typed(ResourceSaveType.OVERWRITE, new FileContentSource.Stream(new FileData("text/plain", new ByteArrayInputStream(new byte[10]), 10)), 10), USER);
 
         verify(tx).create(Mockito.argThat(q -> q.saveType() == UploadSaveType.OVERWRITE && "3/base".equals(q.baseStorageKey()) && q.resourceSeq() == 55L
                 && q.reserveByte() == 6L));   // 진행 중 용량 = 새 10 − 기존 4
-        verify(commit).commitOverwrite(eq(ID), eq(KEY), eq("3/base"), any(), eq(USER));
+        verify(commit).commitOverwrite(eq(ID), eq(KEY), eq("3/base"), any(), eq(USER), Mockito.isNull());
     }
 
     @Test
@@ -361,14 +378,14 @@ class UploadSessionWriterTest {
     @DisplayName("VERSION(내용) → 세션 VERSION, 스토리지 객체가 출처인 VERSION(버전 복원) → 세션 RESTORE — 커밋은 둘 다 commitVersion")
     void versionAndRestoreUseVersionCommit() {
         given(storage.headContentLength(any())).willReturn(10L);
-        given(commit.commitVersion(any(), any(), any(), anyInt())).willReturn(saved);
+        given(commit.commitVersion(any(), any(), any(), anyInt(), any())).willReturn(saved);
 
         writer.write(typed(ResourceSaveType.VERSION, new FileContentSource.Stream(new FileData("text/plain", new ByteArrayInputStream(new byte[10]), 10)), 10), USER);
         writer.write(typed(ResourceSaveType.VERSION, new FileContentSource.StorageCopy("1/v1"), 10), USER);
 
         verify(tx).create(Mockito.argThat(q -> q != null && q.saveType() == UploadSaveType.VERSION));
         verify(tx).create(Mockito.argThat(q -> q != null && q.saveType() == UploadSaveType.RESTORE));
-        verify(commit, times(2)).commitVersion(eq(ID), eq(KEY), any(), eq(USER));
+        verify(commit, times(2)).commitVersion(eq(ID), eq(KEY), any(), eq(USER), Mockito.isNull());
         verify(storage).copy("1/v1", KEY);
     }
 }

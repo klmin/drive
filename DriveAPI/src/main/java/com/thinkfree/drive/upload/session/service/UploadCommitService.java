@@ -3,6 +3,9 @@ package com.thinkfree.drive.upload.session.service;
 import com.thinkfree.drive.cleanup.storage.service.StorageDeletionService;
 import com.thinkfree.drive.event.file.FileUploadedEvent;
 import com.thinkfree.drive.global.exception.ApiRuntimeException;
+import com.thinkfree.drive.permission.enums.SharePermissionType;
+import com.thinkfree.drive.permission.service.ResourcePermissionService;
+import com.thinkfree.drive.permission.support.RequestActor;
 import com.thinkfree.drive.quota.exception.QuotaErrorCode;
 import com.thinkfree.drive.resource.dto.file.FileUploadDto;
 import com.thinkfree.drive.resource.exception.ResourceErrorCode;
@@ -32,6 +35,8 @@ import java.util.UUID;
  *   <li>용량 최종 판정·use_quota_byte 변경은 여기서만(규칙 10·11)</li>
  *   <li>교체·밀려난 이전 key 는 같은 tx 에서 삭제 등록(유예, 규칙 6)</li>
  *   <li>COMPLETED 전환이 리소스 반영과 같은 tx — COMPLETING = 미반영, COMPLETED = 반영(§5.1)</li>
+ *   <li>권한 재확인(규칙 14): recheckActor 가 있으면(청크 업로드 complete) 행을 잠근 뒤 요청자 권한을 다시 본다 — 업로드가 길어
+ *       그 사이 공유가 해제됐을 수 있다. 서버 내부 쓰기(null)는 호출부가 직전에 확인했다</li>
  *   <li>사용량 알림 이벤트는 tx 안에서 발행해 커밋 성공 시에만 리스너가 돈다(규칙 13, FileUploadedListener 는 AFTER_COMMIT)</li>
  * </ul>
  * S3 호출 없음. REQUIRES_NEW — 호출자 트랜잭션과 무관하게 이 단위로 커밋·롤백된다.
@@ -48,14 +53,16 @@ public class UploadCommitService {
     private final StorageDeletionService storageDeletionService;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final UploadSessionProperty property;
+    private final ResourcePermissionService resourcePermissionService;
 
     /**
      * DUPLICATE(신규) — 부모 폴더 잠금(규칙 9) → 이름 넘버링 → 파일 행 INSERT(key = 세션 key) → 용량 → COMPLETED.
      *
-     * @throws ApiRuntimeException 부모 폴더 없음·휴지통 NOT_FOUND, 용량 초과 IS_FULL
+     * @param recheckActor 커밋 직전 권한을 다시 볼 요청자(청크 업로드 complete), 서버 내부 쓰기는 null
+     * @throws ApiRuntimeException 부모 폴더 없음·휴지통 NOT_FOUND, 용량 초과 IS_FULL, 권한 없음 ACCESS_DENIED·RESOURCE_NOT_SHARED
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ResourceSaveResult commitDuplicate(UUID uploadSessionId, String storageKey, FileUploadDto dto, int requestUserSeq) {
+    public ResourceSaveResult commitDuplicate(UUID uploadSessionId, String storageKey, FileUploadDto dto, int requestUserSeq, RequestActor recheckActor) {
         int userSeq = dto.getUserSeq();
         long size = dto.getFileSize();
 
@@ -67,6 +74,8 @@ public class UploadCommitService {
                                                    .orElseThrow(() -> ApiRuntimeException.type(ResourceErrorCode.NOT_FOUND))
                                                    .resourceName();
         }
+        // 부모 폴더 행(루트면 사용자 행)을 잠근 뒤 — 이 폴더에 대한 업로드 권한(세션 생성 때와 같은 기준)
+        recheck(recheckActor, SharePermissionType.UPLOAD, dto.getParentFolderSeq(), userSeq);
 
         if (quota.wouldExceed(size)) {
             throw ApiRuntimeException.type(QuotaErrorCode.IS_FULL);
@@ -81,11 +90,13 @@ public class UploadCommitService {
      * VERSION·RESTORE — 리소스 행 잠금 → 현재 내용(key·크기)을 버전 행으로 넘김 → 리소스를 세션 key·새 크기로.
      * 사용량 = +새 크기 − 밀려난 버전 크기(복원도 같은 정책: 같은 내용이 버전과 현재에 하나씩). 밀려난 버전 key 는 삭제 등록(유예).
      *
-     * @throws ApiRuntimeException 대상 없음 NOT_FOUND, 잠김(복원) RESOURCE_LOCKED, 용량 초과 IS_FULL
+     * @param recheckActor 커밋 직전 권한을 다시 볼 요청자(청크 업로드 complete), 서버 내부 쓰기는 null
+     * @throws ApiRuntimeException 대상 없음 NOT_FOUND, 잠김(복원) RESOURCE_LOCKED, 용량 초과 IS_FULL, 권한 없음 ACCESS_DENIED·RESOURCE_NOT_SHARED
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ResourceSaveResult commitVersion(UUID uploadSessionId, String storageKey, FileUploadDto dto, int requestUserSeq) {
+    public ResourceSaveResult commitVersion(UUID uploadSessionId, String storageKey, FileUploadDto dto, int requestUserSeq, RequestActor recheckActor) {
         UserQuota quota = lockUser(dto.getUserSeq());
+        recheck(recheckActor, SharePermissionType.EDIT, dto.getResourceSeq(), dto.getUserSeq());
         return applyVersion(uploadSessionId, storageKey, dto, requestUserSeq, quota);
     }
 
@@ -93,12 +104,15 @@ public class UploadCommitService {
      * OVERWRITE — 현재 key 가 세션 시작 때 본 key(baseKey)와 같을 때만 새 key·크기로 바꾸고 이전 key 를 삭제 등록(유예).
      * 그 사이 다른 저장이 내용을 바꿨으면(충돌) 내용을 잃지 않도록 버전 저장으로 반영한다(§4.3 1차).
      *
-     * @throws ApiRuntimeException 대상 없음 NOT_FOUND, 용량 초과 IS_FULL
+     * @param recheckActor 커밋 직전 권한을 다시 볼 요청자(청크 업로드 complete), 서버 내부 쓰기는 null
+     * @throws ApiRuntimeException 대상 없음 NOT_FOUND, 용량 초과 IS_FULL, 권한 없음 ACCESS_DENIED·RESOURCE_NOT_SHARED
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ResourceSaveResult commitOverwrite(UUID uploadSessionId, String storageKey, String baseStorageKey, FileUploadDto dto, int requestUserSeq) {
+    public ResourceSaveResult commitOverwrite(UUID uploadSessionId, String storageKey, String baseStorageKey, FileUploadDto dto, int requestUserSeq,
+                                              RequestActor recheckActor) {
         int userSeq = dto.getUserSeq();
         UserQuota quota = lockUser(userSeq);
+        recheck(recheckActor, SharePermissionType.EDIT, dto.getResourceSeq(), userSeq);
 
         var result = resourceService.overwriteContent(dto, storageKey, baseStorageKey);
         if (result == null) {
@@ -128,6 +142,13 @@ public class UploadCommitService {
             storageDeletionService.registerDeferred(List.of(replaced.prunedResourceSaveName()), property.replacedKeyDeleteDelay());
         }
         return complete(uploadSessionId, replaced.saveResult(), userSeq, requestUserSeq);
+    }
+
+    /** 규칙 14 — 요청자 권한 재확인. 소유자 본인이면 통과, 아니면 공유 권한(세션 생성·complete 선점 전과 같은 기준). null 이면 건너뜀 */
+    private void recheck(RequestActor actor, SharePermissionType type, Long resourceSeq, int ownerUserSeq) {
+        if (actor != null) {
+            resourcePermissionService.checkPermission(type, resourceSeq, ownerUserSeq, actor, false);
+        }
     }
 
     private UserQuota lockUser(int userSeq) {

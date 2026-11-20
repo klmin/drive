@@ -25,7 +25,7 @@
 
 ## B. 운영 전에 필요한 것
 
-- [ ] **커밋 tx 권한 재확인**(설계 규칙 14, §6.3 ⑥) — 지금은 호출부(컨트롤러 aspect·MCP 툴)에서 한 번만. 청크 API 는 업로드가 길어 그 사이 공유 해제될 수 있으므로 커밋 tx 에서 `ResourcePermissionService.checkPermission` 을 다시. 세션에 요청자·익명 여부가 있어야 함(`RequestActor`) → 컬럼 추가 검토
+- [x] **커밋 tx 권한 재확인**(브랜치 `feat/commit-tx-permission-recheck`, 설계 규칙 14) — 청크 업로드 complete 는 커밋 tx 에서 행 잠금 뒤 `ResourcePermissionService.checkPermission` 을 다시(요청자 = 로그인 사용자, 청크 API 는 익명 불가라 컬럼 추가 없이 `RequestActor.user`). 실패 = `PERMISSION_DENIED` FAILED + DELETE. 서버 내부 쓰기는 호출부 검사만 유지(짧고, 익명 공유 링크 업로드는 세션에 맥락이 없어 재구성 불가) — 필요해지면 세션에 `request_anonymous` 컬럼 추가
 - [ ] **매직바이트 검사**(규칙 3, §6.3 ⑤) — `StorageService.readRange(key, 0, 65535)` → Tika 로 실행 파일 차단·확장자 계열 불일치 차단 → `CONTENT_MISMATCH`. 내부 쓰기 경로에도 넣을지(웹오피스 저장은 신뢰 가능) 결정. 텍스트류는 판별 불가(한계 수용)
 - [ ] **Content-Type 서버 결정 강제** — 지금은 클라이언트 값이 없을 때만 확장자로(Codex 리뷰 반영, PR #19). 규칙 3 대로 항상 서버가 정할지 결정(다운로드 `Content-Disposition: attachment`·`nosniff` 는 이미 적용)
 - [ ] **감사 로그 발행 시점**(규칙 13) — 지금 `resourceAuditService.record` 는 호출부(`FileUseCase` 등)에서 커밋 뒤. 커밋 tx 안에서 발행 + `AFTER_COMMIT` 으로 옮길지 검토(감사 코드 자체는 수정하지 않음)

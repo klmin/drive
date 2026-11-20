@@ -17,5 +17,7 @@ public enum UploadSessionFailReason {
     /** 스토리지에 멀티파트 업로드가 없음(lifecycle 정리 등) */
     NO_SUCH_UPLOAD,
     /** 세션 생성 중 스토리지 준비 실패 */
-    STORAGE_ERROR
+    STORAGE_ERROR,
+    /** 커밋 직전 권한 재확인 실패 — 업로드하는 동안 공유가 해제됨 등(규칙 14) */
+    PERMISSION_DENIED
 }
