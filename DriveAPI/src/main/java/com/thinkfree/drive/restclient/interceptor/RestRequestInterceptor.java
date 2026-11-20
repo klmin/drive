@@ -11,6 +11,9 @@ import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.util.StreamUtils;
 
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
@@ -41,9 +44,10 @@ public class RestRequestInterceptor implements ClientHttpRequestInterceptor {
 
         log.info("URI          : {}", request.getURI());
         log.info("Method       : {}", request.getMethod());
-        log.info("Headers      : {}", request.getHeaders() );
+        log.info("Headers      : {}", masked(request.getHeaders()));
 
-        if(jsonChk) {
+        // 요청 본문도 응답 본문과 같이 PROD 가 아닐 때만 — 로그인 비밀번호 등 비밀값이 본문에 실린다
+        if(AppProfile.PROD != profile && jsonChk) {
             log.info("Request body: {}", new String(body, StandardCharsets.UTF_8));
         }
 
@@ -59,7 +63,7 @@ public class RestRequestInterceptor implements ClientHttpRequestInterceptor {
 
         log.info("Status code  : {}", response.getStatusCode());
         log.info("Status text  : {}", response.getStatusText());
-        log.info("Headers      : {}", response.getHeaders());
+        log.info("Headers      : {}", masked(response.getHeaders()));
 
         if(AppProfile.PROD != profile && jsonChk) {
             log.info("Response body: {}", StreamUtils.copyToString(response.getBody(), StandardCharsets.UTF_8));
@@ -67,6 +71,21 @@ public class RestRequestInterceptor implements ClientHttpRequestInterceptor {
 
         log.info("============================rest response end============================================");
     }
+
+    /** 인증 헤더(OIDC client secret 의 Basic 인증, Bearer 토큰, API 키, 쿠키)는 값을 가린다. */
+    static HttpHeaders masked(HttpHeaders headers) {
+        HttpHeaders copy = new HttpHeaders();
+        headers.forEach((name, values) -> copy.put(name, isSensitive(name) ? List.of("****") : values));
+        return copy;
+    }
+
+    private static boolean isSensitive(String headerName) {
+        String name = headerName.toLowerCase(Locale.ROOT);
+        return SENSITIVE_HEADERS.contains(name) || name.contains("token") || name.contains("secret") || name.contains("api-key");
+    }
+
+    private static final Set<String> SENSITIVE_HEADERS = Set.of(
+            "authorization", "proxy-authorization", "cookie", "set-cookie", "x-api-key");
 
     private boolean jsonChk(HttpHeaders headers){
 
