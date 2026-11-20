@@ -187,3 +187,76 @@ groups:
               type: threshold
               expression: A
               conditions: [{ evaluator: { type: gt, params: [0.9] } }]
+
+  # 정리 스케줄러(ShedLock 배치)가 제 할 일을 하는지 — DB 상태(alloy/pg-queries.yaml)로 본다.
+  # 오래 남은 행이 모두 문제는 아니다(교체된 key 24시간 유예, 실패 백오프). "지울 시각이 지났는데 안 지워짐"·"시도 포기"·"TTL 지난 세션"만 알린다.
+  - orgId: 1
+    name: drive-cleanup
+    folder: Drive
+    interval: 1m
+    rules:
+      - uid: drive-storage-deletion-overdue
+        title: 스토리지 정리 밀림
+        condition: C
+        for: 15m
+        noDataState: OK             # 테이블이 없는 DB(마이그레이션 전)면 지표가 없다
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.action }} 정리 대기 행 {{ $values.A.Value }}개가 지울 시각을 15분 넘게 지남 — 삭제 워커(스케줄러) 정지·실패 확인"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model: { refId: A, instant: true, expr: 'sum by (action) (drive_storage_deletion_overdue{job="postgres"})' }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: gt, params: [0] } }]
+
+      - uid: drive-storage-deletion-exhausted
+        title: 스토리지 정리 포기 행 있음
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.action }} 정리 행 {{ $values.A.Value }}개가 시도 상한(10회)에 닿아 더 시도하지 않음 — last_error 확인 후 attempt_count = 0 으로 되돌리면 다시 시도"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model: { refId: A, instant: true, expr: 'sum by (action) (drive_storage_deletion_exhausted{job="postgres"})' }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: gt, params: [0] } }]
+
+      - uid: drive-upload-session-stale
+        title: 업로드 세션 정리 안 됨
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "PENDING 업로드 세션이 {{ humanizeDuration $values.A.Value }} 동안 활동 없음 — TTL(1시간)이 지났는데 만료 처리 안 됨, 세션 정리 스케줄러 확인"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model: { refId: A, instant: true, expr: 'max(drive_upload_active_oldest_idle_seconds{job="postgres", status="PENDING"})' }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: gt, params: [4500] } }]   # 75분 = TTL 1시간 + 세션 정리 주기(10분) + 여유 5분
