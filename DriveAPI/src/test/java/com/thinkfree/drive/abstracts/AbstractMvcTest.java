@@ -96,10 +96,15 @@ public abstract class AbstractMvcTest {
      * JUnit 은 상위 클래스의 @BeforeAll 을 하위 것보다 먼저 실행하므로 하위 @BeforeAll/@BeforeEach 의 자체 선언이 그대로 우선한다.
      * (09-23 전체 스위트 재실행에서 직전 클래스가 남긴 미등록 host 를 물려받은 선언 없는 테스트가
      *  404 TENANT_004 로 흔들리는 순서 의존이 확인돼 추가 — 예: TenantModeSwitchMvcTest 직후의 ResourceControllerTest)
+     * <p>
+     * {@code baseUrl} 도 같은 이유로 비운다. 하위 클래스는 자기 @BeforeAll 에서 {@link #initBaseUrl} 로 다시 채운다.
+     * (CI 리눅스 러너의 클래스 순서에서 OAuth2ConnectionControllerTest 의 baseUrl 이 남아
+     *  TenantModeSwitchMvcTest 의 get("/api/v1/branding") 이 /api/v1/oauth2/connections/api/v1/branding 으로 나간 적이 있다)
      */
     @BeforeAll
     static void resetTenantDeclarationForClass() {
         setTestHost(DEFAULT_TEST_HOST);
+        baseUrl = "";
     }
 
     /** 호환 경로: Host 로 테넌트를 지정한다. 슬러그는 첫 요청 때 findByDomain(host) 로 파생된다. */
