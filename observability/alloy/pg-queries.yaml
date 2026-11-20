@@ -47,16 +47,23 @@ drive_pg_lock_wait:
         usage: GAUGE
         description: 가장 오래 잠금을 기다린 시간(초)
 
-# 스토리지 정리 대기열(tb_storage_deletion) — 쌓이기만 하고 줄지 않으면 삭제 워커(배치 스케줄러)가 멈췄거나 실패 중
-#   drive_storage_deletion_pending{action}            대기 행 수(action = DELETE / ABORT_MULTIPART)
-#   drive_storage_deletion_retrying{action}           한 번 이상 실패해 재시도 중인 행 수
-#   drive_storage_deletion_oldest_age_seconds{action} 가장 오래된 행의 경과 시간
+# 스토리지 정리 대기열(tb_storage_deletion) — 삭제 워커(배치 스케줄러, 30초마다)가 next_attempt_date 가 된 행을 꺼내 지운다.
+# 오래 남은 행이 모두 문제는 아니다 — 교체·밀려난 이전 key 는 24시간 뒤(replaced-key-delete-delay)로, 실패한 행은 백오프(최대 60분) 뒤로 미뤄 등록된다.
+# 그래서 "등록된 지 오래" 가 아니라 "지울 시각이 지났는데 안 지워짐"(기한 지남)과 "시도 상한 도달"(포기)로 본다.
+#   drive_storage_deletion_pending{action}             아직 처리할 행(시도 상한 전) — 미뤄 둔 행 포함
+#   drive_storage_deletion_deferred{action}            그중 지울 시각이 아직 안 된 행(유예·백오프)
+#   drive_storage_deletion_overdue{action}             지울 시각이 15분 넘게 지났는데 남은 행 — 워커가 멈췄거나 밀림
+#   drive_storage_deletion_overdue_max_seconds{action} 지울 시각이 지난 행 중 가장 많이 늦은 시간
+#   drive_storage_deletion_exhausted{action}           시도 상한(10회)에 닿아 더 시도하지 않는 행 — 수동 확인 후 attempt_count = 0 으로 되돌리면 다시 시도
+# 15분 = 워커 주기(30초) + 한 번 실행 최대 시간(4분)에 여유. 10 = StorageDeletionConstants.MAX_ATTEMPT_COUNT(바꾸면 같이)
 drive_storage_deletion:
   query: |
     SELECT /* exporter */ a.action,
-           count(d.storage_deletion_seq)                                    AS pending,
-           count(d.storage_deletion_seq) FILTER (WHERE d.attempt_count > 0) AS retrying,
-           COALESCE(EXTRACT(EPOCH FROM now() - min(d.register_date)), 0)    AS oldest_age_seconds
+           count(d.storage_deletion_seq) FILTER (WHERE d.attempt_count < 10)                                                            AS pending,
+           count(d.storage_deletion_seq) FILTER (WHERE d.attempt_count < 10 AND d.next_attempt_date > now())                            AS deferred,
+           count(d.storage_deletion_seq) FILTER (WHERE d.attempt_count < 10 AND d.next_attempt_date < now() - interval '15 minutes')    AS overdue,
+           COALESCE(EXTRACT(EPOCH FROM now() - min(d.next_attempt_date) FILTER (WHERE d.attempt_count < 10 AND d.next_attempt_date <= now())), 0) AS overdue_max_seconds,
+           count(d.storage_deletion_seq) FILTER (WHERE d.attempt_count >= 10)                                                           AS exhausted
     FROM (VALUES ('DELETE'), ('ABORT_MULTIPART')) AS a(action)
     LEFT JOIN tb_storage_deletion d ON d.action = a.action
     GROUP BY a.action
@@ -66,10 +73,16 @@ drive_storage_deletion:
         description: 정리 동작
     - pending:
         usage: GAUGE
-        description: 정리 대기 행 수
-    - retrying:
+        description: 아직 처리할 행 수(시도 상한 전, 미뤄 둔 행 포함)
+    - deferred:
         usage: GAUGE
-        description: 실패 후 재시도 중인 행 수
-    - oldest_age_seconds:
+        description: 지울 시각이 아직 안 된 행 수(유예·백오프)
+    - overdue:
         usage: GAUGE
-        description: 가장 오래된 대기 행의 경과 시간(초)
+        description: 지울 시각이 15분 넘게 지났는데 남은 행 수
+    - overdue_max_seconds:
+        usage: GAUGE
+        description: 지울 시각이 지난 행 중 가장 많이 늦은 시간(초)
+    - exhausted:
+        usage: GAUGE
+        description: 시도 상한에 닿아 더 시도하지 않는 행 수

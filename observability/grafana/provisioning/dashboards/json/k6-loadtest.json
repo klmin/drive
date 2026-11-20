@@ -185,7 +185,7 @@
     },
     {
       "id": 17, "type": "timeseries", "title": "S3 오류 (초당) · 스토리지 정리 대기열",
-      "description": "S3 오류 = aws_s3_client_seconds_count 중 error 가 none 이 아닌 것(404 는 정상 결과라 제외). 정리 대기열 = tb_storage_deletion 행 수(DELETE 객체 삭제 / ABORT_MULTIPART 미완성 업로드 정리). 부하 테스트 실행 구성은 배치 스케줄러가 꺼져 있어 대기열이 줄지 않는다.",
+      "description": "S3 오류 = aws_s3_client_seconds_count 중 error 가 none 이 아닌 것(404 는 정상 결과라 제외). 정리 대기열 = tb_storage_deletion(DELETE 객체 삭제 / ABORT_MULTIPART 미완성 업로드 정리) — 대기는 아직 처리할 행(24시간 유예·백오프로 미뤄 둔 행 포함), 기한 지남은 지울 시각이 15분 넘게 지났는데 남은 행, 포기는 시도 상한(10회)에 닿은 행. 부하 테스트 실행 구성은 배치 스케줄러가 꺼져 있어 대기 행이 모두 기한 지남으로 쌓인다.",
       "gridPos": { "x": 12, "y": 41, "w": 12, "h": 9 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
@@ -194,7 +194,9 @@
       },
       "targets": [
         { "refId": "A", "expr": "sum by (rpc_method, http_status_code) (rate(aws_s3_client_seconds_count{job=\"drive-api\", error!=\"none\"}[$__rate_interval])) > 0", "legendFormat": "S3 오류 {{rpc_method}} {{http_status_code}}" },
-        { "refId": "B", "expr": "sum by (action) (drive_storage_deletion_pending{job=\"postgres-loadtest\"})", "legendFormat": "정리 대기 {{action}}" }
+        { "refId": "B", "expr": "sum by (action) (drive_storage_deletion_pending{job=\"postgres-loadtest\"})", "legendFormat": "정리 대기 {{action}}" },
+        { "refId": "C", "expr": "sum by (action) (drive_storage_deletion_overdue{job=\"postgres-loadtest\"})", "legendFormat": "기한 지남 {{action}}" },
+        { "refId": "D", "expr": "sum by (action) (drive_storage_deletion_exhausted{job=\"postgres-loadtest\"}) > 0", "legendFormat": "포기 {{action}}" }
       ]
     },
     { "id": 103, "type": "row", "title": "DB 잠금·느린 쿼리 (write.js 등 쓰기 부하) — 부하 테스트 DB", "collapsed": false, "gridPos": { "x": 0, "y": 50, "w": 24, "h": 1 }, "panels": [] },
