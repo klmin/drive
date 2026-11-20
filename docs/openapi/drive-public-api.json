@@ -10604,6 +10604,11 @@
             "type": "integer",
             "format": "int64"
           },
+          "uploadingByte": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes reserved by uploads still in progress. Not included in useQuotaByte; committed only when each upload completes."
+          },
           "hasUnread": {
             "type": "boolean"
           }

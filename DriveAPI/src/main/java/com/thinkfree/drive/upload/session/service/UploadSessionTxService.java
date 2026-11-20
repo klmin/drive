@@ -131,4 +131,10 @@ public class UploadSessionTxService {
     public Optional<UploadSessionData> find(UUID uploadSessionId, int requestUserSeq) {
         return uploadSessionRepository.findByIdAndRequester(uploadSessionId, requestUserSeq);
     }
+
+    /** 사용량 화면의 uploadingByte — 진행 중 세션의 신고 크기 합계(확정 사용량과 별개). */
+    @Transactional(readOnly = true)
+    public long sumUploadingByte(int userSeq) {
+        return uploadSessionRepository.sumActive(userSeq).sizeByte();
+    }
 }

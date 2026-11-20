@@ -6,6 +6,7 @@ import com.thinkfree.drive.api.v1.user.response.UserQuotaResponse;
 import com.thinkfree.drive.api.v1.user.response.UserResponse;
 import com.thinkfree.drive.api.v1.user.response.UserSearchResponse;
 import com.thinkfree.drive.tenant.policy.TenantPolicy;
+import com.thinkfree.drive.upload.session.service.UploadSessionTxService;
 import com.thinkfree.drive.user.enums.RoleType;
 import com.thinkfree.drive.user.enums.UserStatus;
 import com.thinkfree.drive.user.service.UserFindService;
@@ -23,6 +24,7 @@ public class UserUseCase {
     private final UserFindService userFindService;
     private final UserService userService;
     private final TenantPolicy tenantPolicy;
+    private final UploadSessionTxService uploadSessionTxService;
 
     public List<UserSearchResponse> search(UserSearchRequest request, int requestUserSeq){
         var users = userFindService.findOwnerCandidates(request.sk(), RoleType.USER, UserStatus.displayableStatuses(), requestUserSeq);
@@ -37,7 +39,8 @@ public class UserUseCase {
 
     /** 현재 사용량/전체 용량 — 없거나 ACTIVE 아니면 USER_NOT_FOUND(FindService) */
     public UserQuotaResponse getCurrentQuota(Integer userSeq) {
-        return UserQuotaResponse.from(userFindService.findUserQuotaByUserSeq(userSeq));
+        var quota = userFindService.findUserQuotaByUserSeq(userSeq);
+        return UserQuotaResponse.of(quota, uploadSessionTxService.sumUploadingByte(userSeq));
     }
 
 }

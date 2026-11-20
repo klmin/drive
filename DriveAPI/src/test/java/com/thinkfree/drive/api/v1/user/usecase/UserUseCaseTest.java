@@ -3,6 +3,8 @@ package com.thinkfree.drive.api.v1.user.usecase;
 import com.thinkfree.drive.api.v1.user.converter.UserResponseConverter;
 import com.thinkfree.drive.api.v1.user.response.UserResponse;
 import com.thinkfree.drive.tenant.policy.TenantPolicy;
+import com.thinkfree.drive.upload.session.service.UploadSessionTxService;
+import com.thinkfree.drive.user.data.UserQuotaData;
 import com.thinkfree.drive.user.data.UserDetailWithRolesData;
 import com.thinkfree.drive.user.enums.RoleType;
 import com.thinkfree.drive.user.service.UserFindService;
@@ -39,6 +41,9 @@ class UserUseCaseTest {
     @Mock
     private TenantPolicy tenantPolicy;
 
+    @Mock
+    private UploadSessionTxService uploadSessionTxService;
+
     @InjectMocks
     private UserUseCase userUseCase;
 
@@ -74,5 +79,19 @@ class UserUseCaseTest {
 
             assertThat(userUseCase.getCurrentUser(USER).getIsSelfPasswordChangeable()).isFalse();
         }
+    }
+
+    @Test
+    @DisplayName("getCurrentQuota() - 확정 사용량과 진행 중 업로드 합계(uploadingByte)를 따로 돌려준다")
+    void currentQuota_separatesUploading() {
+        given(userFindService.findUserQuotaByUserSeq(USER)).willReturn(new UserQuotaData(1_000L, 300L));
+        given(uploadSessionTxService.sumUploadingByte(USER)).willReturn(200L);
+
+        var response = userUseCase.getCurrentQuota(USER);
+
+        assertThat(response.totalQuotaByte()).isEqualTo(1_000L);
+        assertThat(response.useQuotaByte()).isEqualTo(300L);
+        assertThat(response.uploadingByte()).isEqualTo(200L);
+        assertThat(response.hasUnread()).isFalse();
     }
 }
