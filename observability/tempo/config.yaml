@@ -47,4 +47,7 @@ storage:
 overrides:
   defaults:
     metrics_generator:
-      processors: [service-graphs, span-metrics, local-blocks]
+      # span-metrics(traces_spanmetrics_*)는 끈다 — Alloy tail 샘플링 뒤의 트레이스(정상 요청 10% + 에러·느린 요청)로 세어 요청 수·지연이 치우친다.
+      #   요청 수·응답 시간은 Micrometer(http_server_requests_*)를 본다. 서비스 그래프는 모양(누가 누구를 부르나)만 보는 용도로 남기고,
+      #   local-blocks 는 TraceQL 메트릭 쿼리·Grafana Traces Drilldown 용
+      processors: [service-graphs, local-blocks]

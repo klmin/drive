@@ -151,9 +151,9 @@ Grafana http://localhost:3300 › Drive › **k6 부하 테스트**
 | 보는 것 | 쿼리 |
 |---|---|
 | 결과별 요청 수 | `sum by (outcome) (increase(http_server_requests_seconds_count{job="drive-api"}[6m]))` |
-| 1초 이하 요청 수 | `sum(increase(http_server_requests_seconds_bucket{job="drive-api",le="0.984263336"}[6m]))` — 전체에서 빼면 1초 초과 |
+| 1초 이하 요청 수 | `sum(increase(http_server_requests_seconds_bucket{job="drive-api",le="1.0"}[6m]))` — 전체에서 빼면 1초 초과 |
 
-- histogram 에 `le="1.0"` 구간이 없어 가장 가까운 `0.984263336` 을 쓴다.
+- `le="1.0"` 구간은 SLO 경계(`management.metrics.distribution.slo`)로 만든다. 그 설정 전 앱이면 가장 가까운 `le="0.984263336"` 을 쓴다.
 - `increase()` 는 새로 생긴 시계열의 첫 값을 세지 못한다. 실행 중 처음 생긴 5xx 는 조금 적게 나올 수 있으니, 앱을 새로 띄운 경우 `http_server_requests_seconds_count{outcome="SERVER_ERROR"}` 의 끝값(누적)을 그대로 본다.
 
 **남은 트레이스**(Grafana › Explore › Tempo, TraceQL) — 시간 범위를 실행 구간으로.
@@ -196,4 +196,4 @@ docker volume rm drive-observability_loadtest-db-data drive-observability_loadte
 - 라이선스 없는 새 DB 는 좌석이 20개 남짓(admin 포함) — 사용자를 더 만들면 `USER_013`. 늘리려면 관리자 화면에서 라이선스를 넣고 `-e USERS=` 를 올린다.
 - 틀린 비밀번호 5번이면 계정이 잠긴다 — 비밀번호를 바꾸면 처음부터.
 - 같은 PC 에서 k6·WAS·DB 가 CPU 를 나눠 쓴다. 이 결과는 **병목 위치 찾기** 용이고, 처리량 수치는 k6 를 다른 머신에 두고 서버에서 잰다.
-- 앱은 트레이스를 전부 보내고(실행 구성 1.0), Alloy 가 에러·5xx·1초 이상 요청은 전부, 나머지는 10%만 Tempo 에 남긴다(`../README.md` 트레이스 샘플링).
+- 앱은 트레이스를 전부 보내고(실행 구성 1.0), Alloy 가 에러·5xx·1초 이상 요청(파일 전송 요청 제외)은 전부, 나머지는 10%만 Tempo 에 남긴다(`../README.md` 트레이스 샘플링).

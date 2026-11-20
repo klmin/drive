@@ -15,11 +15,13 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import io.micrometer.common.KeyValue;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.filter.ServerHttpObservationFilter;
 
 import java.io.IOException;
 
@@ -147,12 +149,21 @@ public class TenantFilter extends OncePerRequestFilter {
         return "GET".equals(request.getMethod()) && accept != null && accept.contains(MediaType.TEXT_HTML_VALUE);
     }
 
+    /**
+     * 요청 트레이스 span 속성 — Tempo 에서 {@code { span.tenant.seq = 3 }} 로 테넌트별로 좁힌다.
+     * 높은 카디널리티 값이라 메트릭 태그가 아니라 span 에만 남는다(http_server_requests 시계열은 늘지 않는다).
+     */
+    static final String TENANT_SPAN_KEY = "tenant.seq";
+
     /** 체인 진행의 단일 경로 —{@code tenantSeq} 가 null(테넌트 선택 경로의 tenant-less 진행)이어도 같은 try/finally 로 clear 한다. */
     private static void runWithTenant(Integer tenantSeq, HttpServletRequest request, HttpServletResponse response,
                                       FilterChain filterChain) throws ServletException, IOException {
         try {
             if (tenantSeq != null) {
                 TenantContext.set(tenantSeq);
+                // 지금 넣는다 — HTTP 관측(이 필터보다 앞)은 TenantContext 를 지운 뒤에 닫히므로 그때 읽으면 비어 있다
+                ServerHttpObservationFilter.findObservationContext(request)
+                        .ifPresent(context -> context.addHighCardinalityKeyValue(KeyValue.of(TENANT_SPAN_KEY, String.valueOf(tenantSeq))));
             }
             filterChain.doFilter(request, response);
         } finally {

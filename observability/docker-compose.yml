@@ -48,6 +48,7 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}
+      - --storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-20GB}   # 기간보다 먼저 이 크기에 닿으면 오래된 블록부터 지운다(디스크 가득 방지)
       - --web.enable-remote-write-receiver   # Alloy 가 보내는(push) 메트릭 수신
       - --enable-feature=exemplar-storage    # 메트릭 → 트레이스 링크(exemplar)
     volumes:

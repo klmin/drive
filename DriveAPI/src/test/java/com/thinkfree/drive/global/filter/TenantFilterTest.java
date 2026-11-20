@@ -113,6 +113,21 @@ class TenantFilterTest {
         }
 
         @Test
+        @DisplayName("요청 관측 컨텍스트에 tenant.seq 를 span 속성(high cardinality)으로 남긴다 — 메트릭 태그(low)에는 넣지 않는다")
+        void tagsRequestObservationWithTenant() throws Exception {
+            MockHttpServletRequest original = request("/t/acme/api/v1/users/me");
+            MockHttpServletRequest forwarded = request("/api/v1/users/me");
+            var observation = new org.springframework.http.server.observation.ServerRequestObservationContext(forwarded, response);
+            forwarded.setAttribute(org.springframework.web.filter.ServerHttpObservationFilter.CURRENT_OBSERVATION_CONTEXT_ATTRIBUTE, observation);
+            when(strategy.resolve(original)).thenReturn(TenantMatch.matched(MATCHED_SEQ, forwarded));
+
+            filter.doFilter(original, response, chain);
+
+            assertThat(observation.getHighCardinalityKeyValue(TenantFilter.TENANT_SPAN_KEY).getValue()).isEqualTo(String.valueOf(MATCHED_SEQ));
+            assertThat(observation.getLowCardinalityKeyValue(TenantFilter.TENANT_SPAN_KEY)).isNull();
+        }
+
+        @Test
         @DisplayName("접두 붙은 슈퍼어드민 API(/t/acme/api/v1/super-admin/**)는 skip 대상이 아니라 전략 매치 → 그 테넌트로 진행(무해)")
         void prefixedSuperAdminPathFollowsMatchedTenant() throws Exception {
             MockHttpServletRequest original = request("/t/acme/api/v1/super-admin/tenants");

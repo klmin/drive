@@ -91,14 +91,21 @@ Alloy 의 `otelcol.processor.tail_sampling` 이 요청이 끝난 뒤 **요청(tr
 |---|---|
 | errors | span 상태가 ERROR (처리 안 된 예외) |
 | server_errors | 응답 5xx (`outcome=SERVER_ERROR`) |
-| slow | 1초 이상 걸린 요청 |
-| sample | 위에 해당하지 않는 요청 중 10% (traceId 기준) |
+| slow | 1초 이상 걸린 요청 — 단 파일 본문을 주고받는 요청(`uri` 가 청크 파트 `/parts/`, `/download`, `/view`)은 뺀다 |
+| sample | 위에 해당하지 않는 요청 중 10% (traceId 기준) — 운영 트래픽이 많으면 1~5% |
+
+- slow 에서 전송 요청을 빼는 이유: 청크 파트 하나가 16MB 라 실제 사용자 망에서는 1초를 넘는 게 보통이다. 그대로 두면 업로드·다운로드마다 트레이스가
+  전부 남아 Tempo 가 전송 트래픽으로 찬다. 이 요청들도 실패(ERROR·5xx)면 위 정책으로 남는다.
+  확인(기준을 잠시 30ms 로 내려 업로드·읽기 smoke): 30ms 를 넘은 파트 PUT 51건 중 5건(10%)만, 전송이 아닌 30ms 초과 요청은 122~129건 중 127건(전부) 남음.
+- 트레이스마다 테넌트가 span 속성 `tenant.seq` 로 붙는다(`TenantFilter`) — Tempo 에서 `{ span.tenant.seq = 3 }` 로 좁힌다.
+  메트릭 태그가 아니라 span 에만 남겨 Prometheus 시계열은 늘지 않는다.
 
 - 앱에서 비율을 낮추면(head 샘플링) 요청 시작 때 결과를 모른 채 버리므로 에러 트레이스도 같이 사라진다.
 - 버린 요청도 로그(Loki)와 메트릭(Prometheus)은 전부 남는다. 로그의 traceId 로 Tempo 를 열었을 때 트레이스가 없을 수는 있다.
 - Alloy 가 트레이스를 `decision_wait`(30초) 동안 메모리에 모았다가 보내므로 Tempo 에 늦게 보인다.
   요청이 이 시간보다 오래 걸리면 결정이 먼저 나서 뒤에 온 에러 span 을 놓칠 수 있다 — DB 커넥션 대기(Hikari 30초)를 고려한 값이다.
-- Tempo 가 트레이스로 만드는 span 메트릭은 남은 트레이스 기준이라 치우친다. 요청 수·응답 시간은 Micrometer 메트릭을 본다.
+- Tempo 가 트레이스로 만드는 span 메트릭은 남은 트레이스 기준이라 치우쳐서 끈다(`tempo/config.yaml` 의 processors 는 service-graphs·local-blocks 만).
+  요청 수·응답 시간은 Micrometer 메트릭(`http_server_requests_*`)을 본다.
 - 비율·기준은 `alloy/config.alloy` 의 `tail_sampling` 정책에서 바꾼다.
 
 ## 서버에 둘 때
@@ -107,7 +114,7 @@ Alloy 의 `otelcol.processor.tail_sampling` 이 요청이 끝난 뒤 **요청(tr
   각 Alloy 의 `prometheus.remote_write`·`loki.write`·`otelcol.exporter.otlp` 주소를 중앙 저장소로 바꾼다.
 - 리눅스 서버에서 OS 지표를 정확히 보려면 Alloy 컨테이너에 `/proc`·`/sys`·`/` 를 읽기 전용으로 마운트하고
   `prometheus.exporter.unix` 에 `procfs_path`·`sysfs_path`·`rootfs_path` 를 지정한다.
-- 보관 기간: Prometheus 15일(`PROMETHEUS_RETENTION`), Loki·Tempo 14일(각 config). 데이터가 커지면 Loki·Tempo 를 S3(RustFS·Ceph)로.
+- 보관 기간: Prometheus 15일(`PROMETHEUS_RETENTION`)·최대 20GB(`PROMETHEUS_RETENTION_SIZE`, 먼저 닿는 쪽), Loki·Tempo 14일(각 config). 데이터가 커지면 Loki·Tempo 를 S3(RustFS·Ceph)로.
 - Grafana 관리자 비밀번호는 `.env` 로 바꾼다.
 
 ## 트레이스에 남는 것 / 빼는 것
@@ -160,6 +167,7 @@ PostgreSQL 수집기는 앱 계정으로 되는 것만 켠다(`enabled_collector
 | PostgreSQL 접속 불가 | `pg_up` < 1 이 2분 |
 | Drive 5xx 비율 5% 초과 | 5분 비율 > 5% 가 5분 |
 | 응답 시간 p95 3초 초과 | 전체 p95 > 3s 가 10분 (파일 업로드·다운로드가 많으면 기준 조정) |
+| SLO: 1초 안 성공 비율 99% 미만 | 최근 30분 API 요청(파일 전송 `/parts/`·`/download`·`/view` 제외) 중 1초 안에 5xx 없이 끝난 비율 < 99% 가 15분. 4xx 는 나쁜 요청으로 치지 않고, 초당 0.05 요청 미만이면 평가하지 않는다 |
 | DB 커넥션 대기 발생 | `hikaricp_connections_pending` > 0 이 5분 |
 | JVM 힙 부족 | GC 후 남은 객체 / 최대 힙 > 90% 가 10분 |
 | 호스트 메모리 90% 초과 | 10분 |

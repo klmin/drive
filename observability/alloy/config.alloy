@@ -161,8 +161,8 @@ otelcol.receiver.otlp "default" {
 //   한 요청의 span 을 decision_wait 동안 모았다가 아래 정책 중 하나라도 맞으면 그 요청의 span 전부를 남기고, 아니면 전부 버린다.
 //   - errors: span 상태가 ERROR (처리 안 된 예외)
 //   - server_errors: 응답 5xx (예외 처리기가 응답을 만들어 span 이 ERROR 가 아닌 경우까지)
-//   - slow: 첫 span 부터 마지막 span 까지 1초 이상
-//   - sample: 나머지는 traceId 기준 10% — 같은 요청은 항상 같은 결정
+//   - slow: 첫 span 부터 마지막 span 까지 1초 이상 — 단 파일 본문을 주고받는 요청(청크 파트 PUT·다운로드·미리보기 내용)은 뺀다
+//   - sample: 나머지는 traceId 기준 10% — 같은 요청은 항상 같은 결정. 운영 트래픽이 많으면 1~5% 로 낮춘다
 // 주의: 같은 trace 의 span 은 한 Alloy 로 모여야 한다(지금은 서버당 Alloy 1대라 무관).
 //   Tempo metrics_generator 의 span 메트릭은 남은 트레이스 기준이라 치우친다 — 요청 수·응답 시간은 Micrometer 메트릭(Prometheus)을 본다
 otelcol.processor.tail_sampling "default" {
@@ -189,12 +189,34 @@ otelcol.processor.tail_sampling "default" {
     }
   }
 
+  // 파트 하나가 16MB 라 실제 사용자 망에서는 1초를 넘는 게 보통이다 — latency 만 걸면 업로드·다운로드마다 트레이스가 전부 남아
+  //   Tempo 가 전송 트래픽으로 찬다. uri 는 Spring 이 남기는 경로 템플릿(예: /api/v1/uploads/{sessionId}/parts/{partNumber}).
+  //   이 요청들도 실패(ERROR·5xx)면 위 정책으로 남는다.
   policy {
     name = "slow"
-    type = "latency"
+    type = "and"
 
-    latency {
-      threshold_ms = 1000
+    and {
+      and_sub_policy {
+        name = "slow_latency"
+        type = "latency"
+
+        latency {
+          threshold_ms = 1000
+        }
+      }
+
+      and_sub_policy {
+        name = "not_file_transfer"
+        type = "string_attribute"
+
+        string_attribute {
+          key                    = "uri"
+          values                 = ["/parts/", "/download$", "/view$"]
+          enabled_regex_matching = true
+          invert_match           = true
+        }
+      }
     }
   }
 

@@ -111,6 +111,42 @@ groups:
               expression: A
               conditions: [{ evaluator: { type: gt, params: [3] } }]
 
+      # SLO — "API 요청의 99% 는 1초 안에 5xx 없이 끝난다". 평균·p95 대신 기준 안에 든 비율로 본다.
+      #   파일 본문을 주고받는 요청(청크 파트·다운로드·미리보기 내용)은 크기에 따라 오래 걸리는 게 정상이라 뺀다.
+      #   4xx 는 클라이언트 잘못이라 나쁜 요청으로 치지 않는다. 트래픽이 거의 없으면(초당 0.05 미만) 비율이 튀므로 평가하지 않는다.
+      #   le="1.0" 구간은 application.yml management.metrics.distribution.slo 가 만든다.
+      #   분자는 "or vector(0)" — 처음부터 5xx 만 나면 성공 시계열이 아예 없어 빈 값이 되고, 그러면 식 전체가 no data(=OK)로 위반을 놓친다
+      #   (Actuator 수집 요청은 관측하지 않아 성공 시계열을 만들어 주지 않는다)
+      - uid: drive-slo-latency
+        title: "SLO: 1초 안 성공 비율 99% 미만"
+        condition: C
+        for: 15m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "최근 30분 API 요청 중 1초 안에 5xx 없이 끝난 비율 {{ humanizePercentage $values.A.Value }} (목표 99%) — 개요 대시보드 p95·5xx 확인"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 1800, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                (
+                  (sum(rate(http_server_requests_seconds_bucket{job="drive-api", le="1.0", outcome!="SERVER_ERROR", uri!~".+/parts/.+|.+/download|.+/view"}[30m])) or vector(0))
+                  / sum(rate(http_server_requests_seconds_count{job="drive-api", uri!~".+/parts/.+|.+/download|.+/view"}[30m]))
+                )
+                and on() (sum(rate(http_server_requests_seconds_count{job="drive-api", uri!~".+/parts/.+|.+/download|.+/view"}[30m])) > 0.05)
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: lt, params: [0.99] } }]
+
       - uid: drive-db-pool-pending
         title: DB 커넥션 대기 발생
         condition: C
