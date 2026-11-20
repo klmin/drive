@@ -396,6 +396,24 @@ public class TbUploadSessionRecord extends UpdatableRecordImpl<TbUploadSessionRe
         return (Instant) get(23);
     }
 
+    /**
+     * Setter for <code>tb_upload_session.reserve_byte</code>. 진행 중 용량으로 셀
+     * 크기(byte) — OVERWRITE 는 새 크기 − 시작 시 대상 크기(0 이상), 그 외 size_byte. NULL 이면
+     * size_byte
+     */
+    public void setReserveByte(Long value) {
+        set(24, value);
+    }
+
+    /**
+     * Getter for <code>tb_upload_session.reserve_byte</code>. 진행 중 용량으로 셀
+     * 크기(byte) — OVERWRITE 는 새 크기 − 시작 시 대상 크기(0 이상), 그 외 size_byte. NULL 이면
+     * size_byte
+     */
+    public Long getReserveByte() {
+        return (Long) get(24);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -419,7 +437,7 @@ public class TbUploadSessionRecord extends UpdatableRecordImpl<TbUploadSessionRe
     /**
      * Create a detached, initialised TbUploadSessionRecord
      */
-    public TbUploadSessionRecord(UUID uploadSessionId, Integer tenantSeq, Integer userSeq, Integer requestUserSeq, UploadSaveType saveType, Long parentFolderSeq, Long resourceSeq, Long sourceVersionSeq, String baseStorageKey, String fileName, String contentType, Long sizeByte, String storageKey, String uploadId, Long partSize, Integer partCount, UploadSessionStatus status, UploadSessionFailReason failReason, Long resultResourceSeq, String resultName, String lastError, Instant lastActivity, Instant completingAt, Instant createDate) {
+    public TbUploadSessionRecord(UUID uploadSessionId, Integer tenantSeq, Integer userSeq, Integer requestUserSeq, UploadSaveType saveType, Long parentFolderSeq, Long resourceSeq, Long sourceVersionSeq, String baseStorageKey, String fileName, String contentType, Long sizeByte, String storageKey, String uploadId, Long partSize, Integer partCount, UploadSessionStatus status, UploadSessionFailReason failReason, Long resultResourceSeq, String resultName, String lastError, Instant lastActivity, Instant completingAt, Instant createDate, Long reserveByte) {
         super(TbUploadSession.TB_UPLOAD_SESSION);
 
         setUploadSessionId(uploadSessionId);
@@ -446,6 +464,7 @@ public class TbUploadSessionRecord extends UpdatableRecordImpl<TbUploadSessionRe
         setLastActivity(lastActivity);
         setCompletingAt(completingAt);
         setCreateDate(createDate);
+        setReserveByte(reserveByte);
         resetChangedOnNotNull();
     }
 }

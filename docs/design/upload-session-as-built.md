@@ -40,6 +40,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 | `parent_folder_seq`, `resource_seq` | 신규면 부모 폴더, 그 외 대상 리소스 |
 | `base_storage_key` | OVERWRITE 충돌 감지 기준(세션 시작 때 대상의 key) |
 | `file_name`, `content_type`, `size_byte` | 요청 이름 / 서버가 정한 Content-Type / 신고 크기 |
+| `reserve_byte` (V7) | 진행 중 용량으로 셀 크기 — OVERWRITE 는 새 크기 − 시작 시 대상 크기(0 이상), 그 외 `size_byte`. NULL(V7 이전 행)이면 `size_byte` |
 | `storage_key`, `upload_id` | 스토리지 준비 후 채움. `upload_id` 는 멀티파트일 때만 |
 | `status`, `fail_reason`, `last_error` | 상태·실패 사유 |
 | `result_resource_seq`, `result_name` | COMPLETED 결과(커밋 뒤 예외 복구·멱등 응답용) |
@@ -59,7 +60,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 ## 3. 흐름
 
 ### 3.1 세션 생성 (`UploadSessionTxService.create`)
-사용자 행 `FOR NO KEY UPDATE` → **용량 사전 필터**(확정 + 진행 중 합계 + 신고 크기 ≤ 한도, 아니면 `IS_FULL`) → 진행 중 세션 수 < 50(아니면 `UPLOAD_SESSION_LIMIT` 429) → INSERT(PENDING).
+사용자 행 `FOR NO KEY UPDATE` → **용량 사전 필터**(확정 + 진행 중 합계 + 이번 `reserve_byte` ≤ 한도, 아니면 `IS_FULL`. 진행 중 합계도 `reserve_byte` 기준) → 진행 중 세션 수 < 50(아니면 `UPLOAD_SESSION_LIMIT` 429) → INSERT(PENDING).
 `IS_FULL` 이면 tx 밖에서 용량 초과 알림(`QuotaService.notifyQuotaExceeded`).
 
 그 전에 `UploadSessionWriter` 가 하는 것:
@@ -118,7 +119,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 - **청크 API 세션 = `part_count` 가 있는 세션.** 서버 내부 쓰기 세션은 같은 요청자라도 이 API 로 조회·complete·취소할 수 없다(진행 중인 내부 쓰기를 가로채지 못하게).
 - 32MB 미만을 받지 않는 이유: 단일 객체 PUT 은 complete 뒤 늦게 도착한 PUT 이 커밋된 객체를 덮어쓸 수 있다(멀티파트는 complete 뒤 파트 PUT 이 NoSuchUpload 로 실패). 작은 파일은 기존 `POST /api/v1/files`.
 - 파트 계획은 세션에 저장된 값을 쓴다 — 설정(`min-part-size`)이 바뀌어도 진행 중 세션은 시작 때 계획 그대로.
-- **사용량 `uploadingByte`** — `GET /api/v1/users/quota` 응답에 진행 중(PENDING·COMPLETING) 세션의 신고 크기 합계를 `useQuotaByte` 와 별도 필드로(`UploadSessionTxService.sumUploadingByte` → `sumActive`). 기준은 용량 주인(`user_seq`)이라 공유 폴더에 남이 올리는 중인 크기도 포함된다(용량 사전 필터와 같은 기준). 화면 표시용이고 알림·지표·관리자 화면·로그인 응답은 확정값만(설계 규칙 12). 청크 API 세션뿐 아니라 내부 쓰기 세션도 포함.
+- **사용량 `uploadingByte`** — `GET /api/v1/users/quota` 응답에 진행 중(PENDING·COMPLETING) 세션의 `reserve_byte` 합계를 `useQuotaByte` 와 별도 필드로(`UploadSessionTxService.sumUploadingByte` → `sumActive`). 기준은 용량 주인(`user_seq`)이라 공유 폴더에 남이 올리는 중인 크기도 포함된다(용량 사전 필터와 같은 기준). 사용량 막대는 확정값만 그리고, 이 값은 시작 검사가 IS_FULL 로 거절될 때 "진행 중 업로드가 공간을 쓰고 있다" 안내에 쓴다(설계 규칙 12). 알림·지표·관리자 화면·로그인 응답은 확정값만. 청크 API 세션뿐 아니라 내부 쓰기 세션도 포함.
 
 ---
 
@@ -209,7 +210,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 ---
 
 ## 8. 알려진 한계 (자세한 내용은 todo)
-- 청크 API 는 백엔드만 — 프론트(Uppy, 사용량 두 구간 표시 포함)·앞단 프록시 설정 문서는 아직. 그 전까지 웹 화면은 큰 파일도 한 요청으로 보낸다.
+- 청크 API 는 백엔드만 — 프론트(Uppy, IS_FULL 때 진행 중 업로드 안내 포함)·앞단 프록시 설정 문서는 아직. 그 전까지 웹 화면은 큰 파일도 한 요청으로 보낸다.
 - 커밋 tx 에서 권한 재확인 안 함(호출부 검사만 — 청크 API 는 complete 선점 전에 한 번 더), 매직바이트 검사 없음, 감사 로그 발행 시점은 호출부 그대로.
 - 청크 API 는 외부 API(`/api/public`, API Key)로 내보내지 않았다(내부 웹 API 만).
 - 옛 흐름 호환 코드 남음: `cleanVersionIfExists`(옛 PENDING 버전 정리, 저장 마커 조회 = tx 안 S3 HEAD), `ResourceRepository.revertOverwrite`(호출부 없음), 미사용 `uploadPartsFromStream`·`copyObjectAnySize`.

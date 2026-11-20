@@ -54,7 +54,7 @@ class DefaultUploadSessionRepositoryTest extends RepositoryTest {
 
     private UUID insert(int owner, long size) {
         return repository.insert(new UploadSessionCreateQuery(1, owner, REQUESTER, UploadSaveType.DUPLICATE, 10L, null, null, null,
-                                                              "a.pdf", "application/pdf", size, 16L * 1024 * 1024, 1));
+                                                              "a.pdf", "application/pdf", size, 16L * 1024 * 1024, 1, size));
     }
 
     private void age(UUID id, String column, Duration age) {
@@ -114,6 +114,18 @@ class DefaultUploadSessionRepositoryTest extends RepositoryTest {
         assertThat(usage.count()).isEqualTo(2);
         assertThat(repository.sumActive(123_456).sizeByte()).isZero();
         assertThat(pending).isNotNull();
+    }
+
+    @Test
+    @DisplayName("진행 중 합계는 reserve_byte 기준 — 덮어쓰기 증가분만, 값 없는 옛 행(V7 이전)은 신고 크기 전체")
+    void sumActiveUsesReserveByte() {
+        repository.insert(new UploadSessionCreateQuery(1, OWNER, REQUESTER, UploadSaveType.OVERWRITE, null, 5L, null, "1/base",
+                                                       "a.pdf", "application/pdf", 1000, null, null, 30));
+        insert(OWNER, 100);
+        jdbc.update("INSERT INTO tb_upload_session (user_seq, request_user_seq, save_type, file_name, content_type, size_byte) VALUES (?, ?, 'DUPLICATE', 'old', 'text/plain', 7)",
+                    OWNER, REQUESTER);
+
+        assertThat(repository.sumActive(OWNER).sizeByte()).isEqualTo(30 + 100 + 7);
     }
 
     @Test

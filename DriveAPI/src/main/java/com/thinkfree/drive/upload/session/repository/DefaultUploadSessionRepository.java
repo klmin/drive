@@ -52,6 +52,7 @@ public class DefaultUploadSessionRepository implements UploadSessionRepository {
                   .set(TB_UPLOAD_SESSION.SIZE_BYTE, q.sizeByte())
                   .set(TB_UPLOAD_SESSION.PART_SIZE, q.partSize())
                   .set(TB_UPLOAD_SESSION.PART_COUNT, q.partCount())
+                  .set(TB_UPLOAD_SESSION.RESERVE_BYTE, q.reserveByte())
                   .set(TB_UPLOAD_SESSION.STATUS, UploadSessionStatus.PENDING)
                   .returningResult(TB_UPLOAD_SESSION.UPLOAD_SESSION_ID)
                   .fetchOne(TB_UPLOAD_SESSION.UPLOAD_SESSION_ID);
@@ -89,7 +90,9 @@ public class DefaultUploadSessionRepository implements UploadSessionRepository {
     @Override
     public UploadSessionActiveUsage sumActive(int userSeq) {
         // 시간 조건 없음 — 만료되면 스케줄러가 FAILED 로 바꾸므로 PENDING·COMPLETING = 진행 중
-        var row = dsl.select(DSL.coalesce(DSL.sum(TB_UPLOAD_SESSION.SIZE_BYTE), DSL.inline(java.math.BigDecimal.ZERO)), DSL.count())
+        // reserve_byte(V7) 가 없는 행(배포 전에 시작한 세션)은 예전처럼 신고 크기 전체로 센다
+        var reserved = DSL.coalesce(TB_UPLOAD_SESSION.RESERVE_BYTE, TB_UPLOAD_SESSION.SIZE_BYTE);
+        var row = dsl.select(DSL.coalesce(DSL.sum(reserved), DSL.inline(java.math.BigDecimal.ZERO)), DSL.count())
                      .from(TB_UPLOAD_SESSION)
                      .where(TB_UPLOAD_SESSION.USER_SEQ.eq(userSeq))
                      .and(TB_UPLOAD_SESSION.STATUS.in(UploadSessionStatus.PENDING, UploadSessionStatus.COMPLETING))

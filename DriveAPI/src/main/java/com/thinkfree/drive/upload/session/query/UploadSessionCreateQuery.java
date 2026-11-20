@@ -18,6 +18,8 @@ import com.thinkfree.drive.upload.session.enums.UploadSaveType;
  * @param sizeByte         신고 크기
  * @param partSize         파트 크기(멀티파트일 때만)
  * @param partCount        파트 수(멀티파트일 때만)
+ * @param reserveByte      진행 중 용량으로 셀 크기 — 커밋 때 늘어날 것으로 보이는 양(OVERWRITE 는 새 크기 − 시작 시 대상 크기, 0 이상.
+ *                         그 외 sizeByte). 사전 필터·uploadingByte 용이고 최종 판정은 커밋 tx
  */
 public record UploadSessionCreateQuery
 (
@@ -33,7 +35,8 @@ public record UploadSessionCreateQuery
     String contentType,
     long sizeByte,
     Long partSize,
-    Integer partCount
+    Integer partCount,
+    long reserveByte
 )
 {
 }

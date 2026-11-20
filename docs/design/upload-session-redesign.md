@@ -35,7 +35,7 @@ S3 작업은 항상 DB tx 밖. 용량 확정·이름 넘버링·버전 번호·�
 **용량**
 10. `tb_user.use_quota_byte` 는 **확정값이며 커밋 tx 에서만 증가**. 진행 중 크기는 세션 테이블 합계(쓰지 않고 읽기만). 실패·만료·취소 시 되돌릴 사용량 없음.
 11. **최종 판정은 커밋 tx 에서만.** 세션 시작 검사는 사전 필터.
-12. 화면은 확정값과 업로드 중 값을 **나눠** 표시(`uploadingByte` 별도 필드). 용량 알림·지표·관리자 화면·로그인 응답은 확정값만.
+12. 화면의 사용량 막대는 **확정값만**. 업로드 중 값(`uploadingByte` 별도 필드)은 세션 시작이 IS_FULL 로 거절될 때 "진행 중 업로드 N개가 공간을 쓰고 있음 + 목록·취소" 안내에 쓴다(2026-11-20 변경 — 처음엔 막대 두 구간). 용량 알림·지표·관리자 화면·로그인 응답은 확정값만.
 
 **후처리**
 13. 감사 로그·알림 이벤트는 커밋 tx 에서 발행하고 `AFTER_COMMIT` 으로 처리(커밋 성공 시에만). 감사 로그 코드 자체는 수정하지 않고 호출 시점만 맞춘다.
@@ -270,7 +270,7 @@ validator: 권한·대상 존재·휴지통·편집잠금·테넌트 기능·파
 
 | 용도 | 쓰는 값 |
 |---|---|
-| 세션 시작 검사 | 확정 + 진행 중 합계 + 신고 크기 ≤ 한도 (사용자 행 잠금 안) |
+| 세션 시작 검사 | 확정 + 진행 중 합계 + 이번 세션의 늘어날 양 ≤ 한도 (사용자 행 잠금 안). 늘어날 양 = `reserve_byte`: OVERWRITE 는 새 크기 − 시작 시 대상 크기(0 이상), 그 외 신고 크기 |
 | 파트 업로드 | **용량 안 봄**(세션 PENDING + 파트 크기만) |
 | complete 커밋 | 확정 + 실제 증가분 ≤ 한도 — **최종 판정** |
 | 사용량 조회 API | `useQuotaByte`(확정) + **`uploadingByte`(진행 중 합계, 새 필드)** |
@@ -364,7 +364,7 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
 - 취소 버튼 → `DELETE /uploads/{id}`. 새로고침·탭 닫기에는 abort 를 보내지 않는다(1시간 안에 이어 올리기 가능, 아니면 TTL 정리).
 - 재개: `localStorage` 에 `{sessionId, fileName, size, lastModified, partSize}` → 복귀 시 같은 파일 재선택 → 지문 비교 → `GET /uploads/{id}` 로 빠진 파트만.
 - 폴더 업로드: 파일 큐 + 동시 3~6 세션(사용자당 상한 50).
-- 사용량 막대: 확정(진한 색) + 업로드 중(연한 색) 두 구간, `uploadingByte` 사용.
+- 사용량 막대: 확정값만. 세션 시작이 IS_FULL 이면 사용량 API 를 다시 읽어 `uploadingByte > 0` 일 때 "진행 중 업로드가 공간을 쓰고 있음" + 업로드 목록·취소 버튼(막대 두 구간은 낯설고 업로드가 끝나면 어차피 확정값으로 넘어가므로 안내로 대신).
 
 ---
 
@@ -384,7 +384,7 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
 | 1 | **스토리지 계약 테스트**(Testcontainers: MinIO / Ceph demo / RustFS — create·part·list·complete·abort·range·copy·uploadPartCopy) |
 | 2 | Flyway: `tb_upload_session` 생성 + `tb_storage_deletion` 확장, S3StorageService 멀티파트 메서드, 삭제 워커 action 분리, 세션 정리 스케줄러, 버킷 lifecycle |
 | 3 | 세션·불변 key·커밋 tx 를 **서버 내부에 먼저**: 기존 단일 업로드 API·웹오피스·MCP·복사·복원이 내부에서 세션 → 저장 → 커밋. 기존 `FileWriteOrchestrator`/`*FileWriteService`/저장 마커/`cleanVersionIfExists`/`initResourceSaveName` 제거. 이름 결정 경로 잠금 통일(규칙 9) |
-| 4 | 청크 API(§5.3) + 프론트 Uppy·이어 올리기·사용량 두 구간 표시, `uploadingByte` |
+| 4 | 청크 API(§5.3) + 프론트 Uppy·이어 올리기, `uploadingByte`(IS_FULL 안내용) |
 | 5 | (선택) 관리자 축소 시 진행 중 세션 즉시 중단, presigned 옵션(`upload.mode = PROXY \| PRESIGNED`, 버킷 CORS `ExposeHeaders: ETag`), resolve API, 버킷↔DB 대조 잡, 파트 체크섬 |
 | 별건 | 다운로드 Range(206, `If-Range`, ETag) + 토큰 만료 연장 |
 
@@ -403,7 +403,7 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
   - `FileWriteOrchestrator.write` 가 DUPLICATE 를 `UploadSessionWriter.writeDuplicate` 로 보낸다 → 웹 업로드·MCP 업로드·파일 복사·템플릿 문서 생성이 모두 세션 경로. `DuplicateFileWriteService` 제거.
   - `UploadSessionWriter`(tx 없음): 세션 생성 → key `{tenantSeq}/{세션 ID}` → 32MB 미만 단일 PUT / 이상 멀티파트(16MB) / 복사는 `copyObjectAnySize` → COMPLETING → (조립) → 크기 확인 → 커밋(일시적 DB 오류 3회 재시도). 실패는 진행 위치에 맞춰 FAILED + 정리 등록, uploadId 기록 실패는 `failWithAbort`, 커밋 뒤 예외는 세션이 COMPLETED 면 저장 결과 반환.
   - `UploadSessionTxService`(각 단계 REQUIRES_NEW), `UploadCommitService.commitDuplicate`(사용자 행 → 부모 폴더 행 `FOR NO KEY UPDATE`, 용량 최종 판정·증가, `saveUploadedFile`, COMPLETED, `FileUploadedEvent` 를 tx 안에서 발행), `UploadLockRepository`.
-  - 용량 사전 필터는 확정 + 진행 중 + 신고 크기. IS_FULL 이면 트랜잭션 밖에서 알림(`QuotaService.notifyQuotaExceeded`).
+  - 용량 사전 필터는 확정 + 진행 중 + 신고 크기(덮어쓰기는 증가분 — 단계 4-3). IS_FULL 이면 트랜잭션 밖에서 알림(`QuotaService.notifyQuotaExceeded`).
   - 아직 아님: 커밋 tx 의 권한 재확인(호출부 검사만), 확장자 기반 Content-Type 은 클라이언트 값이 없을 때만(Codex 리뷰 반영)·매직바이트 검사(규칙 3), 감사 로그 발행 시점(호출부 그대로).
 - **단계 3-2 (VERSION·OVERWRITE·RESTORE)** — 브랜치 `feat/upload-session-version`:
   - 모든 저장 유형이 `UploadSessionWriter.write` 하나로. `FileWriteOrchestrator` 는 크기 정책 확인 후 넘기기만 한다. `Version/OverwriteFileWriteService`·`FileWriteService`·`ResourceVersionRetryService`·`S3StorageService.copyAndUpload/backUpAndRestore`·`ResourceService.updateWithVersioning/updateWithOverwrite/rollbackVersion/saveWithCopyCheck` 제거.
@@ -417,6 +417,7 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
   - `UploadSessionWriter` 를 `open`(세션 생성)·`finishClaimed`(선점 뒤 조립→크기 확인→커밋→실패 처리)로 나눠 내부 쓰기와 complete 가 같은 코드를 쓴다.
   - 정한 것: 32MB 미만은 받지 않는다(기존 단일 요청 API — 단일 객체는 complete 뒤 늦은 PUT 이 커밋된 객체를 덮어쓸 수 있다). 청크 API 세션 = `part_count` 가 있는 세션(내부 쓰기 세션은 이 API 로 조회·complete·취소 불가). complete 의 파트 검증 실패는 설계대로 세션 FAILED + ABORT. 권한은 세션 생성과 complete 선점 전에 확인(커밋 tx 안 재확인은 todo B). 익명 사용자 불가.
 - **단계 4-2 (`uploadingByte`)** — 브랜치 `feat/usage-uploading-byte`: `GET /api/v1/users/quota` 에 진행 중 세션 합계 `uploadingByte` 별도 필드(용량 주인 기준, 확정값 `useQuotaByte` 와 합치지 않음). 알림·지표·관리자 화면은 그대로 확정값.
+- **단계 4-3 (덮어쓰기 사전 필터)** — 브랜치 `fix/overwrite-quota-precheck`, V7 `reserve_byte`: 덮어쓰기 세션은 시작 검사·진행 중 합계에 증가분(새 − 시작 시 대상 크기, 0 이상)만. 전체 크기로 보던 탓에 용량이 거의 찬 사용자의 수정 저장이 커밋에선 통과할 텐데 시작에서 거절됐다. 그 사이 다른 저장이 끼어 버전 저장으로 바뀌면 커밋 tx 가 전체 크기로 다시 판정.
 - **미착수**: 단계 4 나머지(프론트·앞단 프록시 문서), 지표(§13), 커밋 tx 권한 재확인·매직바이트 검사, 전환 기간 코드(`cleanVersionIfExists`·`revertOverwrite`) 제거.
 
 ---
@@ -450,7 +451,8 @@ CREATE INDEX idx_storage_deletion_due ON tb_storage_deletion (action, next_attem
 | 진행 중 용량을 `tb_user` reserved 컬럼에 예약 | 떠난 업로드가 묶임·보상 로직 필요 → 세션 합계로 계산 |
 | 마지막(complete)에서만 용량 검사 | 시작 검사 비용은 쿼리 하나, 없으면 수 GB 업로드 후 실패 |
 | 파트마다 용량 검사 | 파트 크기 검증으로 총량 초과 불가, 관리자 축소는 세션 상태로 처리 → 불필요한 부하 |
-| 사용량 화면에 확정 + 진행 중 합산 | 실패·취소 시 숫자가 튐, 알림 오발송 → 두 값 분리 표시 |
+| 사용량 화면에 확정 + 진행 중 합산 | 실패·취소 시 숫자가 튐, 알림 오발송 → 막대는 확정값만, 진행 중은 IS_FULL 안내에서 |
+| 진행 중은 안 보고 커밋에서만 용량 판정 | 꽉 찬 사용자도 complete 없이 만료까지 S3 를 한도 없이 채울 수 있고, 수 GB 를 올린 뒤에야 실패 → 시작 검사 유지 |
 | 이어 올리기 TTL 과 진행 중 판정을 두 값(30분/6시간)으로 | 1차엔 개념 하나(1시간)로 충분, 필요해지면 쿼리 조건만 추가 |
 | 파트 PUT 에서 S3 abort 직접 호출 / 클라이언트가 abort | 병렬 파트가 중복 호출, 브라우저 종료 시 누락 → 상태 바꾸는 쪽이 정리 등록 |
 | 삭제 워커에 action 섞어 한 쿼리 처리 / 스케줄러 분리 | 기존 key 묶음 로직과 충돌 / 백오프·경로 분리로 격리 충분 |
