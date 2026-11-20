@@ -143,9 +143,13 @@ test('다른 위치로 올리는 같은 파일은 다른 세션', async () => {
 test('앞단 프록시 413(HTML 본문)처럼 서버 세션이 살아 있는 거절 → 재시도 없이 실패, 세션은 DELETE 로 정리', async () => {
     const api = (await import('./chunk-upload/fakeApi.mjs')).default;
     const original = api.Put;
-    api.Put = async () => '<html>413 Request Entity Too Large</html>';
+    // 실제 api 유틸 + validateStatus: HTML 본문이라도 실제 HTTP 상태가 온다
+    api.Put = async () => ({ status: 413, data: '<html>413 Request Entity Too Large</html>' });
     try {
-        await assert.rejects(uploadInChunks(mkFile(40, 'proxy.bin'), target), e => e.status === -1);
+        await assert.rejects(
+            uploadInChunks(mkFile(40, 'proxy.bin'), target),
+            e => e.status === 413
+        );
     } finally {
         api.Put = original;
     }
@@ -287,4 +291,43 @@ test('이어 올리기 기록은 계정별 — 다른 계정이 같은 파일을
     server.calls = [];
     await uploadInChunks(f, { ...target, accountKey: 101 });
     assert.equal(starts(), 0, '원래 계정은 자기 세션으로 이어 올린다');
+});
+
+test('앞단 프록시의 HTML 502 는 일시적 오류로 재시도하고 세션·지문을 지키다가 성공한다', async () => {
+    const api = (await import('./chunk-upload/fakeApi.mjs')).default;
+    const original = api.Put;
+    let gatewayErrors = 2;
+    api.Put = async (...args) => {
+        if (gatewayErrors > 0) {
+            gatewayErrors--;
+            server.calls.push(['PUT', -1]);
+            return { status: 502, data: '<html>502 Bad Gateway</html>' };
+        }
+        return original(...args);
+    };
+    try {
+        const r = await uploadInChunks(mkFile(40, 'gateway.bin'), target);
+        assert.equal(r.resourceSeq, 99);
+        assert.equal(server.calls.filter(c => c[0] === 'DELETE').length, 0);
+    } finally {
+        api.Put = original;
+    }
+});
+
+test('파트 PUT·상태 GET 은 실제 HTTP 상태를 받도록 validateStatus 를 넘긴다(401 은 던져 재발급)', async () => {
+    const api = (await import('./chunk-upload/fakeApi.mjs')).default;
+    const seen = [];
+    const originalPut = api.Put;
+    api.Put = async (url, blob, t, cfg) => {
+        seen.push(cfg.validateStatus);
+        return originalPut(url, blob, t, cfg);
+    };
+    try {
+        await uploadInChunks(mkFile(40, 'validate.bin'), target);
+    } finally {
+        api.Put = originalPut;
+    }
+    assert.ok(seen.length > 0 && seen.every(v => typeof v === 'function'));
+    assert.equal(seen[0](502), true);
+    assert.equal(seen[0](401), false);
 });

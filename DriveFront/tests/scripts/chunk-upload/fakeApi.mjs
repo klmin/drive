@@ -15,6 +15,11 @@ export const server = {
 const PART = 16 * 1024 * 1024;
 let seq = 0;
 const err = (code, errorCode) => ({ result: false, code, errorCode, message: errorCode });
+// 실제 api 유틸: validateStatus 로 오류도 받으면 응답 전체({status, data}), 아니면 오류 본문만
+const fail = (cfg, code, errorCode) =>
+    cfg?.validateStatus?.(code)
+        ? { status: code, data: err(code, errorCode) }
+        : err(code, errorCode);
 
 const api = {
     Post: async (url, body) => {
@@ -65,6 +70,7 @@ const api = {
     },
 
     Put: async (url, blob, _t, cfg) => {
+        const cfgOf = cfg;
         const [, id, n] = url.match(/^uploads\/(\w+)\/parts\/(\d+)$/);
         const part = Number(n);
         server.calls.push(['PUT', part]);
@@ -72,23 +78,24 @@ const api = {
         if (server.putDelay) await new Promise(r => setTimeout(r, server.putDelay));
         if (cfg.signal?.aborted) return undefined;
         if (cfg.headers?.['Content-Type'] !== 'application/octet-stream')
-            return err(415, 'BAD_TYPE');
+            return fail(cfgOf, 415, 'BAD_TYPE');
         if (server.conflictOnPart === part) {
             s.status = 'FAILED';
-            return err(409, 'UPLOAD_001');
+            return fail(cfgOf, 409, 'UPLOAD_001');
         }
         const f = server.failPut.get(part) || 0;
         if (f > 0) {
             server.failPut.set(part, f === 99 ? 0 : f - 1);
-            return f === 99 ? err(503, 'X') : undefined;
+            return f === 99 ? fail(cfgOf, 503, 'X') : undefined;
         }
-        if (s.status !== 'PENDING') return err(409, 'UPLOAD_001');
+        if (s.status !== 'PENDING') return fail(cfgOf, 409, 'UPLOAD_001');
         cfg.onUploadProgress?.({ loaded: blob.size, total: blob.size });
         s.parts.set(part, blob.size);
         return { status: 200 };
     },
 
     Get: async (url, data) => {
+        const cfgOf = data;
         if (server.getDelay) await new Promise(r => setTimeout(r, server.getDelay));
         if (data?.signal?.aborted) return undefined;
         server.calls.push(['GET', url]);
@@ -98,7 +105,7 @@ const api = {
         }
         const id = url.split('/')[1];
         const s = server.sessions.get(id);
-        if (!s) return err(404, 'UPLOAD_003');
+        if (!s) return fail(cfgOf, 404, 'UPLOAD_003');
         return {
             status: 200,
             data: {

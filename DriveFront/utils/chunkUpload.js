@@ -111,6 +111,23 @@ const toError = (res, signal) => {
 };
 
 /**
+ * 파트 PUT·상태 GET 용 axios validateStatus — 401 만 예외로 던져 api 유틸의 토큰 재발급·재시도를 타게 하고,
+ * 나머지는 응답 전체(실제 HTTP 상태 포함)를 돌려받는다. api 유틸은 오류면 본문만 돌려주는데, 앞단 프록시가 HTML 로
+ * 답하면(413·502·503·504) 상태를 알 수 없어 일시적인 5xx 를 영구 실패로 보고 이미 올린 파트까지 버리게 된다.
+ */
+const KEEP_HTTP_STATUS = status => status !== 401;
+
+/** validateStatus 로 받은 응답 → 오류. 응답이 없으면 네트워크 오류(0) 또는 취소 */
+const responseError = (res, signal) => {
+    if (signal?.aborted) return CANCELLED;
+    if (!res) return new ChunkUploadError(0, 'NETWORK', 'network error');
+    // 재발급 뒤 재시도도 실패하면 api 유틸이 본문만 돌려준다 — 그때는 본문의 code 를 쓴다
+    if (typeof res.status !== 'number') return toError(res, signal);
+    const body = res.data && typeof res.data === 'object' ? res.data : null;
+    return new ChunkUploadError(res.status, body?.errorCode, body?.message);
+};
+
+/**
  * api.Post 는 평소 응답 본문(ApiResponse)을 돌려주지만, 401 → 토큰 재발급 → 재시도가 일어나면 Axios 응답 전체를 돌려준다
  * (utils/api.js handleAuthError). 둘 다 본문으로 맞춘다 — 안 맞추면 성공한 세션 생성·complete 를 실패로 본다.
  */
@@ -153,10 +170,9 @@ const startSession = async (file, target) => {
  * 조회 자체가 실패하면(네트워크·5xx) 던진다 — "세션이 끝났다"와 구분해야 이어 올릴 세션을 버리지 않는다.
  */
 const getSession = async (sessionId, signal) => {
-    const res = await api.Get(`uploads/${sessionId}`, { signal });
-    const session = res?.data?.data;
-    if (session) return session;
-    const err = toError(res, signal);
+    const res = await api.Get(`uploads/${sessionId}`, { signal, validateStatus: KEEP_HTTP_STATUS });
+    if (res?.status === 200 && res.data?.data) return res.data.data;
+    const err = responseError(res, signal);
     if (err === CANCELLED) throw CANCELLED;
     if (err.status === 404) return null;
     throw err;
@@ -189,11 +205,12 @@ const putPart = async (sessionId, partNumber, blob, signal, onPartProgress) => {
     for (let attempt = 1; ; attempt++) {
         const res = await api.Put(`uploads/${sessionId}/parts/${partNumber}`, blob, null, {
             signal,
+            validateStatus: KEEP_HTTP_STATUS,
             headers: { 'Content-Type': 'application/octet-stream' },
             onUploadProgress: e => onPartProgress(e?.loaded || 0),
         });
         if (res?.status === 200) return;
-        const err = toError(res, signal);
+        const err = responseError(res, signal);
         if (err === CANCELLED) throw CANCELLED;
         if (!isRetryable(err) || attempt >= PART_ATTEMPTS) throw err;
         onPartProgress(0);
