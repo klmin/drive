@@ -181,4 +181,23 @@ class DefaultTrashCleanUpQueryRepositoryTest extends RepositoryTest {
         int nobody = user("trash-none", "없음", 1);
         assertThat(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(nobody, true))).isEmpty();
     }
+
+    @Test
+    @DisplayName("나눠 비우기 — rootLimit 은 휴지통 루트를 trash_seq 순으로 자르고 하위는 루트를 따라 전부, registeredBefore 뒤에 들어온 루트는 제외")
+    void byUser_rootLimitAndRegisteredBefore() {
+        Instant far = Instant.parse("2030-01-01T00:00:00Z");
+
+        // 루트 1개 — 먼저 버린 aRoot 와 그 하위 전부, 나중 루트(aRecentFile)는 다음 묶음
+        TrashCleanUpTargetsData first = of(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, far, 1)), userA);
+        assertThat(first.getResourceTargets()).extracting(TrashCleanUpResourceItem::getResourceSeq)
+                .containsExactlyInAnyOrder(aRoot, aFile1, aFolder, aFile2);
+
+        // 첫 묶음을 지운 뒤(휴지통 행 삭제) 다음 묶음 = 남은 루트
+        jdbc.update("DELETE FROM tb_trash WHERE user_seq = ? AND resource_seq = ?", userA, aRoot);
+        TrashCleanUpTargetsData second = of(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, far, 1)), userA);
+        assertThat(second.getResourceTargets()).extracting(TrashCleanUpResourceItem::getResourceSeq).containsExactly(aRecentFile);
+
+        // 요청 시각(THRESHOLD) 뒤에 들어온 aRecentFile 은 대상이 아니다 — 남은 대상 없음
+        assertThat(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, THRESHOLD, 50))).isEmpty();
+    }
 }

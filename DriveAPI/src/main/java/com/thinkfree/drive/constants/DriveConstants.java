@@ -21,6 +21,8 @@ public class DriveConstants {
     public static final String DEFAULT_ZIP_NAME = "drive";
     public static final int DEFAULT_VERSION_NUMBER = 1;
     public static final int DEFAULT_TRASH_CLEAN_UP_INTERVAL_DAY = 30;
+    /** 휴지통 비우기를 나눠 처리할 때 한 트랜잭션에서 지울 휴지통 루트 수(하위는 루트를 따라 전부) — 같은 사용자의 다른 쓰기가 사용자 행 잠금을 오래 기다리지 않게 */
+    public static final int EMPTY_TRASH_ROOT_BATCH_SIZE = 50;
     public static final long UNLIMITED_QUOTA = -1L;
     /** 사용자 할당량 기본값(1GB) — 입력 없이 만들어지는 계정(SSO 가입) */
     public static final long DEFAULT_USER_QUOTA_BYTE = 1L * 1024 * 1024 * 1024;

@@ -8,6 +8,7 @@ import com.thinkfree.drive.user.data.UserDetailData;
 import com.thinkfree.drive.cleanup.trash.data.TrashCleanUpTargetsData;
 import com.thinkfree.drive.cleanup.trash.entity.TrashCleanUpEntity;
 import com.thinkfree.drive.cleanup.trash.exception.TrashCleanUpErrorCode;
+import com.thinkfree.drive.cleanup.trash.query.TrashCleanUpByUserQuery;
 import com.thinkfree.drive.cleanup.trash.repository.TrashCleanUpQueryRepository;
 import com.thinkfree.drive.cleanup.trash.service.TrashCleanUpService;
 import com.thinkfree.drive.constants.DriveConstants;
@@ -104,7 +105,15 @@ public class DefaultTrashCleanUpService implements TrashCleanUpService {
 
     @Override
     public void cleanUpResourcesByUser(Integer userSeq) {
-        var query = trashCleanUpConverter.toTrashCleanUpByUserQuery(userSeq);
+        cleanUpByUser(new TrashCleanUpByUserQuery(userSeq, true));
+    }
+
+    @Override
+    public int cleanUpResourcesByUser(Integer userSeq, Instant registeredBefore, int rootLimit) {
+        return cleanUpByUser(new TrashCleanUpByUserQuery(userSeq, true, registeredBefore, rootLimit));
+    }
+
+    private int cleanUpByUser(TrashCleanUpByUserQuery query) {
         var targets = trashCleanUpQueryRepository.findTrashCleanUpTargets(query);
 
         // 사용자가 직접 휴지통 비우기(WEB) - 삭제되는 리소스마다 영구삭제 감사 로그 fan-out.
@@ -112,6 +121,7 @@ public class DefaultTrashCleanUpService implements TrashCleanUpService {
         recordPermanentDeleteAudit(targets);
 
         cleanUpResources(targets);
+        return targets == null ? 0 : targets.stream().mapToInt(t -> t.getResourceTargets().size()).sum();
     }
 
     private void recordPermanentDeleteAudit(List<TrashCleanUpTargetsData> targets) {
