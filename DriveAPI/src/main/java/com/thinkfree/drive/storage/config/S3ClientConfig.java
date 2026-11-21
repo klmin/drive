@@ -2,9 +2,12 @@ package com.thinkfree.drive.storage.config;
 
 import com.thinkfree.drive.storage.condition.ConditionalOnStorageType;
 import com.thinkfree.drive.storage.enums.StorageType;
+import com.thinkfree.drive.storage.observation.S3HttpPoolMetrics;
 import com.thinkfree.drive.storage.observation.S3ObservationInterceptor;
 import com.thinkfree.drive.storage.properties.S3ConnectionProperty;
+import com.thinkfree.drive.storage.properties.S3HttpClientProperty;
 import com.thinkfree.drive.storage.properties.StorageProperty;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +18,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.retry.AwsRetryStrategy;
 import software.amazon.awssdk.core.retry.RetryMode;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -45,6 +50,7 @@ public class S3ClientConfig {
 
     private final StorageProperty storageProperty;
     private final S3ConnectionProperty connection;
+    private final S3HttpClientProperty http;
 
     @PostConstruct
     void validate() {
@@ -61,6 +67,8 @@ public class S3ClientConfig {
         }
         log.info("[Storage] type: {}, endpoint: {}, region: {}, bucket: {}",
                  type, connection.endpoint(), connection.region(), connection.bucketName());
+        log.info("[Storage] http pool maxConnections: {}, acquisitionTimeout: {}, connectionTimeout: {}, socketTimeout: {}",
+                 http.maxConnections(), http.connectionAcquisitionTimeout(), http.connectionTimeout(), http.socketTimeout());
     }
 
     @Bean
@@ -77,16 +85,34 @@ public class S3ClientConfig {
         return new S3ObservationInterceptor(() -> observationRegistry.getIfAvailable(() -> ObservationRegistry.NOOP));
     }
 
+    /** 동기 클라이언트 커넥션 풀 지표({@code drive.s3.http.*}) */
     @Bean
-    public S3Client s3Client(StaticCredentialsProvider credentials, ObjectProvider<S3ObservationInterceptor> observation) {
+    public S3HttpPoolMetrics s3HttpPoolMetrics(MeterRegistry meterRegistry) {
+        return new S3HttpPoolMetrics(meterRegistry, http.maxConnections());
+    }
+
+    /**
+     * 업로드·다운로드·삭제 등 모든 동기 S3 호출이 쓰는 클라이언트. HTTP 커넥션 풀은 {@code storage.http.*}({@link S3HttpClientProperty}).
+     * 풀 대기 초과는 재시도하지 않는다({@link NoRetryOnPoolTimeoutStrategy}) — 막히면 바로 503.
+     */
+    @Bean
+    public S3Client s3Client(StaticCredentialsProvider credentials,
+                             ObjectProvider<S3ObservationInterceptor> observation,
+                             ObjectProvider<S3HttpPoolMetrics> poolMetrics) {
         var builder = S3Client.builder()
                               .credentialsProvider(credentials)
                               .region(resolveRegion())
+                              .httpClientBuilder(apacheHttpClient(http))
                               .overrideConfiguration(o -> {
                                   // 비동기 클라이언트와 같은 STANDARD — 지정하지 않으면 LEGACY(최대 4회, 스로틀링 재시도가 토큰을 쓰지 않아
-                                  // 스토리지 과부하(503 SlowDown) 때 재시도가 몰린다). STANDARD 는 최대 3회, 스로틀링도 토큰 버킷으로 제한한다
-                                  o.retryStrategy(RetryMode.STANDARD);
+                                  // 스토리지 과부하(503 SlowDown) 때 재시도가 몰린다). STANDARD 는 최대 3회, 스로틀링도 토큰 버킷으로 제한한다.
+                                  // 단 커넥션 풀 대기 초과는 재시도하지 않는다(꽉 찬 풀을 같은 대기로 반복하면 부하만 커진다)
+                                  o.retryStrategy(new NoRetryOnPoolTimeoutStrategy(AwsRetryStrategy.forRetryMode(RetryMode.STANDARD)));
                                   observation.ifAvailable(o::addExecutionInterceptor);
+                                  poolMetrics.ifAvailable(m -> {
+                                      o.addMetricPublisher(m);
+                                      o.addExecutionInterceptor(m);
+                                  });
                               });
         if (connection.isEndpointBased()) {
             builder.endpointOverride(URI.create(connection.endpoint()))
@@ -109,6 +135,16 @@ public class S3ClientConfig {
                    .serviceConfiguration(pathStyle());
         }
         return builder.build();
+    }
+
+    /** SDK 가 클라이언트와 함께 만들고 닫는다(클라이언트 close 시 풀도 정리) */
+    static ApacheHttpClient.Builder apacheHttpClient(S3HttpClientProperty http) {
+        return ApacheHttpClient.builder()
+                               .maxConnections(http.maxConnections())
+                               .connectionAcquisitionTimeout(http.connectionAcquisitionTimeout())
+                               .connectionTimeout(http.connectionTimeout())
+                               .socketTimeout(http.socketTimeout())
+                               .tcpKeepAlive(http.tcpKeepAlive());
     }
 
     private StorageType storageType() {

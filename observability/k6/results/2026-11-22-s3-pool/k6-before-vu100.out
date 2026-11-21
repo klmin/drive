@@ -1,0 +1,43 @@
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 2641   23.518765/s
+    checks_succeeded...: 99.92% 2639 out of 2641
+    checks_failed......: 0.07%  2 out of 2641
+
+    ✓ login 200
+    ✓ list 200
+    ✓ upload_start 201
+    ✓ upload_part 200
+    ✓ upload_complete 200
+    ✓ download_token_file 200
+    ✗ download 200
+      ↳  99% — ✓ 804 / ✗ 1
+    ✗ download 크기
+      ↳  99% — ✓ 804 / ✗ 1
+
+    CUSTOM
+    dlc_download_mbps..............: avg=13.353766 min=3.572226 med=12.250567 p(90)=20.884662 p(95)=22.863957 max=39.937598 count=804 
+    dlc_download_seconds...........: avg=11.475821 min=3.205    med=10.4485   p(90)=18.6863   p(95)=21.9053   max=35.832    count=804 
+    dlc_failed.....................: 1      0.008905/s
+    dlc_ok.........................: 804    7.159821/s
+
+    HTTP
+    http_req_duration..............: avg=5.12s     min=4.02ms   med=659.8ms   p(90)=14.29s    p(95)=18.19s    max=35.54s    count=1836
+      { expected_response:true }...: avg=5.11s     min=4.02ms   med=659.65ms  p(90)=14.25s    p(95)=18.16s    max=35.54s    count=1835
+    http_req_failed................: 0.05%  1 out of 1836
+    http_reqs......................: 1836   16.350039/s
+
+    EXECUTION
+    iteration_duration.............: avg=11.63s    min=3.2s     med=10.54s    p(90)=18.85s    p(95)=22.13s    max=35.83s    count=805 
+    iterations.....................: 805    7.168726/s
+    vus............................: 11     min=0         max=100
+    vus_max........................: 100    min=100       max=100
+
+    NETWORK
+    data_received..................: 108 GB 961 MB/s
+    data_sent......................: 1.2 GB 11 MB/s
+
+
+
