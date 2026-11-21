@@ -5,7 +5,7 @@
 // 용량: seed 사용자 한도(100MiB)는 seed-volume.sql 이 이미 약 60MB 를 채워서 40MB 업로드가 걸린다 — 실행 전에 README 의 한도 올리기 SQL 을 먼저 실행한다.
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { BASE_URL, loginAsVuUser, request, data } from '../lib/drive.js';
+import { BASE_URL, loginAsVuUser, request, data, userId } from '../lib/drive.js';
 import { browse } from '../flows/browse.js';
 import { smallUpload, chunkUpload, uploadKeptFile } from '../flows/upload.js';
 
@@ -41,11 +41,12 @@ const LARGE_BYTES = Math.round(LARGE_MB * 1024 * 1024);
 
 // 이전 실행이 남긴 이 VU 의 다운로드용 파일을 찾는다(검색 sk 는 st=ALL 에서만 동작한다) — 크기가 맞으면 재사용, 아니면 지운다.
 // 힙만 바꿔 같은 부하를 반복할 때 파일이 쌓여 용량을 채우거나 부하가 달라지지 않게.
-// 이름에 VU 번호를 넣어(mixed-small-3-…) 같은 사용자를 쓰는 다른 VU 의 파일과 섞이지 않게 한다.
-function reuseOrClean(prefix, size) {
+// 사용자마다 한 벌(mixed-small-*, mixed-large-*) — VU 번호와 VU→사용자 대응은 실행마다 달라질 수 있어 이름에 넣지 않는다.
+// 다운로드 VU 들이 서로 다른 사용자가 되도록 DOWN 은 사용자 수(18) 이하로 둔다(같은 사용자면 처음 준비가 겹친다).
+function reuseOrClean(owner, prefix, size) {
   const found = data(request('GET', `/api/v1/resources?st=ALL&ps=100&sk=${encodeURIComponent(prefix)}`, 'list_kept')) || [];
   let keep = null;
-  for (const r of found.filter((x) => x.resourceType === 'FILE' && String(x.resourceName).startsWith(prefix))) {
+  for (const r of found.filter((x) => x.resourceType === 'FILE' && x.ownerId === owner && String(x.resourceName).startsWith(prefix))) {
     if (!keep && r.sizeByte === size) keep = r.resourceSeq;
     else request('DELETE', `/api/v1/files/${r.resourceSeq}`, 'delete_file');
   }
@@ -55,15 +56,15 @@ function reuseOrClean(prefix, size) {
 let files = null;
 export function down() {
   if (!files) {
-    loginAsVuUser(__VU);
-    let small = reuseOrClean(`mixed-small-${__VU}-`, SMALL_BYTES);
+    const me = userId(loginAsVuUser(__VU)); // 검색(st=ALL)은 공유받은 파일도 돌려주므로 내 파일만 고른다
+    let small = reuseOrClean(me, `mixed-small-`, SMALL_BYTES);
     if (!small) {
       // 32MB 미만은 청크 API 가 받지 않는다 — 기존 업로드 API(multipart)로 512KB 를 올려 둔다
-      const file = http.file('x'.repeat(SMALL_BYTES), `mixed-small-${__VU}-${Date.now()}.txt`, 'text/plain');
+      const file = http.file('x'.repeat(SMALL_BYTES), `mixed-small-${Date.now()}.txt`, 'text/plain');
       const saved = data(request('POST', '/api/v1/files', 'upload_kept_small', { file }, { expect: 201 }));
       small = saved && saved.resourceSeq;
     }
-    const large = reuseOrClean(`mixed-large-${__VU}-`, LARGE_BYTES) || uploadKeptFile(`mixed-large-${__VU}-${Date.now()}.txt`, LARGE_MB);
+    const large = reuseOrClean(me, `mixed-large-`, LARGE_BYTES) || uploadKeptFile(`mixed-large-${Date.now()}.txt`, LARGE_MB);
     if (!small || !large) { sleep(5); return; }
     files = { small, large };
   }
