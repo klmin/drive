@@ -39,11 +39,11 @@ export function up() {
 const SMALL_BYTES = 512 * 1024;
 const LARGE_BYTES = Math.round(LARGE_MB * 1024 * 1024);
 
-// 이전 실행이 남긴 이 VU 의 다운로드용 파일을 찾는다 — 크기가 맞으면 재사용, 아니면 지운다.
+// 이전 실행이 남긴 이 VU 의 다운로드용 파일을 찾는다(검색 sk 는 st=ALL 에서만 동작한다) — 크기가 맞으면 재사용, 아니면 지운다.
 // 힙만 바꿔 같은 부하를 반복할 때 파일이 쌓여 용량을 채우거나 부하가 달라지지 않게.
 // 이름에 VU 번호를 넣어(mixed-small-3-…) 같은 사용자를 쓰는 다른 VU 의 파일과 섞이지 않게 한다.
 function reuseOrClean(prefix, size) {
-  const found = data(request('GET', `/api/v1/resources?st=MY&ps=100&sk=${encodeURIComponent(prefix)}`, 'list_kept')) || [];
+  const found = data(request('GET', `/api/v1/resources?st=ALL&ps=100&sk=${encodeURIComponent(prefix)}`, 'list_kept')) || [];
   let keep = null;
   for (const r of found.filter((x) => x.resourceType === 'FILE' && String(x.resourceName).startsWith(prefix))) {
     if (!keep && r.sizeByte === size) keep = r.resourceSeq;
