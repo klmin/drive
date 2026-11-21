@@ -191,16 +191,106 @@ Grafana http://localhost:3300 › Drive › **k6 부하 테스트**
 
 ### 지난 결과 (참고)
 
-같은 방법(DB 45초 중단, `decision_wait` 10초)으로 잰 값. 지금 설정은 `decision_wait` 30초다.
+같은 방법(DB 45초 중단)으로 잰 값.
 
-| | 앱 10% head 샘플링 | 앱 100% + tail 샘플링 |
+| | 앱 10% head 샘플링 | 앱 100% + tail(`decision_wait` 10초) | 앱 100% + tail(`decision_wait` 30초, 지금 설정) |
+|---|---|---|---|
+| 5xx 트레이스 남음 | 31건 중 2 | 31건 중 26 | **27건 중 27** |
+| 1초 초과 트레이스 남음 | 53건 중 4 | 53건 중 53 | **197건 중 197** |
+| 앱 → Alloy span | 2,539 | 25,779 | 21,985 |
+| Alloy → Tempo span | | | 2,899 (87% 줄임) |
+| p95 | 34.1ms | 37.0ms | |
+
+- 10초에서 놓친 5xx 5건은 `decision_wait` 보다 오래 걸린 요청이다 — 첫 span 이 들어오고 결정이 먼저 나서 뒤늦게 온 에러 span 이 버려졌다. 30초로 늘린 뒤 재측정(2026-11-21)에서는 전부 남았다.
+- 30초 측정의 "실제" 값: 5xx 는 앱 `http_server_requests_seconds_count{outcome="SERVER_ERROR"}` 누적(앱을 새로 띄운 뒤라 끝값 그대로), 1초 초과는 k6 `--out csv` 의 `http_req_duration` > 1000ms 건수.
+  k6 가 본 5xx 는 2건뿐이었다 — 브라우저 경로 요청의 에러는 에러 페이지로 리다이렉트되어 k6 에는 3xx 로 보인다. 5xx 는 앱 쪽 수치로 센다.
+- 30초 측정은 아래 "데이터량·삭제·공유 폴더 테스트" 와 같은 로컬 환경(Docker 없이 PC 에 직접 설치)에서 했다.
+
+## 데이터량·삭제·공유 폴더 테스트 (`volume/`)
+
+seed 데이터(사용자당 파일 210개)로는 보이지 않는 병목을 찾는다. 2026-11-21 에 한 번 돌린 결과를 아래에 남긴다.
+
+| 파일 | 내용 |
+|---|---|
+| `volume/seed-volume.sql` | 대량 데이터 — 사용자 18명 × (루트 폴더 500 × 파일 100, big-folder 파일 1만, 깊이 30 폴더) ≈ 110만 건. **DB 행만** 만든다(스토리지 객체 없음) |
+| `volume/ids.sql` | 스크립트가 쓰는 사용자별 번호(사용자 seq, big-folder, deep-30, 루트 폴더 500개 등)를 `volume/ids.json` 으로(생성 파일, 커밋 안 함) |
+| `volume/volume.js` | 데이터량: API 12종(목록·큰 폴더·50페이지·깊은 폴더·트리·검색 2종·최근·즐겨찾기·용량·상세)을 API 별 p95 로 |
+| `volume/steps.js` | 단계별 부하: `LEVELS`(예: `20,60,100,150`) 단계마다 고정 VU 로 둘러보기, 단계별 p95·처리량 |
+| `volume/big-delete.js` | 큰 폴더(파일 1만) 휴지통 이동 → 비우기, 그동안 같은 사용자 쓰기·다른 사용자 읽기 |
+| `volume/trash-empty.js` | 루트 폴더 500개(파일 5만)를 휴지통으로 → 한 번에 비우기, 위와 같이 같은 사용자·다른 사용자 |
+| `volume/shared-folder.js` | 공유 폴더 동시 쓰기: 15명이 한 공유 폴더에서 폴더 만들기·이름 바꾸기. `MODE=own` 이면 각자 자기 드라이브(비교용) |
+
+### 실행
+
+```bash
+# seed.js 다음에 한 번
+docker compose exec -T loadtest-db psql -U drive_load -d drive_load < k6/volume/seed-volume.sql
+docker compose exec -T loadtest-db psql -U drive_load -d drive_load -At < k6/volume/ids.sql > k6/volume/ids.json
+
+docker compose --profile loadtest run --rm k6 run /scripts/volume/volume.js
+docker compose --profile loadtest run --rm k6 run -e LEVELS=20,60,100,150 -e DUR=60 /scripts/volume/steps.js
+docker compose --profile loadtest run --rm k6 run /scripts/volume/big-delete.js       # 사용자 18 의 big-folder 를 지운다
+docker compose --profile loadtest run --rm k6 run /scripts/volume/trash-empty.js      # 사용자 18 의 루트 폴더 500개를 지운다
+docker compose --profile loadtest run --rm k6 run -e MODE=own -e THINK=0 /scripts/volume/shared-folder.js
+docker compose --profile loadtest run --rm k6 run -e MODE=shared -e THINK=0 /scripts/volume/shared-folder.js
+```
+
+- 삭제 테스트는 데이터를 실제로 지운다. 다시 하려면 "다시 처음부터" 로 DB 를 새로 만든다.
+- 휴지통 비우기는 삭제 대기열(`tb_storage_deletion`)에 쌓기만 한다. 대기열 처리까지 보려면 배치 스케줄러를 켠다(`DRIVE_SCHEDULER_BATCH_ENABLED=true`).
+- 잠금 대기는 테스트 중에 1초마다 본다: `select count(*) filter (where wait_event_type='Lock'), max(now()-query_start) filter (where wait_event_type='Lock') from pg_stat_activity where datname='drive_load'`
+
+### 측정 환경과 읽는 법
+
+- PC 한 대(Intel Core Ultra 5 225F 10코어, 메모리 32GB, Windows 11)에 k6·WAS·PG 18.6·RustFS 를 Docker 없이 직접 띄웠다. 다른 프로세스도 돌고 있었다.
+- 그래서 **절대 수치(최대 처리량, 사양)는 쓰지 않는다.** 같은 환경에서 조건 하나만 바꾼 **전후 비교**와 **병목 위치**만 근거로 쓴다.
+
+### 결과 1 — 데이터량 (10명, 60초, API 별 p95)
+
+| API | seed 데이터 | 110만 건 | 인덱스 추가 후(#72) |
+|---|---|---|---|
+| 루트 목록 | 30ms | 214ms | 35ms |
+| 폴더 목록 | 27ms | 22ms | 16ms |
+| 파일 1만 개 폴더 / 50페이지 | — | 52ms / 43ms | 43ms / 42ms |
+| 깊이 30 폴더 | — | 22ms | 18ms |
+| 트리 | 22ms | 138ms | 92ms |
+| **검색(흔한 키워드)** | 40ms | **1.42s** | **236ms** |
+| **검색(없는 키워드)** | 27ms | **2.01s** | **128ms** |
+| 최근 / 즐겨찾기 / 용량 / 상세 | 40 / 41 / 23 / 42ms | 21 / 56 / 9 / 17ms | 27 / 39 / 15 / 22ms |
+
+- 검색만 SLO(1초)를 넘었다. 원인: 정렬 인덱스에 `user_seq` 가 없어 generic plan 이 파티션 전체(73만 행)를 정렬 순서로 훑으며 걸렀다. 해시 파티션 2개라 파티션 하나에 여러 사용자가 섞여 있다.
+- 루트 목록·트리가 오른 것은 느린 검색이 CPU 를 차지해서다 — 검색만 고쳤는데 같이 내려왔다.
+- 인덱스 추가 후 열은 이름 정렬 인덱스만 넣고 잰 값이다. 쿼리 단위 비교는 #72(V8).
+
+### 결과 2 — 단계별 부하 중 폴더 트리 (WAS 2코어로 제한)
+
+- 120명 단계에서 `pg_stat_statements` 로 보니 폴더 트리 재귀 쿼리가 **DB 시간의 44%**(평균 295ms)였다. 재귀 단계가 하위 파일까지 모두 읽고 폴더만 남겼다.
+- `(user_seq, parent_folder_seq, resource_type)` 인덱스(#72 V9) 후 같은 부하에서 평균 **5ms**, 전체 DB 시간 약 670초 → 185초.
+- 이 측정에서 WAS(2코어)는 약 0.4코어만 썼고 DB 가 먼저 찼다. 사양 수치는 환경 때문에 쓰지 않는다.
+
+### 결과 3 — 큰 폴더 삭제, 휴지통 비우기
+
+| | 파일 1만 개 폴더 | 루트 폴더 500개(파일 5만) |
 |---|---|---|
-| 5xx 트레이스 남음 | 31건 중 2 | 31건 중 26 |
-| 1초 초과 트레이스 남음 | 53건 중 4 | 53건 중 53 |
-| 앱 → Alloy span | 2,539 | 25,779 |
-| p95 | 34.1ms | 37.0ms |
+| 휴지통으로 | 2.0s (요청 1번) | 21.6s (요청 500번) |
+| 휴지통 비우기 | 1.6s | **8.8s (요청 1번)** |
+| 그동안 같은 사용자 쓰기(2명) | p95 53ms, 최대 1.17s | p95 37ms, **최대 4.18s** |
+| 그동안 다른 사용자 읽기(13~14명) | p95 76ms | p95 67ms |
+| 실패 / 교착 | 0 / 0 | 0 / 0 |
 
-놓친 5xx 5건은 `decision_wait`(당시 10초)보다 오래 걸린 요청이다 — 첫 span 이 들어오고 결정이 먼저 나서 뒤늦게 온 에러 span 이 버려졌다. 그래서 30초로 늘렸고, 30초에서의 재측정은 아직 하지 않았다.
+- 삭제 대기열: 스케줄러를 켜자 첫 실행에서 5만 건을 약 25초에 처리했다(1,000건씩 DeleteObjects).
+- 한계: 비우기는 한 트랜잭션이라 시간이 건수에 비례한다(5만 건 8.8초 → 50만 건이면 약 90초로, 흔한 프록시 타임아웃 60초를 넘을 수 있다). 그동안 같은 사용자의 쓰기는 사용자 행 잠금을 기다린다. 나눠서 비우는 것이 개선 후보.
+
+### 결과 4 — 공유 폴더 동시 쓰기 (15명, 60초, 폴더 만들기 + 이름 바꾸기)
+
+| | 각자 자기 드라이브 | 한 공유 폴더 | 공유 폴더 안 사람마다 하위 폴더(`SPLIT=1`) |
+|---|---|---|---|
+| 0.2초 쉬며 | p95 21~24ms, 초당 129건 | p95 44~47ms, 초당 120건 | |
+| 쉬지 않고 | p95 30ms, **초당 811건** | p95 134ms, **초당 159건** | p95 123ms, 초당 175건 |
+| 잠금 대기 세션(평균) | 0 | 12.7 | 12.7 |
+| 실패 / 교착 | 0 / 0 | 0 / 0 | 0 / 0 |
+
+- 공유 폴더의 리소스는 모두 소유자의 것이라, 쓰기마다 **소유자 사용자 행**을 잠근다(잠금 순서: 사용자 → 부모 → 대상). 하위 폴더를 나눠도 처리량이 그대로라 병목은 부모 폴더가 아니라 사용자 행이다.
+- 평소 속도(0.2초 쉼)에서는 p95 두 배 정도로 문제가 안 되지만, 한 사람의 공간에 쓰기가 몰리면 초당 약 170건이 상한이다. 용량이 바뀌지 않는 작업(폴더 만들기, 이름 바꾸기)에서 사용자 행 잠금을 빼는 것이 개선 후보 — 교착 방지 설계(잠금 순서)와 같이 봐야 한다.
 
 ## 다시 처음부터
 
