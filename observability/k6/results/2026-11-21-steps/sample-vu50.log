@@ -1,0 +1,12 @@
+22:48:18 heap=328 gc=0.201 busy=0.0 active=0.0 pending=0.0 cpu=1.1709208488006356E-4
+22:48:23 heap=254 gc=0.211 busy=1.0 active=0.0 pending=0.0 cpu=0.07858372611805953
+22:48:29 heap=224 gc=0.218 busy=2.0 active=1.0 pending=0.0 cpu=0.007038258486653255
+22:48:34 heap=316 gc=0.221 busy=0.0 active=0.0 pending=0.0 cpu=0.004521145415191432
+22:48:40 heap=215 gc=0.230 busy=1.0 active=1.0 pending=0.0 cpu=0.0025484451032576497
+22:48:45 heap=325 gc=0.235 busy=0.0 active=0.0 pending=0.0 cpu=0.00816447487566079
+22:48:51 heap=217 gc=0.243 busy=0.0 active=0.0 pending=0.0 cpu=0.012272849855168768
+22:48:57 heap=325 gc=0.246 busy=0.0 active=0.0 pending=0.0 cpu=0.008044858682392316
+22:49:02 heap=204 gc=0.251 busy=2.0 active=2.0 pending=0.0 cpu=0.00820785883305178
+22:49:08 heap=297 gc=0.254 busy=0.0 active=0.0 pending=0.0 cpu=0.0083050979198064
+22:49:14 heap=203 gc=0.259 busy=2.0 active=1.0 pending=0.0 cpu=0.011098861716724693
+22:49:19 heap=147 gc=0.264 busy=1.0 active=1.0 pending=0.0 cpu=0.006218540995918612
