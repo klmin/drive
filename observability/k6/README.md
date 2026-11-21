@@ -219,6 +219,7 @@ seed 데이터(사용자당 파일 210개)로는 보이지 않는 병목을 찾�
 | `volume/big-delete.js` | 큰 폴더(파일 1만) 휴지통 이동 → 비우기, 그동안 같은 사용자 쓰기·다른 사용자 읽기 |
 | `volume/trash-empty.js` | 루트 폴더 500개(파일 5만)를 휴지통으로 → 한 번에 비우기, 위와 같이 같은 사용자·다른 사용자 |
 | `volume/shared-folder.js` | 공유 폴더 동시 쓰기: 15명이 한 공유 폴더에서 폴더 만들기·이름 바꾸기. `MODE=own` 이면 각자 자기 드라이브(비교용) |
+| `volume/mixed.js` | 혼합 부하 + 메모리: 읽기 20명 + 업로드 4명 + 다운로드 6명. 같은 부하를 WAS 힙만 바꿔 비교 |
 
 ### 실행
 
@@ -233,6 +234,7 @@ docker compose --profile loadtest run --rm k6 run /scripts/volume/big-delete.js 
 docker compose --profile loadtest run --rm k6 run /scripts/volume/trash-empty.js      # 사용자 18 의 루트 폴더 500개를 지운다
 docker compose --profile loadtest run --rm k6 run -e MODE=own -e THINK=0 /scripts/volume/shared-folder.js
 docker compose --profile loadtest run --rm k6 run -e MODE=shared -e THINK=0 /scripts/volume/shared-folder.js
+docker compose --profile loadtest run --rm k6 run /scripts/volume/mixed.js            # WAS 힙(-Xmx)을 바꿔 가며 반복
 ```
 
 - 삭제 테스트는 데이터를 실제로 지운다. 다시 하려면 "다시 처음부터" 로 DB 를 새로 만든다.
@@ -291,6 +293,21 @@ docker compose --profile loadtest run --rm k6 run -e MODE=shared -e THINK=0 /scr
 
 - 공유 폴더의 리소스는 모두 소유자의 것이라, 쓰기마다 **소유자 사용자 행**을 잠근다(잠금 순서: 사용자 → 부모 → 대상). 하위 폴더를 나눠도 처리량이 그대로라 병목은 부모 폴더가 아니라 사용자 행이다.
 - 평소 속도(0.2초 쉼)에서는 p95 두 배 정도로 문제가 안 되지만, 한 사람의 공간에 쓰기가 몰리면 초당 약 170건이 상한이다. 용량이 바뀌지 않는 작업(폴더 만들기, 이름 바꾸기)에서 사용자 행 잠금을 빼는 것이 개선 후보 — 교착 방지 설계(잠금 순서)와 같이 봐야 한다.
+
+### 결과 5 — 혼합 부하와 WAS 힙 (30명, 3분)
+
+읽기 20명 + 업로드 4명(512KB 70%, 40MB 청크 30%) + 다운로드 6명(512KB 70%, 40MB 30%). 같은 부하를 `-Xmx` 만 바꿔 돌렸다. 3분에 약 12~14GB 를 내려받았다.
+
+| WAS 힙(`-Xmx`) | 힙 최대 사용 | GC 멈춤 합(3분) | 프로세스 메모리(RSS) | 실패 | p95: 40MB 다운로드 / 40MB 업로드 / 읽기 |
+|---|---|---|---|---|---|
+| 4GB | 336MB | 0.16s | 927MB | 0 | 0.68s / 2.4s / 1.1s |
+| 512MB | 312MB | 0.26s | 895MB | 0 | 0.91s / 3.9s / 1.8s |
+| 256MB | 239MB | 0.35s | 810MB | 0 | 0.47s / 3.0s / 0.92s |
+| 128MB | — | — | — | **기동 실패**(`OutOfMemoryError: Java heap space`) | — |
+
+- 40MB 파일을 수백 번 주고받아도 힙은 300MB 대에 머문다 — 업로드·다운로드가 파일을 메모리에 올리지 않고 스트리밍한다. 힙을 256MB 로 줄여도 실패 없이 GC 멈춤만 조금 늘었다.
+- p95 차이는 힙이 아니라 환경 탓이다(GC 멈춤은 3분에 0.4초 미만). 스토리지가 네트워크 디스크(iSCSI)라 업로드·다운로드가 몰리면 읽기까지 느려졌고, 실행마다 편차가 컸다.
+- 힙 외 메모리(스레드 스택, 메타스페이스, 네이티브 버퍼)가 약 500~600MB 라, 컨테이너 메모리는 힙 + 600MB 이상으로 잡는다.
 
 ## 다시 처음부터
 
