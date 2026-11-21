@@ -185,6 +185,19 @@ storage:
     access-key: ${DRIVE_STORAGE_ACCESS_KEY:}
     secret-key: ${DRIVE_STORAGE_SECRET_KEY:}
     bucket-name: ${DRIVE_STORAGE_BUCKET_NAME:}
+  # S3 동기 클라이언트(업로드·다운로드·삭제)의 HTTP 커넥션 풀 — S3HttpClientProperty.
+  #   동기 SDK 는 커넥션 풀만 있다: 다운로드 1건은 전송 끝까지, 업로드 파트 1건은 파트 전송 동안 연결 1개를 점유한다.
+  #   동시 수 제한은 입구(drive.download.stream.max-threads, 기본 200)에서 하고 이 풀은 그보다 크게 잡은 안전망이다 — 두 값은 항상 같이 정한다.
+  #   풀은 WAS 인스턴스마다 따로라 스토리지가 받는 연결 수는 max-connections × WAS 대수.
+  #   연결을 못 빌리면 connection-acquisition-timeout 뒤 재시도 없이 503(STORAGE_009). 지표 drive_s3_http_*
+  http:
+    # 다운로드 스트림 200 + 업로드 파트·complete·삭제 몫 50 (SDK 기본 50)
+    max-connections: ${DRIVE_STORAGE_HTTP_MAX_CONNECTIONS:250}
+    # SDK 기본 10s × 재시도 3회 → 막히면 빨리 실패
+    connection-acquisition-timeout: ${DRIVE_STORAGE_HTTP_ACQUISITION_TIMEOUT:2s}
+    connection-timeout: ${DRIVE_STORAGE_HTTP_CONNECTION_TIMEOUT:2s}
+    socket-timeout: ${DRIVE_STORAGE_HTTP_SOCKET_TIMEOUT:30s}
+    tcp-keep-alive: true
   admin:
     url: ${DRIVE_STORAGE_ADMIN_URL:}
     username: ${DRIVE_STORAGE_ADMIN_USERNAME:}

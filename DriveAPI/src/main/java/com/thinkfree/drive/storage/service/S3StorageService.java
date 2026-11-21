@@ -5,6 +5,7 @@ import com.thinkfree.drive.common.file.model.FileMetadata;
 import com.thinkfree.drive.storage.condition.ConditionalOnStorageType;
 import com.thinkfree.drive.storage.constants.StorageConstants;
 import com.thinkfree.drive.storage.enums.StorageType;
+import com.thinkfree.drive.storage.exception.S3ConnectionPoolTimeout;
 import com.thinkfree.drive.storage.exception.StorageErrorCode;
 import com.thinkfree.drive.storage.exception.StorageException;
 import com.thinkfree.drive.storage.properties.StorageProperty;
@@ -713,6 +714,11 @@ public class S3StorageService implements StorageService {
             }
             log.error("[Storage {} S3Exception] status: {}, key: {}, requestId: {}, extId: {}", action, code, key, requestId, extendedRequestId, e);
             return StorageException.type(defaultCode);
+        }
+        if (S3ConnectionPoolTimeout.isCause(ex)) {
+            // 과부하 상태라 건마다 스택을 남기지 않는다 — 건수는 drive.s3.http.acquire.timeout 지표
+            log.warn("[Storage {} connection pool timeout] key: {}, {}", action, key, ex.getMessage());
+            return StorageException.type(StorageErrorCode.CONNECTION_POOL_EXHAUSTED);
         }
         if (ex instanceof SdkException e) {
             log.error("[Storage {} SdkException] key: {}", action, key, e);

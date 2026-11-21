@@ -169,6 +169,29 @@ groups:
               expression: A
               conditions: [{ evaluator: { type: gt, params: [0] } }]
 
+      - uid: drive-s3-pool-pending
+        title: S3 커넥션 대기 발생
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }} 에서 S3 연결을 기다리는 요청이 5분째 있음 — 대기 초과는 503(STORAGE_009). 풀(storage.http.max-connections)·다운로드 스트림 상한·스토리지 지연 확인"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            # 분포의 구간 최대 — SDK 가 시도 끝에만 알려 주므로 게이지가 없다(S3HttpPoolMetrics)
+            model: { refId: A, instant: true, expr: 'max by (instance) (max_over_time(drive_s3_http_pending_max{job="drive-api"}[1m]))' }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions: [{ evaluator: { type: gt, params: [0] } }]
+
   - orgId: 1
     name: drive-resources
     folder: Drive
