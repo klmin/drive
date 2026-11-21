@@ -407,6 +407,54 @@ k6 는 코어 7~9, WAS·PG 는 코어 0~6 에 고정했다(WAS 힙 4GB, Tomcat �
 3. 다운로드 상한을 설치처 회선·스토리지 사양으로 정한다 — 이 PC 는 내부 전송(약 960MB/s)이라 회선 병목이 재현되지 않는다. 운영과 같은 구성(WAS·스토리지 분리)에서 1인당 속도를 확인한다.
 4. 범위 밖으로 둔 것: 전송용·제어용(complete·abort·삭제) S3 클라이언트 분리, `S3AsyncClient` 풀, WAS 여러 대일 때 스토리지 동시 연결(풀 × WAS 대수) 한도 확인.
 
+**재측정 방법** (k6·WAS·스토리지가 한 PC — 측정 중에는 다른 무거운 프로그램을 끈다)
+
+```bash
+# WAS(수정 후 = main 빌드 jar) — C:/loadtest-tools/run-app.sh
+cd /c/loadtest-tools && APP_JAR=<jar> bash run-app.sh --management.otlp.tracing.export.enabled=false
+# 동시 다운로드 단계(단계마다 90초, 128MB 파일 — 사용자마다 setup 에서 한 번 올려 두고 재사용)
+bash observability/k6/results/2026-11-22-s3-pool/run-dlc.sh after 50 100 150 200
+# 업로드 정상 부하
+bash observability/k6/results/2026-11-22-s3-pool/run-k6.sh after-upload upload.js -e PROFILE=stress -e THINK=0
+```
+
+볼 것: 다운로드 100명까지 실패 0·S3 풀 대기 없음, 100명 초과분은 즉시 503(`drive_download_stream_rejected_total`), Tomcat 바쁜 스레드가 낮게 유지되는지, 업로드 실패 0.
+
+#### 설계 메모 — 다운로드 스트림 풀은 "MVC 비동기 실행기"다
+
+- `StreamingAsyncConfig` 는 `WebMvcConfigurer.configureAsyncSupport` 에 실행기를 넣는다 — **다운로드 전용 풀이 아니라 MVC 기본 비동기 실행기**다.
+  컨트롤러가 `StreamingResponseBody` 를 반환하면 Spring 이 본문 쓰기(`writeTo`)를 `Callable` 로 감싸 이 실행기에 넘기고, 요청 스레드는 풀려난다.
+
+  | 반환 타입 | 이 실행기 사용 |
+  |---|---|
+  | `StreamingResponseBody`, `Callable`, 실행기를 지정하지 않은 `WebAsyncTask`, MVC 의 `Flux` 스트리밍 | 씀 |
+  | `DeferredResult`, `CompletableFuture`, `ResponseBodyEmitter`·`SseEmitter` | 안 씀(결과를 채우는 쪽 스레드가 따로 있다) |
+
+  이 앱의 비동기 반환은 모두 `StreamingResponseBody`(파일·보기·폴더 zip·여러 항목·버전 다운로드, 프로필 이미지, 관리자 CSV 샘플)라 **사실상 다운로드 풀**이다.
+  감사 로그 CSV 내보내기는 이 풀을 나눠 쓰지 않으려고 요청 스레드에서 직접 쓴다(`AuditLogController`).
+- **설정하지 않으면**: `AsyncConfig` 의 @Primary 실행기 때문에 Boot 의 `applicationTaskExecutor` 가 없어 `SimpleAsyncTaskExecutor` — 요청마다 새 스레드, 상한·거절·지표가 없다.
+  다운로드가 몰려도 거절하지 못하고 모두 동시에 전송하며 느려진다. 지금은 S3 풀(200)이 사실상 막지만, 그때는 2초 대기 뒤 `STORAGE_009` 503 이고 **업로드·삭제까지 연결을 못 받아 같이 실패**한다.
+  상한(100)·대기열 0·즉시 503 을 두는 이유: 시간 제한(`request-timeout: -1`)을 푼 대신 오래 걸리는 전송을 묶고, 대역폭은 정해져 있어 더 받아도 모두 느려질 뿐이며, 다운로드가 S3 연결을 다 쓰지 못하게 해 업로드를 지킨다.
+- **지표**: 실행기가 빈(`driveStreamExecutor`)이라 Boot 가 `executor_active_threads{name="driveStreamExecutor"}`·`executor_pool_max_threads` 등을 자동으로 낸다. 거절은 직접 등록한 `drive.download.stream.rejected` 카운터.
+  실행기 단위 지표라 **다운로드가 아닌 비동기 API 가 생기면 숫자가 섞인다**(Spring 의 `http_server_requests_active` 는 진행 중 요청의 경로가 `UNKNOWN` 이라 종류를 못 나눈다).
+- **나중에 다운로드를 전용으로 나눌 때** — 지금은 필요 없다. 다운로드가 아닌 비동기 API 를 추가할 때 고른다.
+  - A(가장 간단): 새 비동기 API 가 자기 실행기를 지정한다 — `new WebAsyncTask<>(timeout, 자기 실행기, callable)`, `CompletableFuture.supplyAsync(..., 자기 실행기)`.
+  - 작은 응답(프로필 이미지·CSV 샘플)을 `byte[]`·`Resource` 동기 반환으로 바꾸면 지금 구조로도 실행기를 쓰는 게 파일 다운로드뿐이 된다.
+  - B: `DownloadBody`(별도 인터페이스 — `StreamingResponseBody` 를 상속하면 Spring 기본 처리기가 먼저 잡는다) + 전용 `HandlerMethodReturnValueHandler`(기본 처리기보다 앞에 등록) + `downloadExecutor` 빈.
+    처리기가 `WebAsyncTask(-1, downloadExecutor, writeTo 작업)` 로 시작한다. 풀은 같은 `ThreadPoolTaskExecutor` 를 하나 더 만드는 것이지 상속이 아니다.
+  - 종류별 동시 수가 필요하면 `writeTo` 시작·끝에서 올리고 내리는 게이지를 `kind`(file·zip·version·profile) 라벨로 둔다.
+  - 스트리밍 기능별로 상한을 따로 두려면 실행기 하나(크기 = 합계) + 기능별 세마포어(넘치면 그 기능만 503).
+
+#### 설계 메모 — 업로드 파트 동시 상한(남은 일 2)
+
+- 업로드 파트(`PUT /api/v1/uploads/{sessionId}/parts/{n}`)는 동기 요청이라 Tomcat 요청 스레드가 파트 전송(16MB) 동안 S3 연결과 함께 점유한다. 별도 스레드 풀을 만들지 않고 **개수만 센다**.
+- WAS 인스턴스 단위 `java.util.concurrent.Semaphore`(JVM 안의 카운터, OS 세마포어 아님) 50 안팎:
+  `tryAcquire()`(기다리지 않음) 실패 → 본문을 읽기 전에 503 + `Retry-After: 1`, 성공하면 처리 후 `finally` 에서 반납. 업로드가 없을 때는 Tomcat 200 을 다른 API 가 다 쓴다 — 미리 떼어 두는 게 아니라 최대치만 묶는다.
+- 세션 단위·Redis 로 세지 않는 이유: 한 세션의 파트가 여러 WAS 로 흩어지고, Redis 카운터는 WAS 가 죽으면 반납되지 않는다. 지키려는 것은 그 WAS 의 Tomcat 스레드와 S3 풀이다. WAS 가 여러 대면 전체 상한 = 50 × 대수.
+- 지표: 사용 중 게이지·거절 카운터(`drive.upload.part.rejected`). 프론트(`DriveFront/utils/chunkUpload.js`)는 파트 5xx·429·네트워크 오류를 1·2·4초 간격으로 3번 재시도한다 —
+  본문을 다 읽지 않고 거절하면 Tomcat 이 연결을 끊어 네트워크 오류로 보일 수 있는데 이것도 재시도 대상이다. 7초 넘게 붐비면 그 파트는 실패하고, 올린 파트는 남아 이어 올릴 수 있다.
+- 이 상한 없이 S3 풀만으로도 업로드는 결국 막히지만(2초 대기 뒤 503), 그동안 Tomcat 스레드가 200 까지 찰 수 있고 업로드·다운로드가 S3 풀을 서로 빼앗는다.
+
 ## 다시 처음부터
 
 ```bash
