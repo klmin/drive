@@ -18,4 +18,7 @@ public interface TrashCleanUpQueryRepository {
 
     /** 휴지통 비우기: 사용자 {@code userSeq} 의 휴지통 루트 전부와 그 하위(is_delete = isDelete). */
     List<TrashCleanUpTargetsData> findTrashCleanUpTargets(TrashCleanUpByUserQuery query);
+
+    /** 휴지통 비우기 대상 고정: 사용자 {@code userSeq} 의 지금 휴지통 행(trash_seq) 전부, trash_seq 순. */
+    List<Long> findTrashSeqs(Integer userSeq);
 }

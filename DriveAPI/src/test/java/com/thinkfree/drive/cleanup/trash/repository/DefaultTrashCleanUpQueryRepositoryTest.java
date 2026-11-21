@@ -181,4 +181,27 @@ class DefaultTrashCleanUpQueryRepositoryTest extends RepositoryTest {
         int nobody = user("trash-none", "없음", 1);
         assertThat(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(nobody, true))).isEmpty();
     }
+
+    @Test
+    @DisplayName("나눠 비우기 — 요청 시작 시 고정한 trash_seq 묶음의 루트와 하위만, 그 뒤 같은 초에 버린 항목·다른 사용자 행은 제외")
+    void byUser_fixedTrashSeqs() {
+        List<Long> fixed = repository.findTrashSeqs(userA);
+        assertThat(fixed).hasSize(2).isSorted();
+
+        // 고정 뒤 같은 등록일(초 단위)로 새로 버린 항목 — 비우기 대상이 아니어야 한다
+        long late = resource(userA, "FILE", "a-late.txt", 10L, "save/a-late", "Y", null);
+        trash(userA, late, RECENT);
+
+        // 첫 묶음(먼저 버린 aRoot) — 루트와 하위 전부
+        TrashCleanUpTargetsData first = of(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, fixed.subList(0, 1))), userA);
+        assertThat(first.getResourceTargets()).extracting(TrashCleanUpResourceItem::getResourceSeq)
+                .containsExactlyInAnyOrder(aRoot, aFile1, aFolder, aFile2);
+
+        // 둘째 묶음 — aRecentFile 만, 같은 초에 들어온 late 는 없음
+        TrashCleanUpTargetsData second = of(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, fixed.subList(1, 2))), userA);
+        assertThat(second.getResourceTargets()).extracting(TrashCleanUpResourceItem::getResourceSeq).containsExactly(aRecentFile);
+
+        // 다른 사용자의 trash_seq 를 넘겨도 사용자 조건으로 걸러진다
+        assertThat(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, repository.findTrashSeqs(userB)))).isEmpty();
+    }
 }

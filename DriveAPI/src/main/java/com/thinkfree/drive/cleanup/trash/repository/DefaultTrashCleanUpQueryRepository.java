@@ -71,7 +71,21 @@ public class DefaultTrashCleanUpQueryRepository implements TrashCleanUpQueryRepo
 
     @Override
     public List<TrashCleanUpTargetsData> findTrashCleanUpTargets(TrashCleanUpByUserQuery query) {
-        return find(eq(TB_TRASH.as("a").USER_SEQ, query.userSeq()), query.isDelete());
+        TbTrash a = TB_TRASH.as("a");
+        Condition condition = eq(a.USER_SEQ, query.userSeq());
+        if (query.trashSeqs() != null) {
+            condition = condition.and(a.TRASH_SEQ.in(query.trashSeqs()));
+        }
+        return find(condition, query.isDelete());
+    }
+
+    @Override
+    public List<Long> findTrashSeqs(Integer userSeq) {
+        return dsl.select(TB_TRASH.TRASH_SEQ)
+                .from(TB_TRASH)
+                .where(TB_TRASH.USER_SEQ.eq(userSeq))
+                .orderBy(TB_TRASH.TRASH_SEQ)
+                .fetch(TB_TRASH.TRASH_SEQ);
     }
 
     /** @param rootCondition 별칭 a = tb_trash 기준 루트 조건(날짜 또는 사용자) */
