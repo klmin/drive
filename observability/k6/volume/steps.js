@@ -10,5 +10,5 @@ LEVELS.forEach((v, i) => {
   thresholds[`http_reqs{scenario:vu${v}}`] = ['count>=0'];
   thresholds[`http_req_failed{scenario:vu${v}}`] = ['rate<=1'];
 });
-export const options = { noCookiesReset: true, scenarios, thresholds, summaryTrendStats: ['avg', 'med', 'p(95)', 'p(99)', 'max'] };
+export const options = { tags: { testid: __ENV.TESTID || 'steps' }, noCookiesReset: true, scenarios, thresholds, summaryTrendStats: ['avg', 'med', 'p(95)', 'p(99)', 'max'] };
 export default function () { browse(THINK); }

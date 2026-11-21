@@ -13,6 +13,7 @@ const JSON_HEADERS = { 'Content-Type': 'application/json' };
 const big = new Trend('big_op_ms', true);
 
 export const options = {
+  tags: { testid: __ENV.TESTID || 'trash-empty' },
   noCookiesReset: true,
   scenarios: {
     deleter: { executor: 'per-vu-iterations', vus: 1, iterations: 1, startTime: '15s', exec: 'deleter', maxDuration: '10m' },

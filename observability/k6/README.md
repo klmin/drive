@@ -238,6 +238,9 @@ docker compose --profile loadtest run --rm k6 run /scripts/volume/mixed.js      
 ```
 
 - 삭제 테스트는 데이터를 실제로 지운다. 다시 하려면 "다시 처음부터" 로 DB 를 새로 만든다.
+- `mixed.js` 전에 업로드 한도를 올린다 — seed 사용자 한도(100MiB)를 `seed-volume.sql` 이 약 60MB 채워서 40MB 업로드가 용량 검사에 걸린다:
+  `docker compose exec -T loadtest-db psql -U drive_load -d drive_load -c "update tb_user set total_quota_byte = 10737418240 where user_id like 'lt-user-%'"`
+- 실행 이름은 `-e TESTID=…` 로 바꾼다(기본: 스크립트 이름) — Grafana "k6 부하 테스트" 에서 실행별로 고른다. `shared-folder.js` 는 `MODE` 마다 다른 `TESTID` 를 준다.
 - 휴지통 비우기는 삭제 대기열(`tb_storage_deletion`)에 쌓기만 한다. 대기열 처리까지 보려면 배치 스케줄러를 켠다(`DRIVE_SCHEDULER_BATCH_ENABLED=true`).
 - 잠금 대기는 테스트 중에 1초마다 본다: `select count(*) filter (where wait_event_type='Lock'), max(now()-query_start) filter (where wait_event_type='Lock') from pg_stat_activity where datname='drive_load'`
 
@@ -252,7 +255,7 @@ docker compose --profile loadtest run --rm k6 run /scripts/volume/mixed.js      
 |---|---|---|---|
 | 루트 목록 | 30ms | 214ms | 35ms |
 | 폴더 목록 | 27ms | 22ms | 16ms |
-| 파일 1만 개 폴더 / 50페이지 | — | 52ms / 43ms | 43ms / 42ms |
+| 파일 1만 개 폴더 첫 페이지 | — | 52ms | 43ms |
 | 깊이 30 폴더 | — | 22ms | 18ms |
 | 트리 | 22ms | 138ms | 92ms |
 | **검색(흔한 키워드)** | 40ms | **1.42s** | **236ms** |
@@ -262,6 +265,7 @@ docker compose --profile loadtest run --rm k6 run /scripts/volume/mixed.js      
 - 검색만 SLO(1초)를 넘었다. 원인: 정렬 인덱스에 `user_seq` 가 없어 generic plan 이 파티션 전체(73만 행)를 정렬 순서로 훑으며 걸렀다. 해시 파티션 2개라 파티션 하나에 여러 사용자가 섞여 있다.
 - 루트 목록·트리가 오른 것은 느린 검색이 CPU 를 차지해서다 — 검색만 고쳤는데 같이 내려왔다.
 - 인덱스 추가 후 열은 이름 정렬 인덱스만 넣고 잰 값이다. 쿼리 단위 비교는 #72(V8).
+- 50페이지: 목록은 커서 페이징(`cv`·`ci`·`ct`)이라 페이지 번호(`pi`)는 무시된다. VU 마다 49페이지를 따라가 구한 커서로 다시 잰 값(#72 V8·V9 적용 후, 같은 실행): 첫 페이지 104ms, **50페이지 105ms** — 깊이와 무관하다. 같은 실행에서 트리는 33ms(V9 전 138ms).
 
 ### 결과 2 — 단계별 부하 중 폴더 트리 (WAS 2코어로 제한)
 
@@ -287,9 +291,11 @@ docker compose --profile loadtest run --rm k6 run /scripts/volume/mixed.js      
 | | 각자 자기 드라이브 | 한 공유 폴더 | 공유 폴더 안 사람마다 하위 폴더(`SPLIT=1`) |
 |---|---|---|---|
 | 0.2초 쉬며 | p95 21~24ms, 초당 129건 | p95 44~47ms, 초당 120건 | |
-| 쉬지 않고 | p95 30ms, **초당 811건** | p95 134ms, **초당 159건** | p95 123ms, 초당 175건 |
+| 쉬지 않고 | p95 36ms, **초당 약 720건** | p95 142ms, **초당 약 137건** | p95 123ms, 초당 175건 |
 | 잠금 대기 세션(평균) | 0 | 12.7 | 12.7 |
 | 실패 / 교착 | 0 / 0 | 0 / 0 | 0 / 0 |
+
+- 쉬지 않고 행의 앞 두 칸은 지금 스크립트(사용자마다 작업 폴더 아래에서 하고 끝나면 정리)로 다시 잰 값이다(만들기+이름 바꾸기 건수 ÷ 60초). 처음 잰 값(작업 폴더 없이 루트에서, 정리 없이)은 초당 811건 대 159건으로 비율이 같았다. 0.2초 행과 하위 폴더 칸은 처음 잰 값.
 
 - 공유 폴더의 리소스는 모두 소유자의 것이라, 쓰기마다 **소유자 사용자 행**을 잠근다(잠금 순서: 사용자 → 부모 → 대상). 하위 폴더를 나눠도 처리량이 그대로라 병목은 부모 폴더가 아니라 사용자 행이다.
 - 평소 속도(0.2초 쉼)에서는 p95 두 배 정도로 문제가 안 되지만, 한 사람의 공간에 쓰기가 몰리면 초당 약 170건이 상한이다. 용량이 바뀌지 않는 작업(폴더 만들기, 이름 바꾸기)에서 사용자 행 잠금을 빼는 것이 개선 후보 — 교착 방지 설계(잠금 순서)와 같이 봐야 한다.
