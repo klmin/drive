@@ -4,6 +4,7 @@ import com.thinkfree.drive.cleanup.trash.data.TrashCleanUpTargetsData;
 import com.thinkfree.drive.cleanup.trash.query.TrashCleanUpByDateQuery;
 import com.thinkfree.drive.cleanup.trash.query.TrashCleanUpByUserQuery;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -21,4 +22,10 @@ public interface TrashCleanUpQueryRepository {
 
     /** 휴지통 비우기 대상 고정: 사용자 {@code userSeq} 의 지금 휴지통 행(trash_seq) 전부, trash_seq 순. */
     List<Long> findTrashSeqs(Integer userSeq);
+
+    /** 사용자 {@code userSeq} 의 휴지통 행 중 {@code trashSeqs} 에 든 것이 지금 몇 개 남았나 — 비우기 묶음이 잠금 전후로 비교한다. */
+    int countTrashRows(Integer userSeq, List<Long> trashSeqs);
+
+    /** 스케줄러 자동정리 잠금 대상: 휴지통 등록일이 {@code thresholdDate} 이전인 행이 있는 사용자, user_seq 순(null 이면 빈 목록). */
+    List<Integer> findTrashUserSeqs(Instant thresholdDate);
 }

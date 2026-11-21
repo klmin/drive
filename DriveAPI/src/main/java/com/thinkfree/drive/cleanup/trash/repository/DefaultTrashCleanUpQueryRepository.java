@@ -21,6 +21,7 @@ import org.jooq.Table;
 import org.jooq.impl.SQLDataType;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,7 +67,30 @@ public class DefaultTrashCleanUpQueryRepository implements TrashCleanUpQueryRepo
     public List<TrashCleanUpTargetsData> findTrashCleanUpTargets(TrashCleanUpByDateQuery query) {
         TbTrash a = TB_TRASH.as("a");
         Condition threshold = query.thresholdDate() == null ? falseCondition() : a.REGISTER_DATE.le(query.thresholdDate());
+        if (query.userSeqs() != null) {
+            threshold = threshold.and(a.USER_SEQ.in(query.userSeqs()));
+        }
         return find(threshold, query.isDelete());
+    }
+
+    @Override
+    public int countTrashRows(Integer userSeq, List<Long> trashSeqs) {
+        if (trashSeqs == null || trashSeqs.isEmpty()) {
+            return 0;
+        }
+        return dsl.fetchCount(TB_TRASH, TB_TRASH.USER_SEQ.eq(userSeq).and(TB_TRASH.TRASH_SEQ.in(trashSeqs)));
+    }
+
+    @Override
+    public List<Integer> findTrashUserSeqs(Instant thresholdDate) {
+        if (thresholdDate == null) {
+            return List.of();
+        }
+        return dsl.selectDistinct(TB_TRASH.USER_SEQ)
+                .from(TB_TRASH)
+                .where(TB_TRASH.REGISTER_DATE.le(thresholdDate))
+                .orderBy(TB_TRASH.USER_SEQ)
+                .fetch(TB_TRASH.USER_SEQ);
     }
 
     @Override

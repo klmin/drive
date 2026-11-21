@@ -169,6 +169,18 @@ class DefaultTrashCleanUpQueryRepositoryTest extends RepositoryTest {
     }
 
     @Test
+    @DisplayName("자동정리 잠금 대상 — 기한 지난 휴지통이 있는 사용자를 user_seq 순으로, 사용자 제한을 주면 그 사용자 것만 대상")
+    void byDate_lockedUsersOnly() {
+        assertThat(repository.findTrashUserSeqs(THRESHOLD)).contains(userA, userB).isSorted();
+        assertThat(repository.findTrashUserSeqs(Instant.parse("2025-12-31T00:00:00Z"))).doesNotContain(userA, userB);
+        assertThat(repository.findTrashUserSeqs(null)).isEmpty();
+
+        // 잠근 사용자(userB)만 — 잠그지 않은 userA 의 기한 지난 항목은 이번 실행에서 빠진다
+        assertThat(repository.findTrashCleanUpTargets(new TrashCleanUpByDateQuery(THRESHOLD, true, List.of(userB))))
+                .extracting(TrashCleanUpTargetsData::getUserSeq).containsExactly(userB);
+    }
+
+    @Test
     @DisplayName("isDelete 는 하위에만 — false 면 복원된 하위 1건, null 이면 하위 0건(루트만); 휴지통 없는 사용자는 빈 목록")
     void isDeleteOnChildrenOnly_andEmpty() {
         TrashCleanUpTargetsData notDeleted = of(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, false)), userA);
@@ -203,5 +215,10 @@ class DefaultTrashCleanUpQueryRepositoryTest extends RepositoryTest {
 
         // 다른 사용자의 trash_seq 를 넘겨도 사용자 조건으로 걸러진다
         assertThat(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, repository.findTrashSeqs(userB)))).isEmpty();
+
+        // 잠금 전후 비교용 남은 행 수 — 목록 안의 내 행만, 빈 목록은 0
+        assertThat(repository.countTrashRows(userA, fixed)).isEqualTo(2);
+        assertThat(repository.countTrashRows(userA, repository.findTrashSeqs(userB))).isZero();
+        assertThat(repository.countTrashRows(userA, List.of())).isZero();
     }
 }
