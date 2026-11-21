@@ -1,0 +1,55 @@
+
+
+  █ THRESHOLDS 
+
+    http_req_duration{scenario:vu300,api:list}
+    ✓ 'p(95)<100000' p(95)=1.13s
+
+    http_req_duration{scenario:vu300}
+    ✓ 'p(95)<100000' p(95)=626.71ms
+
+    http_req_failed{scenario:vu300}
+    ✓ 'rate<=1' rate=0.00%
+
+    http_reqs{scenario:vu300}
+    ✓ 'count>=0' count=27945
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 27945   429.920716/s
+    checks_succeeded...: 100.00% 27945 out of 27945
+    checks_failed......: 0.00%   0 out of 27945
+
+    ✓ login 200
+    ✓ list 200
+    ✓ me 200
+    ✓ detail 200
+    ✓ search 200
+    ✓ recent 200
+    ✓ starred 200
+    ✓ tree 200
+    ✓ quota 200
+
+    HTTP
+    http_req_duration...............: avg=131.55ms med=17.06ms p(95)=626.71ms p(99)=1.84s  max=6.26s 
+      { expected_response:true }....: avg=131.55ms med=17.06ms p(95)=626.71ms p(99)=1.84s  max=6.26s 
+      { scenario:vu300,api:list }...: avg=170.32ms med=7.83ms  p(95)=1.13s    p(99)=3.24s  max=5.48s 
+      { scenario:vu300 }............: avg=131.55ms med=17.06ms p(95)=626.71ms p(99)=1.84s  max=6.26s 
+    http_req_failed.................: 0.00%  0 out of 27945
+      { scenario:vu300 }............: 0.00%  0 out of 27945
+    http_reqs.......................: 27945  429.920716/s
+      { scenario:vu300 }............: 27945  429.920716/s
+
+    EXECUTION
+    iteration_duration..............: avg=6.23s    med=5.46s   p(95)=11.93s   p(99)=12.38s max=13.23s
+    iterations......................: 3002   46.184362/s
+    vus.............................: 3      min=3          max=300
+    vus_max.........................: 300    min=300        max=300
+
+    NETWORK
+    data_received...................: 547 MB 8.4 MB/s
+    data_sent.......................: 12 MB  185 kB/s
+
+
+
