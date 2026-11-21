@@ -32,7 +32,7 @@ public record S3HttpClientProperty
     Boolean tcpKeepAlive
 )
 {
-    public static final int DEFAULT_MAX_CONNECTIONS = 250;
+    public static final int DEFAULT_MAX_CONNECTIONS = 200;
     public static final Duration DEFAULT_CONNECTION_ACQUISITION_TIMEOUT = Duration.ofSeconds(2);
     public static final Duration DEFAULT_CONNECTION_TIMEOUT = Duration.ofSeconds(2);
     public static final Duration DEFAULT_SOCKET_TIMEOUT = Duration.ofSeconds(30);

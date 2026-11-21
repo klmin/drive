@@ -38,7 +38,7 @@ public class StreamingAsyncConfig implements WebMvcConfigurer {
     private final AsyncTaskExecutor streamExecutor;
 
     public StreamingAsyncConfig(@Value("${drive.download.stream.core-threads:8}") int coreThreads,
-                                @Value("${drive.download.stream.max-threads:200}") int maxThreads,
+                                @Value("${drive.download.stream.max-threads:100}") int maxThreads,
                                 MeterRegistry meterRegistry) {
         this.streamExecutor = createExecutor(coreThreads, maxThreads, meterRegistry);
     }

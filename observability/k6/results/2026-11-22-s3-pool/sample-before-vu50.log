@@ -1,0 +1,7 @@
+00:23:27 busy=0 stream=- rej=0 s3get=- leased=- pending=- acqto=- cpu=0.001647 heap=228
+00:23:30 busy=1 stream=- rej=0 s3get=- leased=- pending=- acqto=- cpu=0.04368 heap=219
+00:23:34 busy=4 stream=- rej=0 s3get=- leased=- pending=- acqto=- cpu=0.04678 heap=197
+00:23:37 busy=1 stream=- rej=0 s3get=- leased=- pending=- acqto=- cpu=0.03961 heap=195
+00:23:41 busy=1 stream=- rej=0 s3get=- leased=- pending=- acqto=- cpu=0.03579 heap=192
+00:24:13 busy=3 stream=- rej=0 s3get=- leased=- pending=- acqto=- cpu=0.1174 heap=254
+00:24:42 busy=10 stream=- rej=0 s3get=- leased=- pending=- acqto=- cpu=0.1116 heap=255

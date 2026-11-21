@@ -226,7 +226,7 @@
       "id": 12,
       "type": "timeseries",
       "title": "S3 커넥션 풀 — 연결 빌리는 시간 p95 · 대기 초과(503)/초",
-      "description": "업로드 파트·다운로드·삭제가 같은 동기 S3 클라이언트 커넥션 풀(storage.http.max-connections, 기본 250)을 쓴다. 빌리는 시간이 오르면 풀이 모자란 것이고, 대기 초과(storage.http.connection-acquisition-timeout, 기본 2s)는 재시도 없이 503(STORAGE_009)이 된다. 대기는 없는데 S3 응답이 느리면 풀을 키우지 말고 입구 제한(다운로드 스트림 상한)을 낮춘다.",
+      "description": "업로드 파트·다운로드·삭제가 같은 동기 S3 클라이언트 커넥션 풀(storage.http.max-connections, 기본 200)을 쓴다. 빌리는 시간이 오르면 풀이 모자란 것이고, 대기 초과(storage.http.connection-acquisition-timeout, 기본 2s)는 재시도 없이 503(STORAGE_009)이 된다. 대기는 없는데 S3 응답이 느리면 풀을 키우지 말고 입구 제한(다운로드 스트림 상한)을 낮춘다.",
       "gridPos": { "x": 0, "y": 39, "w": 8, "h": 7 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
@@ -283,7 +283,7 @@
       "id": 14,
       "type": "timeseries",
       "title": "다운로드 스트림 — 동시 다운로드 · 상한 · 거절(503)/초",
-      "description": "다운로드 본문은 스트림 스레드 풀(DriveStream-N, drive.download.stream.max-threads, 기본 200)이 보낸다. 사용 중 = 동시 다운로드 수. 상한에 닿으면 새 다운로드는 바로 503 으로 거절된다. 상한은 회선 대역폭 ÷ 1인당 최소 속도로 정하고, S3 풀은 그보다 크게(+업로드·삭제 몫) 둔다.",
+      "description": "다운로드 본문은 스트림 스레드 풀(DriveStream-N, drive.download.stream.max-threads, 기본 100)이 보낸다. 사용 중 = 동시 다운로드 수. 상한에 닿으면 새 다운로드는 바로 503 으로 거절된다. 상한은 회선 대역폭 ÷ 1인당 최소 속도로 정하고, S3 풀은 그보다 크게(+업로드·삭제 몫) 둔다.",
       "gridPos": { "x": 16, "y": 39, "w": 8, "h": 7 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
