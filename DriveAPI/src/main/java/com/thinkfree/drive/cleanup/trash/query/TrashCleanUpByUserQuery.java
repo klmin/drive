@@ -1,21 +1,20 @@
 package com.thinkfree.drive.cleanup.trash.query;
 
-import java.time.Instant;
+import java.util.List;
 
 /**
  * 사용자 휴지통 영구삭제 대상 조건.
  *
- * @param registeredBefore null 이 아니면 이 시각까지 휴지통에 들어온 루트만 — 휴지통 비우기를 나눠 처리하는 동안 새로 들어온 항목은 지우지 않는다
- * @param rootLimit        null 이 아니면 휴지통 루트를 trash_seq 순으로 이만큼만(하위는 루트를 따라 전부) — 한 트랜잭션 크기 제한
+ * @param trashSeqs null 이 아니면 이 휴지통 행(trash_seq)의 루트만(하위는 루트를 따라 전부) — 휴지통 비우기를 나눠 처리할 때
+ *                  요청 시작 시 고정한 대상 목록의 한 묶음. 처리하는 동안 새로 버린 항목은 목록에 없어 지워지지 않는다
  */
 public record TrashCleanUpByUserQuery(
         Integer userSeq,
         Boolean isDelete,
-        Instant registeredBefore,
-        Integer rootLimit
+        List<Long> trashSeqs
 ) {
-    /** 사용자 휴지통 루트 전부(시각·개수 제한 없음). */
+    /** 사용자 휴지통 루트 전부. */
     public TrashCleanUpByUserQuery(Integer userSeq, Boolean isDelete) {
-        this(userSeq, isDelete, null, null);
+        this(userSeq, isDelete, null);
     }
 }

@@ -37,7 +37,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
+import java.util.List;
 
 /**
  * 진입점(내부 API·외부 API·MCP) 공용 휴지통 usecase — 휴지통 수명주기(입고 moveToTrash/복원 restore/
@@ -321,7 +321,8 @@ public class TrashUseCase {
      * 한 트랜잭션으로 지우면 처음에 줄이는 사용자 용량(tb_user 행)이 끝까지 잠겨, 그동안 같은 사용자의 다른 쓰기가 모두 기다린다
      * (부하 테스트: 5만 건 4.6초, 같은 사용자 쓰기 최대 3.2초 대기). 묶음마다 커밋하면 잠금이 묶음 길이만큼만 잡힌다.
      * <ul>
-     *   <li>요청 시각까지 휴지통에 들어온 항목만 지운다 — 처리하는 동안 새로 버린 항목은 남는다.</li>
+     *   <li>요청 시작 시 휴지통 행(trash_seq) 목록을 고정해 그것만 지운다 — 처리하는 동안 새로 버린 항목은 남는다
+     *       (등록일은 초 단위로 저장되어 시각 비교로는 같은 초에 버린 항목을 가를 수 없다).</li>
      *   <li>중간에 실패하면 앞 묶음은 이미 지워진 상태로 남는다. 남은 항목은 그대로 휴지통에 있어 다시 비우면 이어서 지운다.</li>
      *   <li>감사 로그(@AuditLog)는 요청당 한 번, 리소스별 영구삭제 감사·삭제 대기열 등록·알림은 묶음마다.</li>
      * </ul>
@@ -329,13 +330,13 @@ public class TrashUseCase {
      */
     @AuditLog
     public void emptyTrash(int userSeq) {
-        Instant requestedAt = Instant.now();
+        List<Long> trashSeqs = trashCleanUpService.findTrashSeqsByUser(userSeq);
+        int batchSize = DriveConstants.EMPTY_TRASH_ROOT_BATCH_SIZE;
         int batches = 0;
         int deleted = 0;
-        int processed;
-        while ((processed = trashCleanUpService.cleanUpResourcesByUser(userSeq, requestedAt, DriveConstants.EMPTY_TRASH_ROOT_BATCH_SIZE)) > 0) {
+        for (int from = 0; from < trashSeqs.size(); from += batchSize) {
+            deleted += trashCleanUpService.cleanUpResourcesByUser(userSeq, trashSeqs.subList(from, Math.min(from + batchSize, trashSeqs.size())));
             batches++;
-            deleted += processed;
         }
         log.info("[TrashUseCase emptyTrash] userSeq: {}, batches: {}, deleted: {}", userSeq, batches, deleted);
     }

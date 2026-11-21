@@ -109,8 +109,14 @@ public class DefaultTrashCleanUpService implements TrashCleanUpService {
     }
 
     @Override
-    public int cleanUpResourcesByUser(Integer userSeq, Instant registeredBefore, int rootLimit) {
-        return cleanUpByUser(new TrashCleanUpByUserQuery(userSeq, true, registeredBefore, rootLimit));
+    @Transactional(readOnly = true)
+    public List<Long> findTrashSeqsByUser(Integer userSeq) {
+        return trashCleanUpQueryRepository.findTrashSeqs(userSeq);
+    }
+
+    @Override
+    public int cleanUpResourcesByUser(Integer userSeq, List<Long> trashSeqs) {
+        return cleanUpByUser(new TrashCleanUpByUserQuery(userSeq, true, trashSeqs));
     }
 
     private int cleanUpByUser(TrashCleanUpByUserQuery query) {

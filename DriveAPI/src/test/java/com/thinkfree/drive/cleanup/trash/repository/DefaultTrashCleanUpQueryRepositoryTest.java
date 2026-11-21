@@ -183,21 +183,25 @@ class DefaultTrashCleanUpQueryRepositoryTest extends RepositoryTest {
     }
 
     @Test
-    @DisplayName("나눠 비우기 — rootLimit 은 휴지통 루트를 trash_seq 순으로 자르고 하위는 루트를 따라 전부, registeredBefore 뒤에 들어온 루트는 제외")
-    void byUser_rootLimitAndRegisteredBefore() {
-        Instant far = Instant.parse("2030-01-01T00:00:00Z");
+    @DisplayName("나눠 비우기 — 요청 시작 시 고정한 trash_seq 묶음의 루트와 하위만, 그 뒤 같은 초에 버린 항목·다른 사용자 행은 제외")
+    void byUser_fixedTrashSeqs() {
+        List<Long> fixed = repository.findTrashSeqs(userA);
+        assertThat(fixed).hasSize(2).isSorted();
 
-        // 루트 1개 — 먼저 버린 aRoot 와 그 하위 전부, 나중 루트(aRecentFile)는 다음 묶음
-        TrashCleanUpTargetsData first = of(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, far, 1)), userA);
+        // 고정 뒤 같은 등록일(초 단위)로 새로 버린 항목 — 비우기 대상이 아니어야 한다
+        long late = resource(userA, "FILE", "a-late.txt", 10L, "save/a-late", "Y", null);
+        trash(userA, late, RECENT);
+
+        // 첫 묶음(먼저 버린 aRoot) — 루트와 하위 전부
+        TrashCleanUpTargetsData first = of(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, fixed.subList(0, 1))), userA);
         assertThat(first.getResourceTargets()).extracting(TrashCleanUpResourceItem::getResourceSeq)
                 .containsExactlyInAnyOrder(aRoot, aFile1, aFolder, aFile2);
 
-        // 첫 묶음을 지운 뒤(휴지통 행 삭제) 다음 묶음 = 남은 루트
-        jdbc.update("DELETE FROM tb_trash WHERE user_seq = ? AND resource_seq = ?", userA, aRoot);
-        TrashCleanUpTargetsData second = of(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, far, 1)), userA);
+        // 둘째 묶음 — aRecentFile 만, 같은 초에 들어온 late 는 없음
+        TrashCleanUpTargetsData second = of(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, fixed.subList(1, 2))), userA);
         assertThat(second.getResourceTargets()).extracting(TrashCleanUpResourceItem::getResourceSeq).containsExactly(aRecentFile);
 
-        // 요청 시각(THRESHOLD) 뒤에 들어온 aRecentFile 은 대상이 아니다 — 남은 대상 없음
-        assertThat(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, THRESHOLD, 50))).isEmpty();
+        // 다른 사용자의 trash_seq 를 넘겨도 사용자 조건으로 걸러진다
+        assertThat(repository.findTrashCleanUpTargets(new TrashCleanUpByUserQuery(userA, true, repository.findTrashSeqs(userB)))).isEmpty();
     }
 }

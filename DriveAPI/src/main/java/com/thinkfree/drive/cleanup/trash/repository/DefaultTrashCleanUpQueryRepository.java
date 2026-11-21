@@ -73,30 +73,30 @@ public class DefaultTrashCleanUpQueryRepository implements TrashCleanUpQueryRepo
     public List<TrashCleanUpTargetsData> findTrashCleanUpTargets(TrashCleanUpByUserQuery query) {
         TbTrash a = TB_TRASH.as("a");
         Condition condition = eq(a.USER_SEQ, query.userSeq());
-        if (query.registeredBefore() != null) {
-            condition = condition.and(a.REGISTER_DATE.le(query.registeredBefore()));
+        if (query.trashSeqs() != null) {
+            condition = condition.and(a.TRASH_SEQ.in(query.trashSeqs()));
         }
-        return find(condition, query.isDelete(), query.rootLimit());
+        return find(condition, query.isDelete());
     }
 
+    @Override
+    public List<Long> findTrashSeqs(Integer userSeq) {
+        return dsl.select(TB_TRASH.TRASH_SEQ)
+                .from(TB_TRASH)
+                .where(TB_TRASH.USER_SEQ.eq(userSeq))
+                .orderBy(TB_TRASH.TRASH_SEQ)
+                .fetch(TB_TRASH.TRASH_SEQ);
+    }
+
+    /** @param rootCondition 별칭 a = tb_trash 기준 루트 조건(날짜 또는 사용자) */
     private List<TrashCleanUpTargetsData> find(Condition rootCondition, Boolean isDelete) {
-        return find(rootCondition, isDelete, null);
-    }
-
-    /**
-     * @param rootCondition 별칭 a = tb_trash 기준 루트 조건(날짜 또는 사용자)
-     * @param rootLimit     null 이 아니면 루트를 trash_seq 순으로 이만큼만 — 하위(resource_data)는 고른 루트를 따라 전부 온다
-     */
-    private List<TrashCleanUpTargetsData> find(Condition rootCondition, Boolean isDelete, Integer rootLimit) {
         TbTrash a = TB_TRASH.as("a");
         TbResource b = TB_RESOURCE.as("b");
-        var rootSelect = select(b.RESOURCE_SEQ, b.USER_SEQ, b.RESOURCE_TYPE, b.SIZE_BYTE, b.RESOURCE_SAVE_NAME, b.RESOURCE_NAME)
-                .from(a)
-                .join(b).on(a.RESOURCE_SEQ.eq(b.RESOURCE_SEQ).and(a.USER_SEQ.eq(b.USER_SEQ)))
-                .where(rootCondition);
-        CommonTableExpression<?> rootData = rootLimit == null
-                ? name(ROOT_DATA).as(rootSelect)
-                : name(ROOT_DATA).as(rootSelect.orderBy(a.TRASH_SEQ).limit(rootLimit));
+        CommonTableExpression<?> rootData = name(ROOT_DATA).as(
+                select(b.RESOURCE_SEQ, b.USER_SEQ, b.RESOURCE_TYPE, b.SIZE_BYTE, b.RESOURCE_SAVE_NAME, b.RESOURCE_NAME)
+                        .from(a)
+                        .join(b).on(a.RESOURCE_SEQ.eq(b.RESOURCE_SEQ).and(a.USER_SEQ.eq(b.USER_SEQ)))
+                        .where(rootCondition));
 
         Table<Record> root = table(name(ROOT_DATA)).as("a");
         CommonTableExpression<?> resourceData = name(RESOURCE_DATA).as(
