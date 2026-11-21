@@ -3,7 +3,7 @@ package com.thinkfree.drive.cleanup.trash.service.impl;
 import com.thinkfree.drive.auditlog.enums.EventName;
 import com.thinkfree.drive.auditlog.lookup.user.UserAuditLookupService;
 import com.thinkfree.drive.auditlog.service.ResourceAuditService;
-import com.thinkfree.drive.cleanup.trash.converter.TrashCleanUpConverter;
+import com.thinkfree.drive.cleanup.trash.query.TrashCleanUpByDateQuery;
 import com.thinkfree.drive.user.data.UserDetailData;
 import com.thinkfree.drive.cleanup.trash.data.TrashCleanUpTargetsData;
 import com.thinkfree.drive.cleanup.trash.entity.TrashCleanUpEntity;
@@ -21,6 +21,7 @@ import com.thinkfree.drive.recent.repository.RecentRepository;
 import com.thinkfree.drive.recent.query.RecentDeleteResourcesQuery;
 import com.thinkfree.drive.resource.contract.ResourceBrief;
 import com.thinkfree.drive.resource.enums.ResourceType;
+import com.thinkfree.drive.resource.repository.ResourceNamingLockRepository;
 import com.thinkfree.drive.resource.repository.ResourceRepository;
 import com.thinkfree.drive.resource.query.ResourceDeleteSeqListQuery;
 import com.thinkfree.drive.resource.version.repository.ResourceVersionRepository;
@@ -53,8 +54,6 @@ import java.util.Map;
 @Transactional
 public class DefaultTrashCleanUpService implements TrashCleanUpService {
 
-    private final TrashCleanUpConverter trashCleanUpConverter;
-
     private final TrashCleanUpQueryRepository trashCleanUpQueryRepository;
     private final ResourceRepository resourceRepository;
     private final ResourceVersionRepository resourceVersionRepository;
@@ -65,6 +64,7 @@ public class DefaultTrashCleanUpService implements TrashCleanUpService {
     private final TrashRepository trashRepository;
 
     private final UserService userService;
+    private final ResourceNamingLockRepository userRowLock;
 
     private final PostProcessingOrchestratorRetry postProcessingOrchestratorRetry;
 
@@ -75,10 +75,20 @@ public class DefaultTrashCleanUpService implements TrashCleanUpService {
 
     private final ResourceAuditService resourceAuditService;
 
+    /**
+     * 스케줄러 자동정리 — 대상 사용자 행을 user_seq 순으로 먼저 잠근 뒤 대상을 읽는다(휴지통 비우기와 같은 이유, {@link #cleanUpByUser} 참고).
+     * 잠근 사용자만 지우고, 잠근 뒤 새로 기한이 지난 다른 사용자 항목은 다음 실행에 넘긴다.
+     */
     @Override
     public void cleanUpResourcesByDate() {
         int intervalDay = DriveConstants.DEFAULT_TRASH_CLEAN_UP_INTERVAL_DAY;
-        var query = trashCleanUpConverter.toTrashCleanUpByDateQuery(Instant.now().minus(intervalDay, ChronoUnit.DAYS));
+        Instant threshold = Instant.now().minus(intervalDay, ChronoUnit.DAYS);
+        List<Integer> userSeqs = trashCleanUpQueryRepository.findTrashUserSeqs(threshold);
+        if (userSeqs.isEmpty()) {
+            return;
+        }
+        userSeqs.stream().sorted().forEach(userRowLock::lockUser);
+        var query = new TrashCleanUpByDateQuery(threshold, true, userSeqs);
         var targets = trashCleanUpQueryRepository.findTrashCleanUpTargets(query);
 
         // 스케줄러 자동정리(SYSTEM) - 삭제되는 리소스마다 영구삭제 감사 로그 fan-out.
@@ -119,8 +129,32 @@ public class DefaultTrashCleanUpService implements TrashCleanUpService {
         return cleanUpByUser(new TrashCleanUpByUserQuery(userSeq, true, trashSeqs));
     }
 
+    /**
+     * 사용자 휴지통 영구삭제 한 트랜잭션 — 지우기 전에 사용자 행을 잠그고, 잠근 뒤의 휴지통 상태로 대상을 확정한다.
+     * <p>
+     * 복원·휴지통 이동·영구 삭제도 사용자 행을 먼저 잠근다(소유자별 직렬화). 잠금 없이 읽은 대상을 그대로 지우면, 읽은 뒤 커밋된 복원을
+     * 못 보고 방금 복원한 리소스까지 지우고 사용량도 빼게 된다.
+     * <p>
+     * 묶음(trashSeqs 고정): 무거운 대상 조회(루트 + 하위 + 버전)는 잠금 밖에서 하고, 잠근 뒤 그 묶음의 휴지통 행 수만 다시 센다.
+     * 고정 목록이라 행은 줄기만 하므로(복원·영구 삭제) 수가 같으면 읽은 뒤 바뀐 것이 없고, 줄었으면 잠금 안에서 다시 읽는다.
+     * 대상 조회를 잠금 안에 두면 묶음마다 그만큼 같은 사용자의 쓰기가 더 기다린다(부하 테스트 5만 건: 잠금 대기 최대 0.2초 → 1.35초).
+     * 목록이 없는 사용자 전체 비우기는 새로 버린 항목이 섞일 수 있어 잠근 뒤 읽는다.
+     * <p>
+     * 잠금은 {@code FOR NO KEY UPDATE}(복원의 이름 자리 잠금·사용량 UPDATE 와 같은 모드) — 그들과 직렬화되고, 사용자 행을 FK 로 참조하는 INSERT(KEY SHARE)는 막지 않는다.
+     */
     private int cleanUpByUser(TrashCleanUpByUserQuery query) {
-        var targets = trashCleanUpQueryRepository.findTrashCleanUpTargets(query);
+        List<TrashCleanUpTargetsData> targets;
+        if (query.trashSeqs() == null) {
+            userRowLock.lockUser(query.userSeq());
+            targets = trashCleanUpQueryRepository.findTrashCleanUpTargets(query);
+        } else {
+            int before = trashCleanUpQueryRepository.countTrashRows(query.userSeq(), query.trashSeqs());
+            targets = trashCleanUpQueryRepository.findTrashCleanUpTargets(query);
+            userRowLock.lockUser(query.userSeq());
+            if (trashCleanUpQueryRepository.countTrashRows(query.userSeq(), query.trashSeqs()) != before) {
+                targets = trashCleanUpQueryRepository.findTrashCleanUpTargets(query);
+            }
+        }
 
         // 사용자가 직접 휴지통 비우기(WEB) - 삭제되는 리소스마다 영구삭제 감사 로그 fan-out.
         // 스케줄러 자동정리(cleanUpResourcesByDate)는 공유 메서드 cleanUpResources를 쓰되 이 기록은 타지 않는다(SYSTEM 감사 보류).

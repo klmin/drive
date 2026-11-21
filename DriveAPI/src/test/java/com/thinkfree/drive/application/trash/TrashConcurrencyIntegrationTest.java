@@ -62,6 +62,7 @@ class TrashConcurrencyIntegrationTest {
     @Autowired FolderController folders;
     @Autowired DriveTrashTools mcp;
     @Autowired TrashUseCase trash;
+    @Autowired com.thinkfree.drive.cleanup.trash.service.TrashCleanUpService cleanUp;
     @MockitoBean ResourceAuditService audit;
     @MockitoBean StorageService storage;
     @MockitoBean com.thinkfree.drive.storage.config.S3BucketInitializer bucketInitializer;
@@ -343,6 +344,40 @@ class TrashConcurrencyIntegrationTest {
         assertThat(count("tb_resource", folder)).isZero();
         assertThat(count("tb_resource", child)).isZero();
         assertThat(quota()).isEqualTo(quotaBefore);
+    }
+
+    @Test
+    @DisplayName("휴지통 비우기 묶음과 복원 동시 — 복원이 사용자 행을 쥔 동안 시작한 비우기는 복원 커밋을 기다린 뒤 대상을 읽어, 복원된 파일을 지우지 않는다")
+    void emptyTrashBatch_waitsForRestore_andKeepsRestoredFile() throws Exception {
+        long id = file(null);
+        files.delete(id, user);
+        long trashSeq = jdbc.queryForObject("SELECT trash_seq FROM tb_trash WHERE user_seq=? AND resource_seq=?", Long.class, USER, id);
+        long quotaInTrash = quota();
+
+        // 복원 트랜잭션이 사용자 행을 잡고 아직 커밋하지 않은 시점(복원 감사 기록)에 그 trash_seq 묶음 비우기를 시작한다.
+        // 잠금 없이 대상을 먼저 읽으면 커밋 전 상태(아직 휴지통)를 보고, 사용량 UPDATE 에서 기다렸다가 복원 커밋 뒤 그 파일을 지운다.
+        Future<?>[] emptying = new Future<?>[1];
+        hooks.put(EventName.FILE_RESTORE, () -> {
+            emptying[0] = pool.submit(() -> cleanUp.cleanUpResourcesByUser(USER, List.of(trashSeq)));
+            try {
+                Thread.sleep(1500);   // 비우기 쪽이 사용자 행 잠금에서 기다리게 될 때까지
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            assertThat(emptying[0]).as("복원이 커밋하기 전에는 비우기가 끝나지 않는다(사용자 행에서 대기)").isNotDone();
+        });
+
+        trash.restoreFile(id, false, USER);
+        Object deleted = emptying[0].get(10, TimeUnit.SECONDS);
+
+        assertThat(deleted).as("비우기가 지운 리소스 수").isEqualTo(0);
+        assertThat(count("tb_resource", id)).as("복원된 파일이 남아 있는가").isOne();
+        assertThat(flags(id)).startsWith("N/");
+        assertThat(count("tb_trash", id)).isZero();
+        assertThat(count("tb_resource_version", id)).isOne();
+        assertThat(quota()).as("사용량은 복원 전과 같음(빠지지 않음)").isEqualTo(quotaInTrash);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM tb_storage_deletion WHERE storage_key LIKE ?", Integer.class, KEY_PREFIX + "%"))
+                .as("복원된 파일의 스토리지 삭제 등록 없음").isZero();
     }
 
     static Throwable catchAll(Runnable r) {
