@@ -29,6 +29,7 @@ k6 컨테이너 ──HTTP──▶ Drive (IntelliJ "DriveAPI (loadtest)", :8082
 | `flows/download.js` | 흐름: 내려받기 — 다운로드 토큰 → 링크로 GET. 작은 파일 / 큰 파일(VU 마다 한 번 올려 두고 재사용) / 폴더 zip |
 | `download.js` | 실행: 다운로드 부하 — 작은 파일·큰 파일·zip 시나리오를 동시에 |
 | `download-concurrency.js` | 실행: 동시 다운로드 수 고정(VU = 전송 중인 다운로드) — S3 커넥션 풀·다운로드 스트림 상한 확인, 503 을 따로 센다 |
+| `abuse-parts.js` | 실행: 비정상 업로드 클라이언트 — 프론트 안내값(파트 동시 4)을 무시하고 한 세션의 파트를 한꺼번에 PUT → 취소. 그동안 다른 사용자의 목록 조회 지연(피해)을 잰다 |
 | `seed-admin.sql` | 부하 테스트 DB 의 admin 비밀번호를 테스트 값(`LoadTest!2026`)으로 |
 
 ## 처음 한 번
@@ -416,6 +417,8 @@ cd /c/loadtest-tools && APP_JAR=<jar> bash run-app.sh --management.otlp.tracing.
 bash observability/k6/results/2026-11-22-s3-pool/run-dlc.sh after 50 100 150 200
 # 업로드 정상 부하
 bash observability/k6/results/2026-11-22-s3-pool/run-k6.sh after-upload upload.js -e PROFILE=stress -e THINK=0
+# 업로드 비정상 클라이언트(파트 500 → 503, 피해 사용자 목록 조회 p95)
+bash observability/k6/results/2026-11-22-s3-pool/run-k6.sh after-abuse abuse-parts.js
 ```
 
 볼 것: 다운로드 100명까지 실패 0·S3 풀 대기 없음, 100명 초과분은 즉시 503(`drive_download_stream_rejected_total`), Tomcat 바쁜 스레드가 낮게 유지되는지, 업로드 실패 0.
