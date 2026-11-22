@@ -12,7 +12,7 @@
 
 ## 2. 진행 상태 (2026-11-20 기준, 모두 main 에 머지)
 업로드 세션 재설계는 **단계 0~4, B 의 보안 항목, 지표·알림, 운영 버킷 lifecycle 점검까지 끝났다.** 기능은 다 만들었고 관련 테스트는 PR CI 에서 통과한다.
-남은 것은 **운영형 스토리지(MinIO·Ceph·AWS)에서의 조립 시간 확인**, k8s ingress 설정, 선택적인 정리·개선이다.
+남은 것은 **운영형 스토리지(Ceph·AWS)에서의 조립 시간 확인**, k8s ingress 설정, 선택적인 정리·개선이다.
 
 ### 2-0. 2026-11-22 로컬 청크 이어 올리기 확인 (코드 변경 없음)
 로컬 compose(PostgreSQL + **RustFS 1.0.0**, Windows 11·Docker 29) + 로컬 백엔드(main `9bf92e7`)에 **청크 API 를 스크립트로 직접 호출**해 확인했다(브라우저 아님). 파트 16MB, 동시 4개. 파일 내용은 파트마다 다른 텍스트.
@@ -72,8 +72,11 @@
 - 웹오피스 저장·MCP·API Key 업로드·복사·복원은 청크 대상이 아니다(서버 내부 처리, 또는 청크 API 를 외부에 공개하지 않음).
 
 ### 2-3. 만들었지만 실제 환경에서 확인하지 못한 것
-이 PC 에 Docker·Grafana·PostgreSQL·실제 버킷이 없어서, 단위 테스트와 PR CI 까지만 확인했다.
-- **#68 알림 규칙·PG 쿼리**: Grafana 에 실제로 로드되는지, `drive_upload_active_oldest_completing_seconds` 가 나오는지. 관측 스택을 띄울 때 Alerting 화면에서 두 규칙(업로드 완료 처리 시간 초과·정리 안 됨)을 확인한다.
+2026-11-20 작업 PC 에 Docker·Grafana·PostgreSQL·실제 버킷이 없어서, 단위 테스트와 PR CI 까지만 확인했다.
+- ~~**#68 알림 규칙·PG 쿼리**~~ → 2026-11-22 로컬 관측 스택(Grafana 12.1.1·Alloy v1.10.1·Prometheus v3.5.0)에서 확인. `drive-rules.yaml` 14개 규칙 모두 로드·평가 오류 없음, 업로드 두 규칙(완료 처리 시간 초과·정리 안 됨)은 inactive(멈춘 세션 없음). `drive_upload_active_oldest_completing_seconds{status=PENDING|COMPLETING}`·`drive_upload_session_ended_total{reason="completing_timeout"}` 수집됨. 실제로 울리는 것까지는 안 봄(오래된 COMPLETING 세션을 만들어야 함).
+  - 관측 스택은 기동 때만 규칙·Alloy 설정을 읽는다 — 저장소를 갱신했으면 `docker compose up -d` 후 `docker compose restart grafana alloy`.
+  - 로컬 `observability/.env` 의 `DRIVE_METRICS_TARGETS` 가 부하 테스트 포트(8092)면 일반 로컬 앱(8091) 지표를 못 가져와 "Drive 메트릭 수집 끊김" 이 울린다. 확인할 때만 `DRIVE_METRICS_TARGETS=host.docker.internal:8091 docker compose up -d alloy`.
+  - 로컬 `.env` 가 `DRIVE_SCHEDULER_BATCH_ENABLED=false` 면 삭제 대기열이 처리되지 않아 "스토리지 정리 밀림" 이 대기·발생한다(규칙은 정상).
 - **#69 lifecycle 병합**: 실제 AWS S3·Ceph RGW 버킷에서 기존 규칙과 합쳐 PUT 되는지. 특히 예전 형식(Prefix) 규칙 변환.
 - **#64 다운로드 풀 포화**: 503·S3 응답 abort 를 실제 부하(k6 다운로드 시나리오)로 본 적은 없다.
 
@@ -81,9 +84,9 @@
 **배포된 설치처는 아직 없다.** 위에서부터 한다.
 
 1. **이어 올리기 확인 나머지**(배포 전 필수) — 로컬 RustFS 에서 API 스크립트·브라우저 확인은 끝남(§2-0)
-   - 남은 것 ①: **운영형 스토리지에서 조립 시간**. MinIO·Ceph·AWS 중 설치처가 쓸 스토리지에서 1GB~수 GB complete 시간을 잰다. COMPLETING 이 30분(`drive.upload.completing-timeout`)을 넘기면 정리 스케줄러가 FAILED(`COMPLETING_TIMEOUT`) + 객체 삭제를 한다.
+   - 남은 것 ①: **운영형 스토리지에서 조립 시간**. Ceph·AWS 중 설치처가 쓸 스토리지에서 1GB~수 GB complete 시간을 잰다. COMPLETING 이 30분(`drive.upload.completing-timeout`)을 넘기면 정리 스케줄러가 FAILED(`COMPLETING_TIMEOUT`) + 객체 삭제를 한다.
    - 측정 결과로 정할 것: COMPLETING 30분과 세션 TTL 1시간을 그대로 둘지. 바꾸면 #68 알림 기준(45분)과 as-built 의 정리 표도 같이 고친다.
-   - 하는 김에 2-3 의 #68 알림 로드도 같은 관측 스택에서 확인한다.
+   - MinIO 는 공식 이미지(`minio/minio`·`quay.io/minio/minio`)를 더는 공개로 받을 수 없어(2026-11-22 확인, 테스트도 `fb06dd2` 에서 RustFS 로 교체) 측정 대상에서 뺀다. 남은 대상은 Ceph(사내망)·AWS S3.
 2. **Developers 저장소 k8s ingress 본문 크기·타임아웃**
    - 청크 파트(최소 16MB)가 ingress 본문 상한에 걸리지 않게, 파트 PUT·다운로드가 ingress 타임아웃에 끊기지 않게 한다. 번들 Apache 쪽 기준은 #49 문서(앞단 프록시)에 있다.
 3. 그 다음 후보(선택, [upload-session.md](upload-session.md) 에 항목별 설명)
