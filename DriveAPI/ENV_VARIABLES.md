@@ -232,6 +232,7 @@ docker·k8s 는 같은 내용을 `KEY=value` 형식(따옴표·`export` 없음)�
 | `DRIVE_FLYWAY_ENABLED` | `true` | 기동 시 Flyway 로 테이블·기초 데이터 마이그레이션(빈 DB 면 V1 실행, 이력 있는 DB 면 남은 V 만 실행). DB·계정은 미리 만들어 둬야 한다 |
 | `DRIVE_FLYWAY_BASELINE_ON_MIGRATE` | `false` | 테이블은 있는데 Flyway 이력이 없는 DB(예전 `initialize.sql` 로 만든 DB)를 만났을 때: `false` = 기동 실패, `true` = V1 을 실행하지 않고 "V1 적용됨"(baseline)만 기록한 뒤 V2 부터 적용. 스키마가 V1 과 같은지는 검사하지 않는다. 로컬 `.env.example` 은 `true`(공용 dev DB), 설치기·서버는 `false`(예전 설치 업그레이드 첫 기동만 `true`) |
 | `DRIVE_INITIAL_LICENSE_FILE` | (빈 값 → 건너뜀) | 첫 기동 때 등록할 라이선스 파일 경로(설치기 `/root/weboffice/license/license.tfl`). 대상 테넌트(활성 자체관리 테넌트가 하나뿐일 때 그 테넌트, 첫 설치면 1 — 0개·여러 개면 라이선스·office 둘 다 건너뜀)에 라이선스가 없을 때만 업로드와 같은 검증으로 등록. 파일이 없거나 실패하면 건너뛰고 관리자 화면에서 업로드 |
+| `DRIVE_LICENSE_ENFORCEMENT_ENABLED` | `true` | 라이선스 검사. **운영은 반드시 `true`.** `false` 면 `GET /api/v1/config/license-status` 가 등록 여부와 상관없이 사용 가능(`state:true`)을 돌려줘 사용자 로그인 차단(프론트)이 풀린다 — 라이선스 파일 없는 로컬 개발 전용, 기동 시 WARN. 관리자 미등록 배너·좌석 검사·화이트라벨은 그대로 |
 | `DRIVE_INITIAL_OFFICE_DOMAIN` | (빈 값 → 건너뜀) | 첫 기동 때 저장할 office(TFO) 주소(http/https). **이 값이 있어야 office 초기 설정을 시도한다.** 대상 테넌트에 office 설정이 없을 때만(주소가 비어 있고, 연결 방식을 저장한 적 없고, 서비스 관리 테넌트가 아닐 때) 관리자 화면 저장과 같은 검증을 통과하면 아래 값과 함께 통째로 저장. 하나라도 검증에 걸리면 아무것도 저장하지 않고 경고 로그 — 관리자 화면에서 설정 |
 | `DRIVE_INITIAL_OFFICE_ADAPTER_NAME` | (빈 값 → 테넌트 번호) | TFO HTTP Storage 어댑터 이름(영숫자·`_`·`-`, 128자 이내). 비우면 관리자 화면과 같이 테넌트 번호(예: `1`)로 저장 — TFO 에 만든 이름과 다르면 화면에서 고친다 |
 | `DRIVE_INITIAL_OFFICE_AUTH_MODE` | `ticket` | office 인증 방식 `ticket` \| `legacy`(관리자 화면 기본값과 같음). 빈 값 `""` 으로 선언하면 기본값이 적용되지 않아 검증에 걸린다 |

@@ -8,16 +8,21 @@ import com.thinkfree.drive.api.v1.config.response.TenantConfigResponse;
 import com.hancom.weboffice.common.license.exception.LicenseValidatorException;
 import com.thinkfree.drive.global.security.TenantContext;
 import com.thinkfree.drive.license.Constants;
+import com.thinkfree.drive.license.properties.LicenseEnforcementProperty;
 import com.thinkfree.drive.license.service.LicenseService;
 import com.thinkfree.drive.license.service.SeatLicenseService;
 import com.thinkfree.drive.share.setting.facade.ShareSettingFacade;
 import com.thinkfree.drive.systemconfig.service.SystemConfigFindService;
 import com.thinkfree.drive.tenant.service.TenantFindService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ConfigUseCase {
@@ -28,6 +33,18 @@ public class ConfigUseCase {
     private final ShareSettingFacade shareSettingFacade;
     private final LicenseService licenseService;
     private final SeatLicenseService seatLicenseService;
+    private final LicenseEnforcementProperty licenseEnforcementProperty;
+
+    /** 라이선스 검사를 끈 개발 환경의 상태 응답 — 프론트 차단 판정(state)만 통과시킨다. 화이트라벨은 끈 채로 둔다 */
+    static final Map<String, Object> LICENSE_ENFORCEMENT_DISABLED_STATUS =
+            Map.of("state", true, "paidWhiteLabel", false, "enforcementDisabled", true);
+
+    @EventListener(ApplicationReadyEvent.class)
+    void warnIfLicenseEnforcementDisabled() {
+        if (!licenseEnforcementProperty.enforcementEnabled()) {
+            log.warn("[ License ] drive.license.enforcement-enabled=false — 라이선스 검사 꺼짐(로컬 개발 전용). 운영에서는 반드시 true");
+        }
+    }
 
     public FileSizeLimitResponse getFileSizeLimit() {
         var dto = systemConfigFindService.findFileSizeLimitConfig(TenantContext.getOrThrow());
@@ -59,6 +76,9 @@ public class ConfigUseCase {
      * {@code LicenseException}(런타임)은 그대로 던진다.
      */
     public Map<String, Object> getLicenseStatus() throws LicenseValidatorException {
+        if (!licenseEnforcementProperty.enforcementEnabled()) {
+            return LICENSE_ENFORCEMENT_DISABLED_STATUS;
+        }
         int tenantSeq = TenantContext.getOrThrow();
         Map<String, Object> licenseMap = licenseService.getLicense(tenantSeq);
         if (licenseMap == null) {
