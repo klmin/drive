@@ -292,6 +292,9 @@ smtp:
 drive:
   # 시간대 — 요청 날짜 해석·년월일 검색 경계·응답 시각 표시의 기준(JVM 기본 시간대는 쓰지 않는다). 설치처에서 DRIVE_TIME_ZONE 으로 변경
   time-zone: ${DRIVE_TIME_ZONE:Asia/Seoul}
+  license:
+    # 라이선스 검사 — false 면 사용자 로그인 차단이 풀린다(라이선스 파일 없는 로컬 개발 전용, 운영은 반드시 true). LicenseEnforcementProperty
+    enforcement-enabled: ${DRIVE_LICENSE_ENFORCEMENT_ENABLED:true}
   super-admin:
     allowed-ips: ${DRIVE_SUPER_ADMIN_ALLOWED_IPS:}
     external:
