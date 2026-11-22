@@ -12,7 +12,7 @@
 
 ## 2. 진행 상태 (2026-11-20 기준, 모두 main 에 머지)
 업로드 세션 재설계는 **단계 0~4, B 의 보안 항목, 지표·알림, 운영 버킷 lifecycle 점검까지 끝났다.** 기능은 다 만들었고 관련 테스트는 PR CI 에서 통과한다.
-남은 것은 **운영형 스토리지(Ceph·AWS)에서의 조립 시간 확인**, k8s ingress 설정, 선택적인 정리·개선이다.
+**배포 전 필수로 남은 것은 없다**(2026-11-22 판단, §3). 첫 설치처 배포 때 확인할 것(운영형 스토리지 조립 시간, 청크 업로드를 여는 환경의 앞단 설정)과 선택적인 정리·개선만 남았다.
 
 ### 2-0. 2026-11-22 로컬 청크 이어 올리기 확인 (코드 변경 없음)
 로컬 compose(PostgreSQL + **RustFS 1.0.0**, Windows 11·Docker 29) + 로컬 백엔드(main `9bf92e7`)에 **청크 API 를 스크립트로 직접 호출**해 확인했다(브라우저 아님). 파트 16MB, 동시 4개. 파일 내용은 파트마다 다른 텍스트.
@@ -83,12 +83,15 @@
 ## 3. 다음 할 일
 **배포된 설치처는 아직 없다.** 위에서부터 한다.
 
-1. **이어 올리기 확인 나머지**(배포 전 필수) — 로컬 RustFS 에서 API 스크립트·브라우저 확인은 끝남(§2-0)
-   - 남은 것 ①: **운영형 스토리지에서 조립 시간**. Ceph·AWS 중 설치처가 쓸 스토리지에서 1GB~수 GB complete 시간을 잰다. COMPLETING 이 30분(`drive.upload.completing-timeout`)을 넘기면 정리 스케줄러가 FAILED(`COMPLETING_TIMEOUT`) + 객체 삭제를 한다.
+1. **배포 시 확인 — 운영형 스토리지 조립 시간**(배포 전 필수 아님, 2026-11-22 결정)
+   - 첫 Ceph·AWS 설치처 배포 때 1GB 하나를 청크로 올려 complete 시간을 본다. COMPLETING 이 30분(`drive.upload.completing-timeout`)을 넘기면 정리 스케줄러가 FAILED(`COMPLETING_TIMEOUT`) + 객체 삭제를 한다.
+   - 필수에서 뺀 이유: 배포된 설치처가 없고, complete 는 올라간 파트를 서버측에서 잇는 작업이라 로컬 RustFS 1초 미만(§2-0) 대비 30분 제한 여유가 매우 크다. 넘기면 #68 알림(`drive-upload-completing-timeout`·`drive-upload-completing-stale`, 로드 확인됨 §2-3)이 잡는다.
    - 측정 결과로 정할 것: COMPLETING 30분과 세션 TTL 1시간을 그대로 둘지. 바꾸면 #68 알림 기준(45분)과 as-built 의 정리 표도 같이 고친다.
    - MinIO 는 공식 이미지(`minio/minio`·`quay.io/minio/minio`)를 더는 공개로 받을 수 없어(2026-11-22 확인, 테스트도 `fb06dd2` 에서 RustFS 로 교체) 측정 대상에서 뺀다. 남은 대상은 Ceph(사내망)·AWS S3.
-2. **Developers 저장소 k8s ingress 본문 크기·타임아웃**
-   - 청크 파트(최소 16MB)가 ingress 본문 상한에 걸리지 않게, 파트 PUT·다운로드가 ingress 타임아웃에 끊기지 않게 한다. 번들 Apache 쪽 기준은 #49 문서(앞단 프록시)에 있다.
+2. **배포 시 확인 — 청크 업로드를 여는 환경의 앞단 설정**
+   - Developers 저장소 `infra/kubernetes/helm/cloud-drive` 는 **AWS ALB**(`ingressClassName: alb`)라 요청 본문 상한이 없다 → 원래 걱정한 nginx 기본 1MB(413) 문제는 해당 없음. 타임아웃은 ALB idle timeout(차트 설정값)이고 16MB 파트 PUT 은 수 초라 문제 없음.
+   - 그 환경의 Drive 프론트 nginx(`frontend.yaml`)는 `/api`·로그인 화면을 404 로 막은 플레이그라운드 구성이라 웹 화면 청크 업로드 경로가 열려 있지 않다. Drive API 가 그 환경에서 어느 경로로 나가는지는 확인 안 함 — 그곳에서 청크 업로드를 열 때 그 경로의 본문 상한·타임아웃만 본다.
+   - nginx·ingress-nginx·번들 Apache 를 쓰는 설치처는 #49 문서(본문 상한 1GiB·응답 대기 300초)대로 맞춘다.
 3. 그 다음 후보(선택, [upload-session.md](upload-session.md) 에 항목별 설명)
    - B: 감사 로그 발행 시점(커밋 tx 안 + `AFTER_COMMIT`) 검토
    - B: Ceph·RustFS 계약 테스트 — 그 스토리지를 쓰는 설치처가 생길 때
@@ -97,7 +100,7 @@
    - C(단계 5 선택): 관리자 용량 축소 시 진행 중 세션 중단, presigned 직접 업로드, 대용량 복원·복사 비동기, 다운로드 Range
 
 **하지 않기로 한 것**
-- 세션 TTL 1h·COMPLETING 30m 숫자 변경: 운영형 스토리지 측정(1번 ①) 전에는 근거가 없다(로컬 RustFS 조립은 1초 미만, §2-0). 파트마다 `touch` 로 연장되고 동시 4개라, 16MB 파트 하나가 1시간을 넘기려면 초당 약 4.5KB 수준의 회선이어야 한다.
+- 세션 TTL 1h·COMPLETING 30m 숫자 변경: 운영형 스토리지 측정(§3-1, 배포 시) 전에는 근거가 없다(로컬 RustFS 조립은 1초 미만, §2-0). 파트마다 `touch` 로 연장되고 동시 4개라, 16MB 파트 하나가 1시간을 넘기려면 초당 약 4.5KB 수준의 회선이어야 한다.
 - 단일 요청·내부 쓰기의 커밋 tx 권한 재확인: 의도한 설계다. 요청 안에서 확인과 커밋이 바로 이어지고, 오래 걸리는 청크만 다시 확인한다.
 - V6 인덱스 `CONCURRENTLY`: 배포된 곳이 없으니 그대로 둔다.
 
