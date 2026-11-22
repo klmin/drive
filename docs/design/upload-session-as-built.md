@@ -218,7 +218,7 @@ FileWriteOrchestrator.write          테넌트 파일 크기 정책 확인 후 �
 ---
 
 ## 8. 알려진 한계 (자세한 내용은 todo)
-- 앞단 프록시: 설정 안내는 `DriveInstaller/thinkfree/TFD/template/httpd/README.md`(본문 상한 1GiB·응답 대기 300초). 번들 Apache 외 프록시(nginx 기본 1MB 등)는 설치처가 맞춰야 하고, 안 맞추면 파트 PUT 이 413 으로 막힌다. Developers 저장소 k8s ingress 는 아직. 로컬 RustFS + 실제 백엔드로 API 이어 올리기(1GB·3GB, 전송 중 끊김, 서버 재시작)는 2026-11-22 확인(`docs/todo/next-session.md` §2-0). 브라우저에서 새로고침 후 같은 파일 다시 선택으로 이어 올리기(1GB)도 같은 날 확인. 운영형 스토리지 조립 시간은 아직.
+- 앞단 프록시: 설정 안내는 `DriveInstaller/thinkfree/TFD/template/httpd/README.md`(본문 상한 1GiB·응답 대기 300초). 번들 Apache 외 프록시(nginx 기본 1MB 등)는 설치처가 맞춰야 하고, 안 맞추면 파트 PUT 이 413 으로 막힌다. Developers 저장소 `cloud-drive` 는 AWS ALB 라 본문 상한이 없다(2026-11-22 확인). 로컬 RustFS + 실제 백엔드로 API 이어 올리기(1GB·3GB, 전송 중 끊김, 서버 재시작)는 2026-11-22 확인(`docs/todo/next-session.md` §2-0). 브라우저에서 새로고침 후 같은 파일 다시 선택으로 이어 올리기(1GB)도 같은 날 확인. 운영형 스토리지(Ceph·AWS) 조립 시간은 첫 설치처 배포 때 확인.
 - 커밋 tx 권한 재확인은 청크 업로드만(서버 내부 쓰기는 호출부 검사만 — 업로드가 짧고 세션에 익명·공유 링크 맥락이 없다), 매직바이트는 형식 계열만(텍스트·HTML·SVG 등은 내용으로 판별 불가 — 통과, 다운로드는 `attachment`·`nosniff` 로 막는다), 감사 로그 발행 시점은 호출부 그대로.
 - 청크 API 는 외부 API(`/api/public`, API Key)로 내보내지 않았다(내부 웹 API 만).
 - 호출부 없는 코드 남음: `ResourceRepository.revertOverwrite`, 미사용 `uploadPartsFromStream`·`copyObjectAnySize`. 옛 흐름 호환 코드(`cleanVersionIfExists`·저장 마커·PENDING 만료 판정·`VERSION_PROCESSING`)는 PR #63 에서 제거했다 — 버전 작업 커밋 tx 안에서 스토리지를 부르지 않는다.
