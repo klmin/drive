@@ -1,5 +1,6 @@
 package com.thinkfree.drive.permission;
 
+import org.junit.jupiter.api.Disabled;
 import com.thinkfree.drive.global.exception.ApiRuntimeException;
 import com.thinkfree.drive.partition.PartitionKey;
 import com.thinkfree.drive.permission.enums.SharePermissionType;
@@ -37,7 +38,6 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DriveIntegrationTest
 @Transactional
-@Disabled
 class ResourcePermissionRuleIntegrationTest {
 
     private static final int TENANT_A = 880001;   // OWNER/ME 의 테넌트

@@ -57,7 +57,7 @@ class ResourceControllerTest extends AbstractMvcTest {
     }
     
     @Test
-    @Disabled
+    @Disabled("dev DB 고정 데이터 의존 — user 914 의 리소스 필요. DriveFixtures 로 옮길 때 다시 켠다")
     @WithMockUserCustom(roles = "ROLE_USER", userSeq = 914)
     void findById() {
         

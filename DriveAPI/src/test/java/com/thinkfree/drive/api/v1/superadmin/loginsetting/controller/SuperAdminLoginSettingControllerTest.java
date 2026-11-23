@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.superadmin.loginsetting.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
@@ -29,8 +30,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom(roles = "ROLE_SUPER_ADMIN")
+@Transactional
 class SuperAdminLoginSettingControllerTest extends AbstractMvcTest {
 
     @BeforeAll
@@ -39,6 +40,7 @@ class SuperAdminLoginSettingControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(상태 코드 불일치) — DriveFixtures 로 옮길 때 다시 켠다")
     void find() throws IOException {
         
         SsoProviderScope s = null;
@@ -100,6 +102,7 @@ class SuperAdminLoginSettingControllerTest extends AbstractMvcTest {
     }
     
     @Test
+    @Disabled("dev DB 고정 데이터 의존(SSO_PROVIDER_001) — DriveFixtures 로 옮길 때 다시 켠다")
     void saveJwt() {
         
         var providers = List.of(

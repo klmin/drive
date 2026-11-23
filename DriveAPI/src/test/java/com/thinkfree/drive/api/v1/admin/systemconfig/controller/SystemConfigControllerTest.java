@@ -14,8 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom//(tenantSeq = 3)
+@Transactional
 class SystemConfigControllerTest extends AbstractMvcTest {
     
     @BeforeAll
@@ -156,6 +156,7 @@ class SystemConfigControllerTest extends AbstractMvcTest {
 
     //@Transactional
     @Test
+    @Disabled("dev DB 고정 데이터 의존(ACCESS_003) — DriveFixtures 로 옮길 때 다시 켠다")
     void putAccessRestrictionStatus() {
         var request = new AccessRestrictionUpdateRequest(true);
         ApiResponse<Void> response = putForObject("access-restriction-status", request, new TypeReference<>() {}, status().isOk());

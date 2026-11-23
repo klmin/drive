@@ -22,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom(authSource = AuthSource.EXTERNAL)
+@Transactional
 class ExternalAdminControllerTest extends AbstractMvcTest {
     
     @BeforeAll
@@ -33,6 +33,7 @@ class ExternalAdminControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(상태 코드 불일치) — DriveFixtures 로 옮길 때 다시 켠다")
     void registerUser() {
 
         String userId = "test600112@example.com";
@@ -62,6 +63,7 @@ class ExternalAdminControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void getUser() {
 
         int userSeq = 715;
@@ -75,6 +77,7 @@ class ExternalAdminControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateUserByAdmin() {
 
         Integer userSeq = 715;
@@ -104,6 +107,7 @@ class ExternalAdminControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void activateUser() {
         Integer userSeq = 723;
         String url = StringUtil.buildUrl(userSeq, "activate");
@@ -115,6 +119,7 @@ class ExternalAdminControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void deactivateUser() {
         Integer userSeq = 723;
         String url = StringUtil.buildUrl(userSeq, "deactivate");

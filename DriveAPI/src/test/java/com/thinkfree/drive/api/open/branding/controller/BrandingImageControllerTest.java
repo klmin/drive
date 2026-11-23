@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.open.branding.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.branding.enums.BrandingImageType;
 import lombok.extern.slf4j.Slf4j;
@@ -16,8 +17,8 @@ import java.nio.file.Files;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @Slf4j
+@Transactional
 class BrandingImageControllerTest extends AbstractMvcTest {
 
     @BeforeAll

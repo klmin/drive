@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.auth.mfa.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.response.ApiResponse;
@@ -16,7 +17,7 @@ import org.springframework.http.HttpStatus;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
+@Transactional
 class AuthMfaControllerTest extends AbstractMvcTest {
     
     @BeforeAll
@@ -25,6 +26,7 @@ class AuthMfaControllerTest extends AbstractMvcTest {
     }
     
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_011) — DriveFixtures 로 옮길 때 다시 켠다")
     void setup(){
         
         String t = "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3NlcSI6Njk2LCJ0eXBlIjoibWZhX3NldHVwX2NoYWxsZW5nZSIsImlhdCI6MTc3NDM0MDA1OCwiZXhwIjoxNzc0MzQwMzU4fQ.hYE3F1wMBry_tTQrh1Je_40k7TlWN_iNoUbhcT5TMZg";
@@ -41,6 +43,7 @@ class AuthMfaControllerTest extends AbstractMvcTest {
     }
     
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_011) — DriveFixtures 로 옮길 때 다시 켠다")
     void confirm(){
         String t = "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3NlcSI6Njk2LCJ0eXBlIjoibWZhX2NvbmZpcm1fY2hhbGxlbmdlIiwiaWF0IjoxNzc0MzQwMTQ5LCJleHAiOjE3NzQzNDAzMjl9.fdYBUr2IerkzA6AepHMzTJifKA23ttpPeK9rPhBtcro";
         String c = "932422";
@@ -56,6 +59,7 @@ class AuthMfaControllerTest extends AbstractMvcTest {
     }
     
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_011) — DriveFixtures 로 옮길 때 다시 켠다")
     void verifyMfa() {
         String t = "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3NlcSI6Njk2LCJ0eXBlIjoibWZhX2NoYWxsZW5nZSIsImlhdCI6MTc3NDM0MDM2NCwiZXhwIjoxNzc0MzQwNDg0fQ.Pb9toayllOLkWvYnBHCpzLGsDX5RBgpDJVa13-WrF7Y";
         String c = "271819";

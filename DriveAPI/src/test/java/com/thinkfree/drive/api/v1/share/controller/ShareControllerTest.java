@@ -31,8 +31,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Slf4j
-@Disabled
 @WithMockUserCustom
+@Transactional
 public class ShareControllerTest extends AbstractMvcTest {
     
     @BeforeAll
@@ -43,6 +43,7 @@ public class ShareControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(userSeq = 859, tenantSeq = 1)
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void save() throws InterruptedException {
         //setTestHost("test6.drive.thinkfree.com");
         Long rs = 40103L;
@@ -74,6 +75,7 @@ public class ShareControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(userSeq = 859)
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void update() throws InterruptedException {
         //setTestHost("test6.drive.thinkfree.com");
         Long shareSeq = 1116L;
@@ -103,6 +105,7 @@ public class ShareControllerTest extends AbstractMvcTest {
     
     @WithMockUserCustom(userSeq = 21, tenantSeq = 1)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void detail(){
         
         Long shareSeq = 1116L;
@@ -121,6 +124,7 @@ public class ShareControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(userSeq = 859)
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void delete(){
         //setTestHost("test5.drive.thinkfree.com");
         Long shareSeq = 1110L;
@@ -134,6 +138,7 @@ public class ShareControllerTest extends AbstractMvcTest {
 
     @WithMockUserCustom(userSeq = 21, tenantSeq = 1)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void searchUsers() {
         //setTestHost("test6.drive.thinkfree.com");
         String searchKeyword = "thinkfree.com";
@@ -150,6 +155,7 @@ public class ShareControllerTest extends AbstractMvcTest {
 
     @WithMockUserCustom(userSeq = 21, tenantSeq = 1)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void findShareUsers(){
         
         
@@ -171,6 +177,7 @@ public class ShareControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(userSeq = 21, tenantSeq = 1)
     //@WithAnonymousUser
     @Test
+    @Disabled("dev DB 고정 데이터 의존(SHARE_007) — DriveFixtures 로 옮길 때 다시 켠다")
     void accessLink_loggedIn(){
         //setTestHost("test6.drive.thinkfree.com");
         String token = "XGBYGrv8OeTJeKM7";
@@ -186,6 +193,7 @@ public class ShareControllerTest extends AbstractMvcTest {
 
     @org.springframework.security.test.context.support.WithAnonymousUser
     @Test
+    @Disabled("dev DB 고정 데이터 의존(SHARE_007) — DriveFixtures 로 옮길 때 다시 켠다")
     void accessLink_notLoggedIn(){
         setTestHost("test6.drive.thinkfree.com");
         String token = "Pax9kAckCDYdJxYv";
@@ -201,6 +209,7 @@ public class ShareControllerTest extends AbstractMvcTest {
     
     @WithMockUserCustom(userSeq = 902, tenantSeq = 1)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void availableShareTypes(){
         //setTestHost("test6.drive.thinkfree.com");
         Long resourceSeq = 40060L;

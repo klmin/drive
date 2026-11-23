@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.superadmin.sharesetting.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.response.ApiResponse;
@@ -14,8 +15,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom(roles = "ROLE_SUPER_ADMIN")
+@Transactional
 class SuperAdminShareSettingControllerTest extends AbstractMvcTest {
 
     @BeforeAll

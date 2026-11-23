@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @Slf4j
 @WithMockUserCustom(userSeq = 2)
-@Disabled
+@Transactional
 class FolderControllerTest extends AbstractMvcTest {
 
     @BeforeAll
@@ -45,6 +45,7 @@ class FolderControllerTest extends AbstractMvcTest {
     
     @WithMockUserCustom(userSeq = 859, tenantSeq = 1)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void upload() {
         //setTestHost("test6.drive.thinkfree.com");
         Integer ss = null;
@@ -65,6 +66,7 @@ class FolderControllerTest extends AbstractMvcTest {
 
     @WithMockUserCustom(userSeq = 669)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void download() throws Exception {
         
         Long resourceSeq = 25159L;
@@ -149,6 +151,7 @@ class FolderControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(userSeq = 669)
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void delete() {
 
         Long resourceSeq = 25159L;
@@ -163,6 +166,7 @@ class FolderControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(userSeq = 669)
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void rename() {
 
         Long resourceSeq = 25159L;
@@ -183,6 +187,7 @@ class FolderControllerTest extends AbstractMvcTest {
     @Test
     @WithMockUserCustom(userSeq = 914)
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void move() {
         
         // 1 : 621(ORG_LINK) -> 623 -> 636 -> 638 -> 639(ORG_LINK) -> 647 -> 648

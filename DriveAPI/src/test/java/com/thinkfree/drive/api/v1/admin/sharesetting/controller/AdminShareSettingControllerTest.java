@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.admin.sharesetting.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.response.ApiResponse;
@@ -13,8 +14,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom
+@Transactional
 class AdminShareSettingControllerTest extends AbstractMvcTest {
 
     @BeforeAll
@@ -34,6 +35,7 @@ class AdminShareSettingControllerTest extends AbstractMvcTest {
     /** 공유 on + 접근범위 일부 허용 — 정상. */
     @Test
     @WithMockUserCustom(userSeq = 876, tenantSeq = 5)
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void saveShareEnabled() {
         setTestHost("test5.drive.thinkfree.com");
         var request = new AdminShareSettingSaveRequest(true, true, true, true, true);
@@ -47,6 +49,7 @@ class AdminShareSettingControllerTest extends AbstractMvcTest {
     /** 공유 off — 나머지 필드는 모두 생략(null) 가능. */
     @Test
     @WithMockUserCustom(userSeq = 876, tenantSeq = 5)
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void saveShareDisabledWithMinimalPayload() {
         setTestHost("test5.drive.thinkfree.com");
         var request = new AdminShareSettingSaveRequest(false, null, null, null, null);

@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.trash.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.page.request.CursorPagingRequest;
@@ -25,8 +26,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom
+@Transactional
 class TrashControllerTest extends AbstractMvcTest {
     
     @BeforeAll
@@ -36,6 +37,7 @@ class TrashControllerTest extends AbstractMvcTest {
     
     @WithMockUserCustom(userSeq = 859)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void listWithCursor() {
 
         Integer ps = 5;
@@ -66,6 +68,7 @@ class TrashControllerTest extends AbstractMvcTest {
 
     @Test
     @WithMockUserCustom(userSeq = 668)
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void restoreFile(){
         Long resourceSeq = 25162L;
         String url = StringUtil.buildUrl("files", resourceSeq, "restore");
@@ -77,6 +80,7 @@ class TrashControllerTest extends AbstractMvcTest {
 
     @Test
     @WithMockUserCustom(userSeq = 1)
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void restoreFolder(){
         Long resourceSeq = 22366L;
         String url = StringUtil.buildUrl("folders", resourceSeq, "restore");
@@ -89,6 +93,7 @@ class TrashControllerTest extends AbstractMvcTest {
     @Test
     @WithMockUserCustom(userSeq = 859)
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void deleteFile() throws InterruptedException {
         Long resourceSeq = 40052L;
         String url = StringUtil.buildUrl("files", resourceSeq);
@@ -103,6 +108,7 @@ class TrashControllerTest extends AbstractMvcTest {
     @Test
     //@Transactional
     @WithMockUserCustom(userSeq = 1)
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void deleteFolder() throws InterruptedException {
         Long resourceSeq = 23776L;
         String url = StringUtil.buildUrl("folders", resourceSeq);

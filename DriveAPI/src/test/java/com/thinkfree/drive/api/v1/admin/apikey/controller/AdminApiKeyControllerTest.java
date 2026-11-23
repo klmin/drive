@@ -38,8 +38,8 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Slf4j
-@Disabled
 @WithMockUserCustom(userSeq = AdminApiKeyControllerTest.LOGIN_USER_SEQ)
+@Transactional
 class AdminApiKeyControllerTest extends AbstractMvcTest {
     /** 로그인 계정 */
     static final int LOGIN_USER_SEQ = 1;
@@ -155,6 +155,7 @@ class AdminApiKeyControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(RESPONSE_001) — DriveFixtures 로 옮길 때 다시 켠다")
     void create() {
         //setTestHost("default-add.drive.thinkfree.com");
         var request = new AdminApiKeyCreateRequest(null, TEST_KEY_NAME_PREFIX + " 1", "테스트1", LocalDate.now().plusYears(1), READ_SCOPES);
@@ -188,6 +189,7 @@ class AdminApiKeyControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenTargetIsUser_returnsApiKey() {
         var request = new AdminApiKeyCreateRequest(TARGET_USER_SEQ, TEST_KEY_NAME_PREFIX + " 2", "사용자 자격", LocalDate.now(), READ_SCOPES);
 
@@ -200,6 +202,7 @@ class AdminApiKeyControllerTest extends AbstractMvcTest {
     /** 관리자 대상 키도 scope 를 받는다 — 검사 대상이 아닐 뿐 값은 저장된다 */
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(RESPONSE_001) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenScopeGivenForAdminTarget_returnsApiKey() {
         var request = new AdminApiKeyCreateRequest(null, TEST_KEY_NAME_PREFIX + " 3", "관리자에 scope", LocalDate.now(), WRITE_SCOPES);
 
@@ -222,6 +225,7 @@ class AdminApiKeyControllerTest extends AbstractMvcTest {
     /** 값은 유효하지만 허용 조합이 아니다 — 백엔드가 빠진 값을 채워주지 않으므로 요청이 거부된다 */
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenScopeCombinationIsNotAllowed_returnsBadRequest() {
         var request = new AdminApiKeyCreateRequest(TARGET_USER_SEQ, TEST_KEY_NAME_PREFIX + " 8", "조합 위반", LocalDate.now(), List.of("api:write"));
 

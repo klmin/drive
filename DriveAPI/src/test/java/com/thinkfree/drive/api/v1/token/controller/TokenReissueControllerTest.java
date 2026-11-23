@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.token.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.response.ApiResponse;
@@ -14,12 +15,13 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
+@Transactional
 class TokenReissueControllerTest extends AbstractMvcTest {
     
     private static final String baseUrl = "/api/v1/token/reissue";
     
     @Test
+    @Disabled("dev DB 고정 데이터 의존(API_KEY_004) — DriveFixtures 로 옮길 때 다시 켠다")
     void reissueTokens(){
         
         String testToken = DriveConstants.BEARER + "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyU2VxIjoxLCJpYXQiOjE3NjUyNzEzMDIsImV4cCI6MTc2NTg3NjEwMn0.jYupO4AFHCbeR4Tt_rGz0t7S5I-h4wXBHcb68TDHPsg";

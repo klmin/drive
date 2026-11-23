@@ -10,8 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @DriveIntegrationTest
 @Slf4j
-@Disabled
 @WithMockUserCustom
+@Transactional
 class DefaultApiKeyServiceTest {
     
     @Autowired

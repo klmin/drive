@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.share.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.response.ApiResponse;
@@ -33,8 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 테스트 데이터 시퀀스는 실DB 에 맞게 수정해서 사용.
  */
 @Slf4j
-@Disabled
 @WithMockUserCustom
+@Transactional
 public class ShareControllerUpdateTest extends AbstractMvcTest {
 
     // ===== 테스트 데이터 (실DB 기준으로 수정해서 사용) =====
@@ -67,6 +68,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updatePublicToPublic_1_1() throws InterruptedException {
         Long shareSeq = 1081L;
 
@@ -84,6 +86,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateOrgToPublic_1_2() throws InterruptedException {
         Long shareSeq = 1082L;
 
@@ -101,6 +104,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateSpecificToPublic_1_3() throws InterruptedException {
         Long shareSeq = 1083L;
 
@@ -125,6 +129,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateOrgToOrg_2_1() throws InterruptedException {
         Long shareSeq = 1084L;
 
@@ -146,6 +151,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updatePublicToOrg_2_2_file() throws InterruptedException {
         Long shareSeq = 1085L;
 
@@ -167,6 +173,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updatePublicToOrg_2_2_folder_withoutTargets() throws InterruptedException {
         Long shareSeq = 1086L;
 
@@ -183,6 +190,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateSpecificToOrg_2_3() throws InterruptedException {
         Long shareSeq = 1087L;
 
@@ -206,6 +214,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateSpecificToSpecific_3_1_file() throws InterruptedException {
         Long shareSeq = 1088L;
 
@@ -229,6 +238,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateSpecificToSpecific_3_1_folder() throws InterruptedException {
         Long shareSeq = 1089L;
 
@@ -248,6 +258,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updatePublicToSpecific_3_2() throws InterruptedException {
         Long shareSeq = 1090L;
 
@@ -265,6 +276,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateOrgToSpecific_3_3() throws InterruptedException {
         Long shareSeq = 1091L;
 
@@ -286,6 +298,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateLinkPermissionsOnly_withoutTargets() throws InterruptedException {
         Long shareSeq = 1092L;
 
@@ -305,6 +318,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateSpecificWithoutTargets_removesAllTargets() throws InterruptedException {
         Long shareSeq = 1088L;
 
@@ -323,6 +337,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateFail_linkPermissionNull() {
         Long shareSeq = 1084L;
 
@@ -396,6 +411,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateFail_inheritedShareTypeChange() {
         Long shareSeq = 1093L;
 
@@ -409,6 +425,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateFail_selfTarget() {
         Long shareSeq = 1088L;
 
@@ -425,6 +442,7 @@ public class ShareControllerUpdateTest extends AbstractMvcTest {
      */
     @WithMockUserCustom(userSeq = OWNER_USER_SEQ, tenantSeq = OWNER_TENANT_SEQ)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateFail_targetUploadOnFile() {
         Long shareSeq = 1084L;
 
