@@ -107,6 +107,17 @@
    - C: 호출부 없는 코드 제거, `FileWriteOrchestrator` 정리, 교착 남은 조합 점검(관리자 사용자 삭제·테넌트 정리)
    - C(단계 5 선택): 관리자 용량 축소 시 진행 중 세션 중단, presigned 직접 업로드, 대용량 복원·복사 비동기, 다운로드 Range
 
+5. **사용자 판단이 필요한 것 — 코드 밖**(옛 로컬 메모 `HANDOFF-test-ci.md` 에서 옮김, 2026-11-23)
+   - **키 교체(우선)**: 저장소가 2026-11-23 public 이었다. git 이력의 키는 노출된 것으로 보고 교체한다.
+     - `application-test.yml` 의 AWS 키(`S3_ACCESS_KEY`/`S3_SECRET_KEY`, `AKIA…`) — 파일에서는 자리표시로 바꿨지만 이력에 남아 있다. IAM 에서 비활성화·삭제 후 새 키로.
+     - 예전 사내 Ceph 키(#59 에서 파일에서 지움), SsoControllerTest 주석의 RSA 개인키·"슈퍼어드민 jwt 설정 key"(#85 에서 지움) — 모두 이력에 남아 있다.
+     - 운영 로그에 이미 남은 민감정보 정리, OIDC client secret 교체(#47 이전 로그).
+   - SaaS 에서 SSRF 가드 `DRIVE_OUTBOUND_GUARD_ENABLED=true` 를 켤지(#44, 기본 꺼짐).
+   - 개선 후보: JWT SSO 로그인이 요청마다 JWKS 를 가져온다 → 캐시.
+   - 개선 후보: API 키가 `tb_api_key.api_key` 에 평문 저장·평문 일치 조회(DB 유출 시 키 노출) → 해시 저장 검토.
+   - 테스트: "dev DB 고정 데이터 의존(<오류코드>)" 사유로 꺼진 메서드 약 148개를 `DriveFixtures` 로 옮기기(AUTH_009·USER_005·REQUEST_006 가 대부분). SsoControllerTest·CephTokenManagerTest 는 외부 시스템이라 꺼 둔다.
+   - CI 가 안정되면 `dependabot.yml` 에 version updates 추가. Actions 시간 절약 후보: CodeQL 을 PR 마다가 아니라 main push·주간 실행으로만.
+
 **하지 않기로 한 것**
 - 세션 TTL 1h·COMPLETING 30m 숫자 변경: 운영형 스토리지 측정(§3-1, 배포 시) 전에는 근거가 없다(로컬 RustFS 조립은 1초 미만, §2-0). 파트마다 `touch` 로 연장되고 동시 4개라, 16MB 파트 하나가 1시간을 넘기려면 초당 약 4.5KB 수준의 회선이어야 한다.
 - 단일 요청·내부 쓰기의 커밋 tx 권한 재확인: 의도한 설계다. 요청 안에서 확인과 커밋이 바로 이어지고, 오래 걸리는 청크만 다시 확인한다.
@@ -121,7 +132,7 @@
 - **머지**: 사용자가 그 PR 에 대해 머지를 승인했을 때만 한다(PR 마다 따로 승인). "리뷰 통과하면 머지"로 승인받았으면 Codex 지적 0건 + CI 전부 성공일 때만 머지한다.
 - **CI 체크**: `mvn test`(백엔드 전체, `DriveAPI/**` 바꿀 때만), `Analyze (java-kotlin)`·`Analyze (javascript-typescript)`(CodeQL), `request-review`(Codex 요청).
   - 저장소가 private 이고 Actions 예산이 $0 이라 월 무료 시간(2,000분)을 다 쓰면 CI 가 "recent account payments have failed or your spending limit needs to be increased" 로 1초 만에 실패한다(과금 없음, 코드 문제 아님). 2026-11 에는 CodeQL(PR마다 Java·JS 2개 잡)이 대부분을 썼다. 그때는 로컬 전체 테스트로 확인한다.
-- **CodeQL**: 발견이 1건이라도 있으면 PR 체크가 실패한다. 결과는 Actions 실행의 SARIF 아티팩트(`codeql-sarif-java-kotlin`)로 본다(`gh run download <run> -D <dir>`). 사용자 입력(헤더·URI·요청 값·예외 문자열)을 로그에 넣을 때는 `com.thinkfree.drive.util.LogSafe.of(...)` 로 감싼다. CSRF 규칙은 오탐이라 제외했다.
+- **CodeQL**: 미검토 발견이 1건이라도 있으면 체크가 실패한다. 검토를 마친 발견은 `.github/codeql-accepted.json` 에 규칙·파일·이유로 적으면 실패에서 빠진다(#90, 2026-11-23 검토한 7건 등록). PR 실행은 바뀐 줄의 발견만 보고, 전체는 main push·주간 실행에서 본다. 결과는 Actions 실행의 SARIF 아티팩트(`codeql-sarif-java-kotlin`)로 본다(`gh run download <run> -D <dir>`). 사용자 입력(헤더·URI·요청 값·예외 문자열)을 로그에 넣을 때는 `com.thinkfree.drive.util.LogSafe.of(...)` 로 감싼다. CSRF 규칙은 오탐이라 제외했다.
 - **프론트 오류 응답 모양**: `api.js` 는 오류 때 서버 본문(`ApiExceptionResponse`: `result, code, errorCode, message`)을 돌려준다. HTTP 상태는 `res.code` 로 보고, **`res.status` 는 없다**.
 - **잠금 순서 규칙**(쓰기 경로를 새로 만들면 반드시): 소유자 사용자 행 → 이름 정할 자리(부모 폴더) → 대상 → 하위. 리소스 행 뒤에 사용자 행을 잡으면 교착이 생긴다(PR #27). as-built §4.
 - **스토리지 호출은 트랜잭션 밖**(AGENTS·as-built 규칙).
