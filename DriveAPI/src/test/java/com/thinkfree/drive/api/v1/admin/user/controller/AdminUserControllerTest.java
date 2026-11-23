@@ -32,9 +32,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @Slf4j
 @WithMockUserCustom
+@Transactional
 class AdminUserControllerTest extends AbstractMvcTest {
     
     @BeforeAll
@@ -64,6 +64,7 @@ class AdminUserControllerTest extends AbstractMvcTest {
     }
     
     @Test
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void storageUsage() {
 
         Integer userSeq = 675;
@@ -76,6 +77,7 @@ class AdminUserControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void resetMfa() {
         Integer userSeq = 675;
         String url = StringUtil.buildUrl(userSeq, "mfa", "reset");
@@ -109,6 +111,7 @@ class AdminUserControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void deleteUser() {
         Integer userSeq = 675;
         String url = StringUtil.buildUrl(userSeq);
@@ -119,6 +122,7 @@ class AdminUserControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void bulkUpsert_insertOnly() {
         var request = new AdminUserBulkUpsertRequest(List.of(
                 new UserItem(null, "bulktest11111@test.com", "Test1234!", "벌크유저1", 1000L, List.of(RoleType.USER), "+82", "010-1234-5678"),
@@ -135,6 +139,7 @@ class AdminUserControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void bulkUpsert_updateOnly() {
         var request = new AdminUserBulkUpsertRequest(List.of(
                 new UserItem(772, null, null, "수정유저1", 2L, null, "+82", "010-1234-5675"),
@@ -150,6 +155,7 @@ class AdminUserControllerTest extends AbstractMvcTest {
 
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void bulkUpsert_mixed() {
         var request = new AdminUserBulkUpsertRequest(List.of(
                 new UserItem(null, "bulkmixed@test.com", "Test1234!", "신규유저", 1073741824L, List.of(RoleType.USER), null, null),
@@ -176,6 +182,7 @@ class AdminUserControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void getUserLogs() {
 
         Integer userSeq = 7;

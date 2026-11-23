@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.branding.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.v1.branding.response.BrandingMetaResponse;
@@ -11,8 +12,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @Slf4j
+@Transactional
 class BrandingControllerTest extends AbstractMvcTest {
 
     @BeforeAll

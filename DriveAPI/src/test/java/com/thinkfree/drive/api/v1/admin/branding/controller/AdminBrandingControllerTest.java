@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.admin.branding.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.response.ApiResponse;
@@ -25,8 +26,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WithMockUserCustom
-@Disabled
 @Slf4j
+@Transactional
 class AdminBrandingControllerTest extends AbstractMvcTest {
 
     @BeforeAll
@@ -36,6 +37,7 @@ class AdminBrandingControllerTest extends AbstractMvcTest {
 
     @WithMockUserCustom(tenantSeq = 3)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void find() {
         setTestHost("test5.drive.thinkfree.com");
         ApiResponse<BrandingSettingResponse> response = getForObject(null, null, new TypeReference<>() {}, status().isOk());
@@ -45,6 +47,7 @@ class AdminBrandingControllerTest extends AbstractMvcTest {
 
     @WithMockUserCustom(tenantSeq = 3)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void upsertWithDefaultImages() {
         changeTestHost();
         String tabTile = "My Drive3";
@@ -58,6 +61,7 @@ class AdminBrandingControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(tenantSeq = 3)
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void upsertWithCustomImages() {
         changeTestHost();
         String tabTile = "Thinkfree Drive5";

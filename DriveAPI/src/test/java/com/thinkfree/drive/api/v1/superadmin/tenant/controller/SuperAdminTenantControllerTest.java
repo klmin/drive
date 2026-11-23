@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.superadmin.tenant.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.page.request.CursorPagingRequest;
@@ -22,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom(roles = "ROLE_SUPER_ADMIN")
+@Transactional
 class SuperAdminTenantControllerTest extends AbstractMvcTest {
 
     @BeforeAll
@@ -32,6 +33,7 @@ class SuperAdminTenantControllerTest extends AbstractMvcTest {
     }
     
     @Test
+    @Disabled("dev DB 고정 데이터 의존(상태 코드 불일치) — DriveFixtures 로 옮길 때 다시 켠다")
     void list() {
 
         Integer ps = 20;
@@ -47,6 +49,7 @@ class SuperAdminTenantControllerTest extends AbstractMvcTest {
     }
     
     @Test
+    @Disabled("dev DB 고정 데이터 의존(TENANT_001) — DriveFixtures 로 옮길 때 다시 켠다")
     void find() {
 
         Integer tenantSeq = 27;
@@ -74,6 +77,7 @@ class SuperAdminTenantControllerTest extends AbstractMvcTest {
 
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(QUOTA_004) — DriveFixtures 로 옮길 때 다시 켠다")
     void create() {
         var request = new SuperAdminTenantCreateRequest(
                 "테스트 테넌트20111",
@@ -93,6 +97,7 @@ class SuperAdminTenantControllerTest extends AbstractMvcTest {
 
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(QUOTA_004) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_withAllowedIps() {
         var request = new SuperAdminTenantCreateRequest(
                 "test16",
@@ -205,6 +210,7 @@ class SuperAdminTenantControllerTest extends AbstractMvcTest {
 
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(TENANT_001) — DriveFixtures 로 옮길 때 다시 켠다")
     void update() {
         Integer tenantSeq = 17;
         String url = StringUtil.buildUrl(tenantSeq);
@@ -224,6 +230,7 @@ class SuperAdminTenantControllerTest extends AbstractMvcTest {
 
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(BASE_DOMAIN_001) — DriveFixtures 로 옮길 때 다시 켠다")
     void update_withAllowedIps() {
         Integer tenantSeq = 1;
         String url = StringUtil.buildUrl(tenantSeq);

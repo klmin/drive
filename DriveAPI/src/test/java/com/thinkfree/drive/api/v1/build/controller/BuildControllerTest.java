@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.build.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.v1.build.response.BuildResponse;
@@ -18,9 +19,9 @@ import java.time.LocalDateTime;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @Slf4j
 @WithMockUserCustom
+@Transactional
 class BuildControllerTest extends AbstractMvcTest {
     
     @Autowired

@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.admin.user.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.response.ApiResponse;
@@ -21,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom
+@Transactional
 class AdminUserSearchControllerTest extends AbstractMvcTest {
 
     /** 로그인 관리자(userSeq=1)와 같은 테넌트의 USER 계정 userId 일부 */
@@ -55,6 +56,7 @@ class AdminUserSearchControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(상태 코드 불일치) — DriveFixtures 로 옮길 때 다시 켠다")
     void search_byUserId() {
         var params = searchParams(USER_ID_KEYWORD, null, null);
 
@@ -66,6 +68,7 @@ class AdminUserSearchControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(상태 코드 불일치) — DriveFixtures 로 옮길 때 다시 켠다")
     void search_byUserName() {
         var params = searchParams(USER_NAME_KEYWORD, null, null);
 
@@ -87,6 +90,7 @@ class AdminUserSearchControllerTest extends AbstractMvcTest {
 
     /** rt·st 미지정 시 기본값 — API Key 발급 화면이 기대하는 범위다 */
     @Test
+    @Disabled("dev DB 고정 데이터 의존(상태 코드 불일치) — DriveFixtures 로 옮길 때 다시 켠다")
     void search_whenRoleAndStatusOmitted_returnsOnlyActiveUserRole() {
         var params = searchParams(USER_ID_KEYWORD, null, null);
 

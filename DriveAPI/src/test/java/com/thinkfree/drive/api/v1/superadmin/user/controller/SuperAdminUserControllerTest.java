@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.superadmin.user.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.response.ApiResponse;
@@ -21,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom(userSeq = 854, userId = "superadmin@thinkfree.com", userName = "슈퍼 관리자", roles = "ROLE_SUPER_ADMIN")
+@Transactional
 class SuperAdminUserControllerTest extends AbstractMvcTest {
 
     /** 검색 대상 테넌트 — userSeq 1(ADMIN)·41(USER) 이 속한 테넌트 */
@@ -44,6 +45,7 @@ class SuperAdminUserControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(상태 코드 불일치) — DriveFixtures 로 옮길 때 다시 켠다")
     void search() {
         var request = new SuperAdminUserSearchRequest(USER_ID_KEYWORD, null);
 
@@ -56,6 +58,7 @@ class SuperAdminUserControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(상태 코드 불일치) — DriveFixtures 로 옮길 때 다시 켠다")
     void search_returnsAdminAndUserRoleOnly() {
         var request = new SuperAdminUserSearchRequest(USER_ID_KEYWORD, null);
 
@@ -91,6 +94,7 @@ class SuperAdminUserControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(상태 코드 불일치) — DriveFixtures 로 옮길 때 다시 켠다")
     void search_whenRoleTypeIsGiven_returnsOnlyThatRole() {
         var request = new SuperAdminUserSearchRequest(USER_ID_KEYWORD, RoleType.USER);
 

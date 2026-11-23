@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.auth.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.response.ApiResponse;
@@ -21,12 +22,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
+@Transactional
 class AuthControllerTest extends AbstractMvcTest {
     
     private static final String baseUrl = "/api/v1/auth";
     
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void login() {
         
         String userId = "user1@thinkfree.com";
@@ -48,6 +50,7 @@ class AuthControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void adminLogin() {
 
         String userId = "admin@thinkfree.com";
@@ -70,6 +73,7 @@ class AuthControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_010) — DriveFixtures 로 옮길 때 다시 켠다")
     void anonymousLogin() {
         String url = StringUtil.buildUrl(baseUrl, "anonymous/login");
         var request = new AnonymousLoginRequest("Ndme8K5PkjsNCuNB"); // 전체 공유한 리소스 공유링크토큰
@@ -87,6 +91,7 @@ class AuthControllerTest extends AbstractMvcTest {
     }
     
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_010) — DriveFixtures 로 옮길 때 다시 켠다")
     void logout() {
 
         String testToken = DriveConstants.BEARER + "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3NlcSI6NDEsInR5cGUiOiJhY2Nlc3MiLCJzaWQiOiIwMTllM2RkNi0xNWM2LTc1ODYtODYxMi04YWY1ZjY0OGZiYzkiLCJpYXQiOjE3NzkxNjc4NTQsImV4cCI6MTc3OTE3MTQ1NH0.2CX87_4Mp502Lp_JjGzEgm3wYbovLWZN_NRAZagpef4";

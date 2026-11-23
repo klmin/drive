@@ -41,8 +41,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** tenantSeq=1 에 속한 활성 USER 계정으로 테스트 진행 */
 @Slf4j
-@Disabled
 @WithMockUserCustom(userSeq = UserApiKeyControllerTest.LOGIN_USER_SEQ, userId = "user@thinkfree.com", userName = "사용자", roles = "ROLE_USER")
+@Transactional
 class UserApiKeyControllerTest extends AbstractMvcTest {
     /** 로그인 계정 */
     static final int LOGIN_USER_SEQ = 41;
@@ -71,6 +71,7 @@ class UserApiKeyControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void create() {
         var request = new UserApiKeyCreateRequest(TEST_KEY_NAME_PREFIX + " 1", "테스트1", LocalDate.now(), WRITE_SCOPES);
 
@@ -83,6 +84,7 @@ class UserApiKeyControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenScopeIsReadOnly_returnsApiKey() {
         var request = new UserApiKeyCreateRequest(TEST_KEY_NAME_PREFIX + " 2", "읽기 전용", LocalDate.now(), READ_SCOPES);
 
@@ -104,6 +106,7 @@ class UserApiKeyControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenScopeIsUnsupported_returnsBadRequest() {
         var request = new UserApiKeyCreateRequest(TEST_KEY_NAME_PREFIX + " 4", "미지원 scope", LocalDate.now(), List.of("unknown:scope"));
 
@@ -115,6 +118,7 @@ class UserApiKeyControllerTest extends AbstractMvcTest {
     /** 값은 유효하지만 허용 조합이 아니다 — 백엔드가 빠진 값을 채워주지 않으므로 요청이 거부된다 */
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenScopeCombinationIsNotAllowed_returnsBadRequest() {
         var request = new UserApiKeyCreateRequest(TEST_KEY_NAME_PREFIX + " 7", "조합 위반", LocalDate.now(), List.of("api:write"));
 

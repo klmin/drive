@@ -18,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Slf4j
-@Disabled
 @WithMockUserCustom
+@Transactional
 class DocumentControllerTest extends AbstractMvcTest{
     
     @BeforeAll
@@ -30,6 +30,7 @@ class DocumentControllerTest extends AbstractMvcTest{
     @Test
     @WithMockUserCustom(userSeq = 1)
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void create() throws InterruptedException {
         
         Integer ss = null;

@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.admin.loginsetting.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
@@ -29,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WithMockUserCustom(tenantSeq = 5)
-@Disabled
+@Transactional
 class AdminLoginSettingControllerTest extends AbstractMvcTest {
 
     @BeforeAll
@@ -39,6 +40,7 @@ class AdminLoginSettingControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void find() throws IOException {
         
         var request = new LoginSettingRequest(LoginType.LOCAL);
@@ -79,6 +81,7 @@ class AdminLoginSettingControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void saveLocal() {
         
         var request = new LoginSettingSaveRequest(LoginType.LOCAL, null);
@@ -87,6 +90,7 @@ class AdminLoginSettingControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void saveJwt() {
         
         var provider = List.of(
@@ -102,6 +106,7 @@ class AdminLoginSettingControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void saveOidc() {
         var providers = List.of(
                 oidcProviderItem(59, "Google", SsoProviderStatus.INACTIVE,

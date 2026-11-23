@@ -1,5 +1,10 @@
 package com.thinkfree.drive.api.v1.file.controller;
 
+import org.junit.jupiter.api.BeforeEach;
+import com.thinkfree.drive.common.DriveFixtures;
+import com.thinkfree.drive.tenant.cache.HostTenantCache;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.response.ApiResponse;
@@ -39,9 +44,21 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Slf4j
-@Disabled
 @WithMockUserCustom(userSeq=2)
+@Transactional
 class FileControllerTest extends AbstractMvcTest {
+
+    @Autowired
+    private JdbcTemplate fixtureJdbc;
+
+    @Autowired
+    private HostTenantCache hostTenantCache;
+
+    /** setTestSlug("default") 가 가리킬 테넌트 주소 — 테스트 트랜잭션으로 되돌린다 */
+    @BeforeEach
+    void tenantAddresses() {
+        DriveFixtures.of(fixtureJdbc, hostTenantCache).tenantAddresses();
+    }
    
     @BeforeAll
     static void setUp() {
@@ -52,6 +69,7 @@ class FileControllerTest extends AbstractMvcTest {
     
     @WithMockUserCustom(userSeq=859, tenantSeq = 1)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void download() throws Exception {
         
         Long resourceSeq = 99039043L;
@@ -85,6 +103,7 @@ class FileControllerTest extends AbstractMvcTest {
     
     @WithMockUserCustom(userSeq=669)
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void view() throws Exception {
         
         Long resourceSeq = 25187L;
@@ -119,6 +138,7 @@ class FileControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(userSeq=859, tenantSeq = 1)
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void upload() throws Exception {
         
         //var resource = new ClassPathResource("files/new.tfi");
@@ -229,6 +249,7 @@ class FileControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(userSeq=859)
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void delete(){
         
         Long resourceSeq = 40052L;
@@ -244,6 +265,7 @@ class FileControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(userSeq=669)
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void rename() {
         
         Long resourceSeq = 25292L;
@@ -264,6 +286,7 @@ class FileControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(userSeq=914)
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void move() {
         //21 - 394(ORG_LINK) ->
         //1 - > 367(ORG_LINK) -> 656(version), 613(no version)
@@ -292,6 +315,7 @@ class FileControllerTest extends AbstractMvcTest {
     @WithMockUserCustom(userSeq=21)
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void copy(){
 
         Long resourceSeq = 25247L;

@@ -15,8 +15,8 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom(tenantSeq = 8)
+@Transactional
 class AdminLicenseControllerTest extends AbstractMvcTest {
 
     @BeforeAll
@@ -27,6 +27,7 @@ class AdminLicenseControllerTest extends AbstractMvcTest {
 
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void registerLicense() {
 
         String url = StringUtil.buildUrl("license");
@@ -39,6 +40,7 @@ class AdminLicenseControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void getLicense() {
 
         String url = StringUtil.buildUrl("license");

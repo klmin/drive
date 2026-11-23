@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.userlog.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.page.request.CursorPagingRequest;
@@ -20,9 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @Slf4j
 @WithMockUserCustom
+@Transactional
 class UserLogControllerTest extends AbstractMvcTest {
 
     @BeforeAll
@@ -31,6 +32,7 @@ class UserLogControllerTest extends AbstractMvcTest {
     }
 
     @Test
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void getCurrentUserLogs() {
 
         Object cv = null;

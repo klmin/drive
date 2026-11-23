@@ -41,8 +41,8 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Slf4j
-@Disabled
 @WithMockUserCustom(userSeq = SuperAdminApiKeyControllerTest.LOGIN_USER_SEQ, userId = "superadmin@thinkfree.com", userName = "슈퍼 관리자", roles = "ROLE_SUPER_ADMIN")
+@Transactional
 class SuperAdminApiKeyControllerTest extends AbstractMvcTest {
     /** 로그인 계정 */
     static final int LOGIN_USER_SEQ = 854;
@@ -78,6 +78,7 @@ class SuperAdminApiKeyControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(API_KEY_012) — DriveFixtures 로 옮길 때 다시 켠다")
     void create() {
         var request = new SuperAdminApiKeyCreateRequest(TENANT_SEQ, ADMIN_USER_SEQ, TEST_KEY_NAME_PREFIX + " 1", "테스트1", LocalDate.now(), READ_SCOPES, null, null);
 
@@ -90,6 +91,7 @@ class SuperAdminApiKeyControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenTargetIsUser_returnsApiKey() {
         var request = new SuperAdminApiKeyCreateRequest(TENANT_SEQ, TARGET_USER_SEQ, TEST_KEY_NAME_PREFIX + " 2", "사용자 자격", LocalDate.now(), READ_SCOPES, null, null);
 
@@ -102,6 +104,7 @@ class SuperAdminApiKeyControllerTest extends AbstractMvcTest {
     /** 본인(슈퍼관리자) 대상 키는 소속 테넌트가 없어 tenant_seq 가 NULL 로 저장된다 */
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenTargetIsSelf_returnsApiKey() {
         var request = new SuperAdminApiKeyCreateRequest(null, null, TEST_KEY_NAME_PREFIX + " 3", "본인 키", LocalDate.now(), READ_SCOPES, null, null);
 
@@ -113,6 +116,7 @@ class SuperAdminApiKeyControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenTargetIsSelfWithTenantSeq_returnsBadRequest() {
         var request = new SuperAdminApiKeyCreateRequest(TENANT_SEQ, null, TEST_KEY_NAME_PREFIX + " 8", "본인 키에 테넌트 지정", LocalDate.now(), READ_SCOPES, null, null);
 
@@ -123,6 +127,7 @@ class SuperAdminApiKeyControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(API_KEY_012) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenTenantSeqIsMissingForAdminTarget_returnsBadRequest() {
         var request = new SuperAdminApiKeyCreateRequest(null, ADMIN_USER_SEQ, TEST_KEY_NAME_PREFIX + " 4", "테넌트 누락", LocalDate.now(), READ_SCOPES, null, null);
 
@@ -133,6 +138,7 @@ class SuperAdminApiKeyControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(API_KEY_012) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenTenantNotExists_returnsNotFound() {
         var request = new SuperAdminApiKeyCreateRequest(MISSING_TENANT_SEQ, ADMIN_USER_SEQ, TEST_KEY_NAME_PREFIX + " 5", "없는 테넌트", LocalDate.now(), READ_SCOPES, null, null);
 
@@ -143,6 +149,7 @@ class SuperAdminApiKeyControllerTest extends AbstractMvcTest {
 
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenTargetUserNotInTenant_returnsBadRequest() {
         var request = new SuperAdminApiKeyCreateRequest(TENANT_SEQ, OTHER_TENANT_USER_SEQ, TEST_KEY_NAME_PREFIX + " 6", "다른 테넌트 계정", LocalDate.now(), READ_SCOPES, null, null);
 
@@ -154,6 +161,7 @@ class SuperAdminApiKeyControllerTest extends AbstractMvcTest {
     /** 관리자 대상 키도 scope 를 받는다 — 검사 대상이 아닐 뿐 값은 저장된다 */
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(API_KEY_012) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenScopeGivenForAdminTarget_returnsApiKey() {
         var request = new SuperAdminApiKeyCreateRequest(TENANT_SEQ, ADMIN_USER_SEQ, TEST_KEY_NAME_PREFIX + " 7", "관리자에 scope", LocalDate.now(), WRITE_SCOPES, null, null);
 
@@ -176,6 +184,7 @@ class SuperAdminApiKeyControllerTest extends AbstractMvcTest {
     /** 값은 유효하지만 허용 조합이 아니다 — 백엔드가 빠진 값을 채워주지 않으므로 요청이 거부된다 */
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(API_KEY_012) — DriveFixtures 로 옮길 때 다시 켠다")
     void create_whenScopeCombinationIsNotAllowed_returnsBadRequest() {
         var request = new SuperAdminApiKeyCreateRequest(TENANT_SEQ, ADMIN_USER_SEQ, TEST_KEY_NAME_PREFIX + " 10", "조합 위반", LocalDate.now(), List.of("api:write"), null, null);
 

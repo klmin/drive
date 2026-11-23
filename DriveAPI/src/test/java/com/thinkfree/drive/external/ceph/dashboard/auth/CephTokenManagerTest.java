@@ -1,5 +1,6 @@
 package com.thinkfree.drive.external.ceph.dashboard.auth;
 
+import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @EnabledIf(expression = "#{environment['storage.type'] == 'ceph'}", loadContext = true)
 @DriveIntegrationTest
 @Slf4j
-@Disabled
+@Transactional
+@Disabled("실제 Ceph 대시보드 API 를 호출한다(외부 시스템) — CephDashboard 클라이언트를 Mock 으로 바꿀 때 다시 켠다. getBearerTokenConcurrent 는 예외를 삼켜 단언이 없다")
 class CephTokenManagerTest {
     
     @Autowired

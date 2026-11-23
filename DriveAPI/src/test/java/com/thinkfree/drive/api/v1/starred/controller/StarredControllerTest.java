@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.starred.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.page.request.CursorPagingRequest;
@@ -25,8 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom
+@Transactional
 class StarredControllerTest extends AbstractMvcTest {
 
     @BeforeAll
@@ -36,6 +37,7 @@ class StarredControllerTest extends AbstractMvcTest {
 
     @Test
     @WithMockUserCustom(userSeq = 859)
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void list(){
         
         Integer pi = 1;
@@ -62,6 +64,7 @@ class StarredControllerTest extends AbstractMvcTest {
 
     @Test
     @WithMockUserCustom(userSeq = 669)
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void listWithCursor(){
 
         Integer ps = 20;
@@ -92,6 +95,7 @@ class StarredControllerTest extends AbstractMvcTest {
 
     @Test
     @WithMockUserCustom(userSeq = 21)
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void save() {
         
         performStarredSave(25251L, 21);
@@ -115,6 +119,7 @@ class StarredControllerTest extends AbstractMvcTest {
 
     @Test
     @WithMockUserCustom(userSeq = 1)
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void delete(){
         Long starredSeq = 92L;
         ApiResponse<Void> response = deleteForObject(String.valueOf(starredSeq), null, new TypeReference<>(){}, status().isOk());

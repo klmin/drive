@@ -1,5 +1,10 @@
 package com.thinkfree.drive.api.v1.admin.controller;
 
+import org.junit.jupiter.api.BeforeEach;
+import com.thinkfree.drive.common.DriveFixtures;
+import com.thinkfree.drive.tenant.cache.HostTenantCache;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.user.enums.RoleType;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
@@ -34,9 +39,21 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom(tenantSeq = 1)
+@Transactional
 class AdminControllerTest extends AbstractMvcTest {
+
+    @Autowired
+    private JdbcTemplate fixtureJdbc;
+
+    @Autowired
+    private HostTenantCache hostTenantCache;
+
+    /** setTestSlug("default") 가 가리킬 테넌트 주소 — 테스트 트랜잭션으로 되돌린다 */
+    @BeforeEach
+    void tenantAddresses() {
+        DriveFixtures.of(fixtureJdbc, hostTenantCache).tenantAddresses();
+    }
     
     @BeforeAll
     static void setUp() {
@@ -48,6 +65,7 @@ class AdminControllerTest extends AbstractMvcTest {
     
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(상태 코드 불일치) — DriveFixtures 로 옮길 때 다시 켠다")
     void registerUser(){
         
         String userId = "user";
@@ -78,6 +96,7 @@ class AdminControllerTest extends AbstractMvcTest {
     }
     
     @Test
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void getUser(){
         
         int userSeq = 1;
@@ -91,6 +110,7 @@ class AdminControllerTest extends AbstractMvcTest {
     
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void updateUserByAdmin(){
         
         Integer userSeq = 675;
@@ -122,6 +142,7 @@ class AdminControllerTest extends AbstractMvcTest {
     @WithMockUserCustom//(tenantSeq = 3)
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void updatePassword(){
         
         
@@ -141,6 +162,7 @@ class AdminControllerTest extends AbstractMvcTest {
     
     @Test
     //@Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void activateUser(){
         Integer userSeq = 21;
         String url = StringUtil.buildUrl("users", userSeq, "activate");
@@ -153,6 +175,7 @@ class AdminControllerTest extends AbstractMvcTest {
     
     @Test
     @WithMockUserCustom(tenantSeq = 3)
+    @Disabled("dev DB 고정 데이터 의존(REQUEST_006) — DriveFixtures 로 옮길 때 다시 켠다")
     void deactivateUser(){
         setTestHost("default-add.drive.thinkfree.com");
         Integer userSeq = 675;
@@ -166,6 +189,7 @@ class AdminControllerTest extends AbstractMvcTest {
     
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void withdraw(){
         
         Integer userSeq = 675;

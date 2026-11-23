@@ -20,8 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Slf4j
-@Disabled
 @WithMockUserCustom
+@Transactional
 class ShareTargetControllerTest extends AbstractMvcTest {
     
     @BeforeAll
@@ -32,6 +32,7 @@ class ShareTargetControllerTest extends AbstractMvcTest {
     @Test
     @WithMockUserCustom(userSeq=859)
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void replaceShareTargets() throws InterruptedException {
         
         Long shareSeq = 1110L;

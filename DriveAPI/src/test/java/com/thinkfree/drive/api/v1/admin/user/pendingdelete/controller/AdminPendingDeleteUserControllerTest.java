@@ -23,8 +23,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom
+@Transactional
 class AdminPendingDeleteUserControllerTest extends AbstractMvcTest {
     
     @BeforeAll
@@ -62,6 +62,7 @@ class AdminPendingDeleteUserControllerTest extends AbstractMvcTest {
     @WithMockUserCustom
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void restore(){
         
         Integer userSeq = 675;
@@ -74,6 +75,7 @@ class AdminPendingDeleteUserControllerTest extends AbstractMvcTest {
     
     @Test
     @Transactional
+    @Disabled("dev DB 고정 데이터 의존(USER_005) — DriveFixtures 로 옮길 때 다시 켠다")
     void permanentDelete() throws InterruptedException {
         List<Integer> ul = List.of(914, 675);
         var request = new AdminPendingDeletePermanentRequest(ul);

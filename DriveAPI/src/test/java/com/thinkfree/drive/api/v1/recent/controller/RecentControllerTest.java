@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.recent.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.page.request.CursorPagingRequest;
@@ -21,8 +22,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @WithMockUserCustom
+@Transactional
 class RecentControllerTest extends AbstractMvcTest {
 
     @BeforeAll
@@ -32,6 +33,7 @@ class RecentControllerTest extends AbstractMvcTest {
 
     @Test
     @WithMockUserCustom(userSeq = 859)
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void listWithCursor(){
 
         Integer pi = 1;
@@ -62,6 +64,7 @@ class RecentControllerTest extends AbstractMvcTest {
 
     @Test
     @WithMockUserCustom(userSeq = 669)
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void save() {
         
         performRecentSave(25149L, 668);

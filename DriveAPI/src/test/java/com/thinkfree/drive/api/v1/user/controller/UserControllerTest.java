@@ -1,5 +1,6 @@
 package com.thinkfree.drive.api.v1.user.controller;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.thinkfree.drive.abstracts.AbstractMvcTest;
 import com.thinkfree.drive.api.response.ApiResponse;
@@ -20,9 +21,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Disabled
 @Slf4j
 @WithMockUserCustom
+@Transactional
 class UserControllerTest extends AbstractMvcTest {
     
     @BeforeAll
@@ -44,6 +45,7 @@ class UserControllerTest extends AbstractMvcTest {
     
     @Test
     @WithMockUserCustom(userSeq=859)
+    @Disabled("dev DB 고정 데이터 의존(AUTH_009) — DriveFixtures 로 옮길 때 다시 켠다")
     void search(){
         
         String sk = "k";
