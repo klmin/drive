@@ -96,7 +96,7 @@ Grafana(:3300) ── Prometheus · Tempo · Loki 를 서로 링크해서 보여
 | `health.redis.enabled` | `false` | Redis 헬스체크 끔. starter 의존성만 남아 있어 Redis 서버가 없으면 health 전체가 DOWN 되는 걸 막음 |
 | `metrics.tags.application` | `drive-api` | **모든 지표에 붙는 공통 라벨** `application="drive-api"`(서비스명 개념이 아니라 라벨) |
 | `distribution.percentiles-histogram` | `http.server.requests`, `aws.s3.client` | Spring Boot 표준 옵션. 응답 시간을 구간별 개수(`_bucket{le=…}`)로도 내보냄 → Grafana `histogram_quantile` 로 p95·p99, exemplar(점→트레이스). 키는 지표 이름이며 **`aws.s3.client` 는 프로젝트가 만든 지표** |
-| `minimum/maximum-expected-value.aws.s3.client` | `1ms` / `2m` | 히스토그램 구간을 이 범위로만 → 시계열 수 줄임(S3 지표는 라벨 조합이 많음) |
+| `minimum/maximum-expected-value.aws.s3.client` | `1ms` / `2m` | 히스토그램 구간을 만들 범위. Timer 기본은 1ms~30초(구간 72개)인데 S3 는 큰 파트 업로드가 30초를 넘을 수 있어 **2분까지 늘림**(78개). p95·p99 는 이 범위 안에서만 정확하고, 넘는 호출은 `+Inf` 칸에 들어가 p95 가 120초로 막힘. `_count`·`_sum`·`_max` 와 트레이스는 영향 없음 |
 | `distribution.slo.http.server.requests` | `300ms,1s,3s` | **프로젝트가 정한 값.** 히스토그램 경계에 정확히 0.3·1·3초를 추가할 뿐(앱 동작·타임아웃 영향 없음). 기본 구간엔 1초가 없어(0.984초) "1초 안 비율"을 정확히 셀 수 없기 때문. SLO 알림이 `le="1.0"` 사용 |
 | `observations.enable.spring.security` | `false` | **Security 는 그대로 동작.** 필터 체인 단계별 span 기록만 끔(요청마다 10여 개라 트레이스를 가림) |
 | `tracing.sampling.probability` | `${DRIVE_TRACING_SAMPLING_PROBABILITY:1.0}` | 앱은 트레이스 **100% 전송**, 남길지는 Alloy tail 샘플링이 결정. 앱에서 낮추면 에러 트레이스도 같이 버려짐 |
@@ -105,13 +105,18 @@ Grafana(:3300) ── Prometheus · Tempo · Loki 를 서로 링크해서 보여
 | `opentelemetry.resource-attributes.service.name` | `drive-api` | **트레이스**의 서비스 이름(Tempo 검색·서비스 그래프) |
 | `opentelemetry.resource-attributes.deployment.environment` | `${DRIVE_ENV:local}` | 트레이스의 환경 이름 — 여러 환경 트레이스가 한 Tempo 에 모일 때 구분 |
 
-### `drive-api` 가 쓰이는 세 군데
+### `drive-api` 가 쓰이는 네 군데
+
+Alloy 가 받은 걸 전부 `drive-api` 로 묶는 게 아니다. 데이터 종류마다 붙이는 쪽이 다르다.
 
 | 어디 | 붙는 곳 | 보는 곳 |
 |---|---|---|
-| `management.metrics.tags.application` | 메트릭 라벨 `application` | Prometheus |
-| `opentelemetry.resource-attributes.service.name` | 트레이스 서비스명 | Tempo |
-| Alloy `job_name = "drive-api"` | 메트릭 라벨 `job` | 대시보드·알림 쿼리 |
+| Alloy `job_name = "drive-api"` | 메트릭 라벨 `job` (DB 지표는 `job="postgres"`, OS 는 `node`) | 대시보드·알림 쿼리가 거르는 기준 |
+| `management.metrics.tags.application` | 메트릭 라벨 `application` (앱이 붙임) | 지금은 안 씀. 수집 대상 하나에 여러 앱이 모일 때 구분용 |
+| Alloy 로그 수집(`config.alloy` 의 `local.file_match`) | 로그 라벨 `service_name` | Loki |
+| `opentelemetry.resource-attributes.service.name` | 트레이스 서비스명 (앱이 붙여 보내고 Alloy 는 그대로 넘김) | Tempo |
+
+지표·로그는 Alloy 가 가지러 가므로(pull) 무엇을 읽는지 Alloy 가 알아 Alloy 에서 이름을 붙이고, 트레이스는 앱이 Alloy 로 보내므로(push) 앱이 자기 이름을 단다. Alloy 가 거르는 건 트레이스 tail 샘플링뿐이다.
 
 ### Actuator URL (8091 만)
 
@@ -248,6 +253,67 @@ Grafana(:3300) ── Prometheus · Tempo · Loki 를 서로 링크해서 보여
 - `global/config/ObservationConfig.java:20-28` — `/actuator` 요청은 관찰 안 함(scrape 가 지표·트레이스에 안 섞임).
 - `global/filter/TenantFilter.java:156,165` — 요청 span 에 `tenant.seq`(트레이스만, 메트릭 태그 아님).
 - 안 쓰는 것: `@Timed`/`@Observed`, MeterFilter, 커스텀 Sampler. 진행 중 세션 수·정리 대기열은 앱이 아니라 Alloy `pg-queries.yaml`.
+
+### 계측을 넣는 방법 (지표만 / 트레이스만 / 둘 다)
+
+| 남기고 싶은 것 | 코드 | 가는 곳 | 이 프로젝트 예 |
+|---|---|---|---|
+| 지표만 | `MeterRegistry` 에 `Counter`·`Timer`·`DistributionSummary`·`Gauge` 를 `.register()` 하고 값 기록 | Prometheus | `UploadSessionMetrics`, `StreamingAsyncConfig`, `S3HttpPoolMetrics` |
+| 지표 + 트레이스 | `ObservationRegistry` 로 `Observation` 을 만들어 `start()`~`stop()` (또는 `observe(() -> …)`) | Prometheus(Timer) + Tempo(span) | `S3ObservationInterceptor`, `JdbcObservationConfig`(라이브러리가 쿼리마다 Observation → `jdbc_query_seconds` 지표도 생김) |
+| 트레이스만 | 이미 있는 Observation 에 `addHighCardinalityKeyValue` | Tempo | `TenantFilter` 의 `tenant.seq` |
+| 로그 | `log.info(...)` | 파일 → Alloy → Loki | 전부 |
+
+미터 종류 고르기:
+
+| 종류 | 재는 것 | 예 |
+|---|---|---|
+| `Counter` | 올라가기만 하는 횟수 (`_total`) | 다운로드 거절 수 |
+| `Gauge` | 지금 이 순간의 값 (scrape 때 읽음) | S3 풀 최대 연결 수 |
+| `Timer` | 걸린 시간 (`_count`·`_sum`·`_max`, 선택 시 `_bucket`) | S3 연결 빌리는 시간 |
+| `DistributionSummary` | 시간이 아닌 값의 분포 (바이트, 개수) | 업로드 크기, 빌린 연결 수 |
+| `Observation` | 시작~끝을 감싸 Timer 와 span 을 함께 만듦 | S3 호출 |
+
+`description` 은 `# HELP` 줄, `tag` 는 라벨이 될 뿐 종류를 가르는 기준이 아니다.
+
+#### Observation 한 개가 두 곳으로 가는 원리
+
+```
+observation.stop()
+   ├─ 지표 처리기   → MeterRegistry 의 Timer 에 걸린 시간 더함 → /actuator/prometheus → Alloy 가 가져감 → Prometheus
+   └─ 트레이스 처리기 → span 닫음                              → OTLP(4318) 로 Alloy 에 보냄 → tail 샘플링 → Tempo
+```
+
+두 갈래는 서로 모른다. Prometheus 는 Tempo 를 보고 시간을 아는 게 아니라 같은 `stop()` 에서 따로 기록한다. Tempo 는 일부만 남으므로(에러·느린 것 전부 + 10%) 요청 수·p95 는 Prometheus 를 본다. 둘을 잇는 건 그래프 점(exemplar)의 traceId 뿐.
+
+S3 인터셉터 코드가 각각 어디로 가는지:
+
+| 코드 | 지표 (Prometheus) | 트레이스 (Tempo) |
+|---|---|---|
+| `createNotStarted("aws.s3.client", …)` | 지표 이름 → `aws_s3_client_seconds_*` | span 이름 기본값 |
+| `.contextualName("s3 put-object")` | 안 씀 | span 이름 |
+| `.lowCardinalityKeyValue("rpc.method", …)` | 라벨 `rpc_method` | span 속성 |
+| `.highCardinalityKeyValue(…)` | 안 들어감 (값 종류가 많으면 시계열 폭발) | span 속성 |
+| `.start()` ~ `.stop()` | 걸린 시간을 횟수·합계·최대·구간으로 집계 (시각은 없음) | 이 호출의 시작·끝 시각 |
+| `attributes.putAttribute(OBSERVATION, …)` | — | — : SDK 가 시작(`beforeExecution`)과 끝(`afterExecution`/`onExecutionFailure`)을 다른 메서드로 부르고 인터셉터는 싱글톤이라, 요청마다 따로인 `ExecutionAttributes` 에 담아 두었다 같은 객체를 꺼내 `stop()` |
+
+이름 변환: `aws.s3.client` → 점을 밑줄로 `aws_s3_client` → Timer 라 단위 `_seconds` → 종류별 `_count`/`_sum`/`_max`/`_bucket`. `aws_s3_client_active_seconds_*` 는 진행 중(start 했고 아직 stop 안 한) 호출. 실제 출력은 `curl localhost:8091/actuator/prometheus` 로 확인.
+
+#### 로그를 트레이스와 잇기
+
+- Loki 쪽 등록은 없다. 로그를 쓰면 Alloy 가 파일을 읽는다. 연결은 로그 패턴의 `[%X{traceId},%X{spanId}]`.
+- 그 스레드 MDC 에 trace 정보가 있어야 찍힌다. HTTP 요청 스레드는 Spring 이 넣어 줌.
+- `@Async` 스레드는 비어 있다 → `ContextPropagatingTaskDecorator` 가 요청 스레드의 trace·MDC 를 복사한다. 데이터를 새로 만들거나 Alloy 로 보내는 장치가 아니라, 작업 안의 span·로그가 원래 요청에 이어지게 하는 것. 없으면 끊긴 별개 트레이스가 된다.
+- 직접 만든 Observation 은 `start()` 만으로 MDC 에 안 들어간다. `openScope()` 나 `observe()` 로 감싸야 그 안 로그에 해당 span id 가 찍힌다. S3 인터셉터는 scope 를 안 열어 SDK 로그에는 바깥 요청 traceId 가 찍힌다(같은 요청으로는 연결됨).
+
+#### 새 지표를 추가하는 순서
+
+1. 코드에서 `MeterRegistry` 에 등록하고 값을 기록한다(시간+트레이스가 필요하면 Observation).
+2. p95·p99 가 필요한 Timer 는 구간을 켠다 — yml `distribution.percentiles-histogram.<이름>: true` 또는 코드 `.publishPercentileHistogram()`. 30초 넘는 값이 나오면 `maximum-expected-value` 도.
+3. 서버 재시작 → `/actuator/prometheus` 에 자동으로 나온다. Alloy·Prometheus 설정 변경 없음(앱은 보내지 않고 Alloy 가 15초마다 가져감).
+4. Grafana 패널은 `grafana/provisioning/dashboards/json/*.json` 에 PromQL 로 추가, 알림은 `grafana/provisioning/alerting/drive-rules.yaml`. 바꾸면 `docker compose restart grafana`.
+5. 트레이스는 `DRIVE_OTLP_TRACING_EXPORT_ENABLED=true` 일 때만 Tempo 까지 간다.
+
+조회는 Grafana **Explore** 에서 저장소를 골라: Prometheus `aws_s3_client_seconds_count{job="drive-api", rpc_method="PutObject"}` · Tempo `{resource.service.name="drive-api" && span.rpc.method="PutObject"}` · Loki `{service_name="drive-api", level="ERROR"}`.
 
 ---
 

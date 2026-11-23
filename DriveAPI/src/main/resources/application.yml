@@ -115,7 +115,7 @@ management:
       # 응답 시간 분포(histogram) — Grafana 에서 p95·p99 계산, 점(exemplar)에서 트레이스로 이동
       percentiles-histogram:
         http.server.requests: true
-        # S3 호출(S3ObservationInterceptor) — operation 별 p95. 구간 수를 줄이려고 범위를 1ms~2분으로 좁힌다
+        # S3 호출(S3ObservationInterceptor) — operation 별 p95. Timer 기본 범위(1ms~30초)를 넘는 큰 파트 업로드가 있어 2분까지 늘린다
         aws.s3.client: true
       minimum-expected-value:
         aws.s3.client: 1ms
