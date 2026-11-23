@@ -117,7 +117,7 @@ jobs:
           rows=$(jq -c --slurpfile acc "$accepted" '.runs[].results[]? |
             (.locations[0].physicalLocation.artifactLocation.uri // "-") as $uri | .ruleId as $rule |
             {rule: $rule, uri: $uri, line: (.locations[0].physicalLocation.region.startLine // "-"), level: (.level // "warning"),
-             msg: (.message.text | gsub("\n"; " ") | gsub("\|"; "/") | .[0:200]),
+             msg: (.message.text | gsub("\n"; " ") | gsub("\\|"; "/") | .[0:200]),
              accepted: any($acc[0][]; .rule == $rule and .path == $uri)}' "${files[@]}")
           count=$(printf '%s\n' "$rows" | jq -s 'length')
           open=$(printf '%s\n' "$rows" | jq -s 'map(select(.accepted | not)) | length')
