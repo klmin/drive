@@ -45,8 +45,10 @@ storage:
 
 S3_BUCKET_NAME : t-drive-demo
 S3_REGION_STATIC : ap-northeast-2
-S3_ACCESS_KEY : AKIAYM7POAYPAEUG6P7W
-S3_SECRET_KEY : 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
+# 아래 S3_* 는 코드에서 읽지 않는 옛 설정이다(테스트 스토리지는 위 storage.connection.* 를 RustFS 컨테이너가 덮어쓴다).
+# 실제 키를 넣지 않는다 — 예전에 들어 있던 AWS 키는 git 이력에 남아 있어 교체 대상이다(docs/todo/next-session.md §3-5).
+S3_ACCESS_KEY : test-access-key-placeholder
+S3_SECRET_KEY : test-secret-key-placeholder
 
 # jwt
 jwt:
