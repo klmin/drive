@@ -52,12 +52,7 @@ class AdminApiKeyControllerTest extends AbstractMvcTest {
     private static final int OTHER_TENANT_USER_SEQ = 956;
     /** 슈퍼관리자 계정 — 관리자 경로 발급 차단 검증용 */
     static final int SUPER_ADMIN_USER_SEQ = 854;
-    /**
-     * 정리 대상을 식별하는 접두어. 사람이 우연히 쓸 일이 없는 값이어야 한다 —
-     * clearTestApiKeys 가 이 접두어로 DELETE 하므로 실제 키와 겹치면 그대로 지워진다.
-     * <p>
-     * {@code _} 와 {@code %} 를 넣지 말 것. LIKE 와일드카드라 삭제 범위가 넓어진다.
-     */
+    /** 이 테스트가 만든 키임을 알아볼 수 있게 이름 앞에 붙이는 접두어 */
     private static final String TEST_KEY_NAME_PREFIX = "apikey-it-fixture-a3f19c";
 
     /** 존재하지 않는 키 */
@@ -420,21 +415,5 @@ class AdminApiKeyControllerTest extends AbstractMvcTest {
         assertEquals(OK.value(), response.getCode());
     }
     
-
-    /**
-     * 남은 테스트 키 정리 — {@code @Transactional} 을 주석 처리해 실행했을 때만 필요하다.
-     * 발급 API 에 대응하는 삭제 API 가 없어 직접 지운다.
-     * <p>
-     * 이름만으로 지우면 같은 이름의 실제 키까지 지워지므로 이 테스트가 만든 것으로 한정한다 —
-     * 발급자(register_user_seq)와 테넌트까지 일치해야 삭제.
-     */
-    @Test
-    void clearTestApiKeys() {
-        int deleted = jdbc.update(
-                "DELETE FROM tb_api_key WHERE key_name LIKE ? AND register_user_seq = ? AND tenant_seq = ?",
-                TEST_KEY_NAME_PREFIX + "%", LOGIN_USER_SEQ, TENANT_SEQ);
-
-        log.info("삭제된 테스트 API Key : {}건", deleted);
-    }
 
 }

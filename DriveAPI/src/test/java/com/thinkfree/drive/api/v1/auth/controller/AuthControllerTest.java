@@ -9,12 +9,10 @@ import com.thinkfree.drive.api.v1.auth.request.LoginRequest;
 import com.thinkfree.drive.api.v1.auth.response.AnonymousLoginResponse;
 import com.thinkfree.drive.api.v1.auth.response.LoginConfigResponse;
 import com.thinkfree.drive.api.v1.auth.response.LoginResponse;
-import com.thinkfree.drive.constants.DriveConstants;
 import com.thinkfree.drive.util.StringUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
@@ -89,19 +87,7 @@ class AuthControllerTest extends AbstractMvcTest {
         Assertions.assertNotNull(response.getData().getUserId());
         Assertions.assertNotNull(response.getData().getBaseDomain());
     }
-    
-    @Test
-    @Disabled("dev DB 고정 데이터 의존(REQUEST_010) — DriveFixtures 로 옮길 때 다시 켠다")
-    void logout() {
-
-        String testToken = DriveConstants.BEARER + "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3NlcSI6NDEsInR5cGUiOiJhY2Nlc3MiLCJzaWQiOiIwMTllM2RkNi0xNWM2LTc1ODYtODYxMi04YWY1ZjY0OGZiYzkiLCJpYXQiOjE3NzkxNjc4NTQsImV4cCI6MTc3OTE3MTQ1NH0.2CX87_4Mp502Lp_JjGzEgm3wYbovLWZN_NRAZagpef4";
-        String url = StringUtil.buildUrl(baseUrl, "logout");
-
-        ApiResponse<Void> response = response(withHost(MockMvcRequestBuilders.get(url)).header(HttpHeaders.AUTHORIZATION, testToken), null, null, new TypeReference<>(){}, status().isOk());
-        Assertions.assertEquals(HttpStatus.OK.value(), response.getCode());
-
-    }
-    
+        
     @Test
     void loginConfig(){
         
