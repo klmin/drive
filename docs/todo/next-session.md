@@ -96,7 +96,11 @@
    - Developers 저장소 `infra/kubernetes/helm/cloud-drive` 는 **AWS ALB**(`ingressClassName: alb`)라 요청 본문 상한이 없다 → 원래 걱정한 nginx 기본 1MB(413) 문제는 해당 없음. 타임아웃은 ALB idle timeout(차트 설정값)이고 16MB 파트 PUT 은 수 초라 문제 없음.
    - 그 환경의 Drive 프론트 nginx(`frontend.yaml`)는 `/api`·로그인 화면을 404 로 막은 플레이그라운드 구성이라 웹 화면 청크 업로드 경로가 열려 있지 않다. Drive API 가 그 환경에서 어느 경로로 나가는지는 확인 안 함 — 그곳에서 청크 업로드를 열 때 그 경로의 본문 상한·타임아웃만 본다.
    - nginx·ingress-nginx·번들 Apache 를 쓰는 설치처는 #49 문서(본문 상한 1GiB·응답 대기 300초)대로 맞춘다.
-3. 그 다음 후보(선택, [upload-session.md](upload-session.md) 에 항목별 설명)
+3. **부하 관련 남은 일**([../../observability/k6/README.md](../../observability/k6/README.md) "S3 풀" 절의 "남은 일" — 이 파일에 빠져 있던 것, 2026-11-23 추가)
+   - #77(S3 풀 200·대기 2초 503·다운로드 상한 100) **수정 후 재측정을 아직 안 함**: 다운로드 50·100·150·200명, 업로드 정상(`upload.js` stress), 비정상 클라이언트(`abuse-parts.js`). 100명까지 실패 0, 초과분 즉시 503, Tomcat 바쁜 스레드가 낮은지 본다. #64 다운로드 풀 포화(§2-3)도 이것으로 함께 확인된다.
+   - **업로드 파트 동시 상한이 없다**: 비정상 클라이언트가 Tomcat 스레드 198/200 을 썼다. WAS 단위 세마포어(50 안팎, 본문 읽기 전 503 + `Retry-After`) — 코드 작업.
+   - 재측정 스크립트가 쓰는 `C:/loadtest-tools/run-app.sh` 는 측정한 PC 에만 있다. 다른 PC 에서는 그 준비부터 한다.
+4. 그 다음 후보(선택, [upload-session.md](upload-session.md) 에 항목별 설명)
    - B: 감사 로그 발행 시점(커밋 tx 안 + `AFTER_COMMIT`) 검토
    - B: Ceph·RustFS 계약 테스트 — 그 스토리지를 쓰는 설치처가 생길 때
    - A: 청크 API 외부 공개(API Key·MCP 로 큰 파일) — 필요해질 때
