@@ -3,7 +3,8 @@
 관측 스택(Alloy·Prometheus·Loki·Tempo·Grafana·k6)과 앱 쪽 Spring 설정을 한곳에 모은 정리. 자세한 동작은 같은 폴더의 `README.md`·`HOW-IT-WORKS.md`·`k6/README.md`.
 같은 내용의 웹 페이지(그림 포함, 작성자 계정 전용): https://claude.ai/artifact/9i5YhBntuacPiwREQueFMJ
 
-- 출처: `observability/` 전체, `DriveAPI/src/main/resources/application.yml`, `log/log4j2-server.yml`, DriveAPI Java 소스, `observability/k6/README.md`, `LOCAL-TEST-GUIDE.md`
+- 출처: `observability/` 전체, `DriveAPI/src/main/resources/application.yml`, `log/log4j2-server.yml`, DriveAPI Java 소스, `observability/k6/README.md`, `observability/LOCAL-TEST-GUIDE.md`
+- 확인 절차(U1~D5, k6 남은 측정)의 순서·전제는 같은 폴더의 **`LOCAL-TEST-GUIDE.md`** — 이 노트 9·10장은 그 요약
 
 ---
 
@@ -385,7 +386,7 @@ docker compose --profile loadtest run --rm -e TESTID=after-abuse k6 run /scripts
 
 ## 10. 화면 확인 체크리스트 (모드 A — 다음에 이어서)
 
-준비: IntelliJ **DriveAPI**(8080) + `DriveFront` `npm run dev`(3000), http://localhost:3000 `admin` / `LoadTest!2026`. 다른 PC 에서 새로 하면 앱 첫 기동 후:
+준비: IntelliJ **DriveAPI**(8080) + `DriveFront` `npm run dev`(3000), http://localhost:3000 `admin` / `LoadTest!2026`. commerce-saga Grafana 가 3000 을 쓰고 있으면 3001 로 옮긴다(`LOCAL-TEST-GUIDE.md` §0). 다른 PC 에서 새로 하면 앱 첫 기동 후:
 
 ```powershell
 Get-Content C:\intelliJProject\klmin-drive\observability\k6\seed-admin.sql | docker exec -i drive-local-postgres-1 psql -U drive -d drive
