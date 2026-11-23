@@ -1,6 +1,6 @@
 # 다음 세션 시작점 (인계)
 
-> 작성: 2026-11-20 저녁(같은 날 오전 판을 갱신), 2026-11-22 §2-0·§3 갱신(로컬 청크 이어 올리기 API·브라우저 확인, 라이선스 검사 스위치). 긴 세션을 끊고 새 컨텍스트에서 이어가기 위한 문서. 새 세션은 **이 파일부터** 읽는다.
+> 작성: 2026-11-20 저녁(같은 날 오전 판을 갱신), 2026-11-22 §2-0·§3 갱신(로컬 청크 이어 올리기 API·브라우저 확인, 라이선스 검사 스위치), 2026-11-23 테스트 정리(#84·#85)·테스트 S3(RustFS)·Actions 사용량 반영. 긴 세션을 끊고 새 컨텍스트에서 이어가기 위한 문서. 새 세션은 **이 파일부터** 읽는다.
 > 다 읽고 이어갔으면 이 파일의 §2 "진행 상태"·§3 "다음 할 일"만 고쳐 두고, 오래되면 지운다(내용은 아래 링크 문서에 다 있음).
 
 ## 1. 읽는 순서
@@ -26,7 +26,7 @@
 | 3GB(파트 188개) | 전송 14.9s, **complete 0.24s** |
 | 공통 | 끝난 뒤 미완성 멀티파트·진행 중 세션 남지 않음 |
 
-- 판단: 로컬 RustFS 에서는 조립이 1초 미만이라 COMPLETING 30분·세션 TTL 1시간과 차이가 크다. 다만 로컬 디스크 숫자라 MinIO·Ceph·AWS 에서는 더 걸릴 수 있어 숫자 변경 근거로는 쓰지 않는다(§3-1).
+- 판단: 로컬 RustFS 에서는 조립이 1초 미만이라 COMPLETING 30분·세션 TTL 1시간과 차이가 크다. 다만 로컬 디스크 숫자라 Ceph·AWS 에서는 더 걸릴 수 있어 숫자 변경 근거로는 쓰지 않는다(§3-1).
 - **브라우저(웹 화면) 1GB 이어 올리기**도 확인했다. 업로드 다이얼로그로 1GB 를 올리다 파트 8개 시점에 새로고침 → `localStorage`(`drive.chunkUploads`)에 세션이 남고 서버 세션 PENDING → 같은 파일(이름·크기·수정 시각 동일)을 다시 고르면 **새 세션 없이** `GET /uploads/{id}` → 빠진 파트(11~64)만 PUT → complete. 저장소 객체 SHA-256·사용량 일치, 진행 중 세션 0. (파일은 OS 선택 창 대신 페이지 안에서 만든 `File` 을 파일 입력에 넣었다. 로컬은 전송이 빨라 600MB 는 새로고침 전에 끝나므로 "파트 N개 완료 시 새로고침"을 스크립트로 걸었다.)
 - 로컬에 라이선스 파일이 없으면 웹 로그인이 "라이선스 미등록"으로 막힌다 → `.env` 에 `DRIVE_LICENSE_ENFORCEMENT_ENABLED=false`(이번에 추가한 로컬 전용 스위치, `DriveAPI/ENV_VARIABLES.md`).
 - 로컬에서 재현할 때: 테넌트 총 용량(10GB)이 테스트 사용자 할당량으로 차면 사용자 생성이 `QUOTA_007` 이다. 로컬 DB 에서 테스트 사용자 `total_quota_byte` 를 사용량만큼으로 줄이고 다시 한다.
@@ -42,6 +42,10 @@
 | #69 | **운영 버킷 lifecycle 점검**: 운영자의 버킷 전체 abort 규칙이 같거나 짧으면 겹치는 규칙을 더하지 않음, 예전 형식(Prefix) 규칙은 Filter 로 바꿔 다시 씀, 객체 만료 규칙은 경고. 수동 설정 문서 `DriveInstaller/docs/storage-bucket-lifecycle.md` |
 
 같은 날 다른 세션에서 머지된 것: #59(통합 테스트 test 프로필 고정 + 백엔드 테스트 CI `backend-test.yml`), #65(`DriveFixtures` 로 꺼 둔 16건 다시 켬).
+
+2026-11-23 다른 세션에서 머지된 것(테스트만, 기능 코드 변경 없음):
+- #84: 클래스 단위로 꺼져 있던 통합 테스트 40개 클래스를 다시 켬(클래스 `@Transactional`). 실행 테스트 2,332 → 2,490. 지금 테스트 DB 에서 실패하는 메서드는 `@Disabled("dev DB 고정 데이터 의존(<오류코드>) — ...")` 로 메서드 단위로 끔 — 약 148개, `DriveFixtures` 로 옮길 대상(AUTH_009·USER_005·REQUEST_006 가 대부분). `SsoControllerTest`(실제 IdP)·`CephTokenManagerTest`(실제 Ceph)는 외부 시스템이라 꺼 둠.
+- #85: 테스트가 아닌 정리·유틸 메서드 5개(`clearTestApiKeys` 3, `generateRsaKey`, `logout`)와 `SsoControllerTest` 주석 속 RSA 개인키 삭제.
 
 ### 2-2. 그 전까지 한 것
 
@@ -112,6 +116,7 @@
   - 문서에 "PR #N 완료"라고 쓰면, #N 이 아직 main 에 없을 때 Codex 가 지적한다(#66). 코드 PR 을 먼저 머지하고 문서 브랜치를 그 위로 올린다.
 - **머지**: 사용자가 그 PR 에 대해 머지를 승인했을 때만 한다(PR 마다 따로 승인). "리뷰 통과하면 머지"로 승인받았으면 Codex 지적 0건 + CI 전부 성공일 때만 머지한다.
 - **CI 체크**: `mvn test`(백엔드 전체, `DriveAPI/**` 바꿀 때만), `Analyze (java-kotlin)`·`Analyze (javascript-typescript)`(CodeQL), `request-review`(Codex 요청).
+  - 저장소가 private 이고 Actions 예산이 $0 이라 월 무료 시간(2,000분)을 다 쓰면 CI 가 "recent account payments have failed or your spending limit needs to be increased" 로 1초 만에 실패한다(과금 없음, 코드 문제 아님). 2026-11 에는 CodeQL(PR마다 Java·JS 2개 잡)이 대부분을 썼다. 그때는 로컬 전체 테스트로 확인한다.
 - **CodeQL**: 발견이 1건이라도 있으면 PR 체크가 실패한다. 결과는 Actions 실행의 SARIF 아티팩트(`codeql-sarif-java-kotlin`)로 본다(`gh run download <run> -D <dir>`). 사용자 입력(헤더·URI·요청 값·예외 문자열)을 로그에 넣을 때는 `com.thinkfree.drive.util.LogSafe.of(...)` 로 감싼다. CSRF 규칙은 오탐이라 제외했다.
 - **프론트 오류 응답 모양**: `api.js` 는 오류 때 서버 본문(`ApiExceptionResponse`: `result, code, errorCode, message`)을 돌려준다. HTTP 상태는 `res.code` 로 보고, **`res.status` 는 없다**.
 - **잠금 순서 규칙**(쓰기 경로를 새로 만들면 반드시): 소유자 사용자 행 → 이름 정할 자리(부모 폴더) → 대상 → 하위. 리소스 행 뒤에 사용자 행을 잡으면 교착이 생긴다(PR #27). as-built §4.
@@ -134,7 +139,8 @@
   - 다운로드: `ApiGlobalExceptionHandlerTaskRejectedTest`, `CommittedResponseExceptionResolverTest`, `StreamingAsyncConfigTest`(Docker 없이 돈다)
   - 스토리지 초기화: `S3BucketInitializerTest`(Docker 없이 돈다)
   - 프론트: `DriveFront` 에서 `node --test tests/scripts/chunk-upload.test.mjs`(가짜 서버 22건)
-- 통합 테스트는 Testcontainers(PG 18·MinIO)를 쓰므로 Docker 가 필요하다. 전체 테스트는 PR CI(`backend-test.yml`, 리눅스)가 돌린다.
+- 통합 테스트는 Testcontainers(PG 18·RustFS `rustfs/rustfs:1.0.0`, `common/TestS3Container`)를 쓰므로 Docker 가 필요하다. 테스트 S3 는 test 프로필이 공용 RustFS 컨테이너를 띄워 `storage.connection.*` 를 덮어쓴다(사내 Ceph 에 닿지 않음). 전체 테스트는 PR CI(`backend-test.yml`, 리눅스, 약 15분)가 돌린다. 로컬 전체 실행은 약 20분(`mvn -B -Dfrontend.skip=true test`).
+  - 테스트 데이터는 `common/DriveFixtures` 로 `@Transactional` 테스트 안에서 만들고 롤백한다. 공용 기준 데이터(Flyway testdata)는 두지 않는다.
   - 예전에 전체 실행에서만 흔들리던 `StorageDeletionSchedulerTimingIntegrationTest` 는 CI 결과로 계속 지켜본다.
 - jOOQ 재생성: `docker-maven-plugin` 이 Docker 29 와 맞지 않는다. PG 18 컨테이너를 직접 띄우고 `-Pjooq-codegen -Ddocker.skip=true -Djooq-codegen.pg-port=<port>` 로 돌린다. 생성물의 `"this-escape"` 토큰은 지워 diff 를 줄인다.
 - 동시성(교착) 회귀 테스트 패턴: `ResourceNamingLockConcurrencyIntegrationTest` 의 `race()`. 수정을 잠시 끄고 실패하는지 확인한 뒤 원복하는 식으로 검증해 왔다.
