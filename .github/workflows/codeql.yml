@@ -1,12 +1,13 @@
 # CodeQL 정적 분석 (SQLi, path traversal, SSRF 등 데이터 흐름 기반 취약점)
 #
-# 결과는 Code scanning(Security 탭)에 업로드한다 — 저장소가 public 이라 무료.
-#   - 경고는 실행 간에 추적된다(열림/고쳐짐/닫힘). PR 은 그 PR 이 새로 만든 경고만 비교하고, 코드 줄에 주석이 달린다
-#   - 실패 기준은 저장소 설정(Settings → Code security → Code scanning → Check runs failure threshold)
-#   - 오탐은 Security 탭에서 경고 단위로 이유를 남겨 닫는다(Dismiss). 규칙 전체를 빼는 query-filters 는 경고 단위로 닫을 수 없는
-#     반복 오탐에만 쓰고 이유를 남긴다
-# 다시 private 으로 돌리면(유료 기능 없이) 업로드가 거부된다 — analyze 에 upload: never·output 을 두고 SARIF 를 아티팩트로 남기는
-# 방식으로 되돌린다(git 이력 참고).
+# 저장소가 private 이라 Code scanning(Security 탭) 업로드는 유료 기능(GitHub Code Security)이다 — 업로드하면 거부돼 체크가 실패한다.
+# 그래서 분석만 하고 결과는 업로드하지 않는다(upload: never):
+#   - 결과 = 이 실행의 Summary 화면(발견 목록) + 아티팩트 codeql-sarif-<언어>(SARIF 원본)
+#   - 안 되는 것 = Security 탭 경고 목록, PR 코드 줄 경고 표시, "이번 PR 에서 새로 생긴 경고만" 구분, 오탐으로 닫기
+#   - 미검토 발견이 1건이라도 있으면 체크를 실패시킨다(FAIL_ON_FINDINGS). 검토를 마친 발견은 .github/codeql-accepted.json 에
+#     규칙·파일·이유로 적어 두면 실패 판정에서 빠진다(Summary 에는 "검토 완료"로 계속 보인다). 같은 파일·같은 규칙의 새 발견도
+#     함께 빠지므로 그 파일을 크게 고칠 때는 목록을 다시 본다. 규칙 전체를 끄는 query-filters 는 저장소 전반의 반복 오탐에만 쓴다
+# public 으로 돌리거나 유료 기능을 켜면: analyze 의 upload·output 두 줄과 아래 두 단계를 지우고 security-events: write 권한을 다시 넣는다.
 name: CodeQL
 
 on:
@@ -32,7 +33,8 @@ jobs:
     permissions:
       contents: read
       actions: read
-      security-events: write
+    env:
+      FAIL_ON_FINDINGS: 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -87,3 +89,51 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:${{ matrix.language }}
+          # private 저장소 — Code scanning 업로드 없이 SARIF 파일로만 남긴다(위 설명)
+          upload: never
+          output: sarif-results
+
+      - name: Upload SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Summarize findings
+        if: always()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(sarif-results/*.sarif)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "SARIF 결과 파일이 없습니다(분석 단계 실패)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          accepted=.github/codeql-accepted.json
+          # 발견마다 검토 완료(규칙·파일 일치) 여부를 붙인 한 줄 JSON
+          rows=$(jq -c --slurpfile acc "$accepted" '.runs[].results[]? |
+            (.locations[0].physicalLocation.artifactLocation.uri // "-") as $uri | .ruleId as $rule |
+            {rule: $rule, uri: $uri, line: (.locations[0].physicalLocation.region.startLine // "-"), level: (.level // "warning"),
+             msg: (.message.text | gsub("\n"; " ") | gsub("\\|"; "/") | .[0:200]),
+             accepted: any($acc[0][]; .rule == $rule and .path == $uri)}' "${files[@]}")
+          count=$(printf '%s\n' "$rows" | jq -s 'length')
+          open=$(printf '%s\n' "$rows" | jq -s 'map(select(.accepted | not)) | length')
+          {
+            echo "## CodeQL (${{ matrix.language }}) — 발견 ${count}건 (미검토 ${open}건)"
+            echo
+            echo "결과 원본: 이 실행의 아티팩트 \`codeql-sarif-${{ matrix.language }}\` · 검토 완료 목록: \`$accepted\`"
+            if [ "$count" -gt 0 ]; then
+              echo
+              echo "| 상태 | 규칙 | 수준 | 위치 | 내용 |"
+              echo "|---|---|---|---|---|"
+              printf '%s\n' "$rows" | jq -r '"| \(if .accepted then "검토 완료" else "**미검토**" end) | \(.rule) | \(.level) | \(.uri):\(.line) | \(.msg) |"'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "CodeQL findings: $count (unreviewed: $open)"
+          if [ "$open" -gt 0 ] && [ "$FAIL_ON_FINDINGS" = "true" ]; then
+            echo "::error::CodeQL 미검토 발견 ${open}건 — Summary 참고"
+            exit 1
+          fi
