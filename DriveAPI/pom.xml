@@ -371,6 +371,8 @@
         <jooq-codegen.pg-version>18</jooq-codegen.pg-version>
         <jooq-codegen.db-name>t_drive</jooq-codegen.db-name>
         <jooq-codegen.migration-dir>${project.basedir}/src/main/resources/db/migration</jooq-codegen.migration-dir>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
     </properties>
 
     <build>
