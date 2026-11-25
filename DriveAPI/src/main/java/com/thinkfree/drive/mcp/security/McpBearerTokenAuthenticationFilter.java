@@ -148,7 +148,8 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
         if (!JWSAlgorithm.RS256.equals(signedJwt.getHeader().getAlgorithm())) {
             throw new BadCredentialsException("Unsupported token algorithm: only RS256 OAuth2 tokens are accepted on /mcp");
         }
-        return verifyOAuth2Token(signedJwt, McpUrls.baseUrl(request) + McpConstants.MCP_ENDPOINT);
+        String baseUrl = McpUrls.baseUrl(request);
+        return verifyOAuth2Token(signedJwt, baseUrl, baseUrl + McpConstants.MCP_ENDPOINT);
     }
 
     /** JWT(서명 JWS) 형태면 파싱 결과, 아니면 null — API Key(불투명 문자열) 판별 겸용. */
@@ -212,9 +213,10 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
      * MCP OAuth 토큰(RS256, resolveToken에서 파싱·alg 확인 완료) — 헤더의 kid로 키를 선택해 서명·만료·audience 검증 후
      * subject(userSeq)·scope·role 반환.
      *
+     * @param expectedIssuer   이 요청의 인가 서버 issuer(McpUrls.baseUrl) — 보호 리소스 메타데이터의 authorization_servers 와 같은 값
      * @param expectedResource 이 요청의 MCP 리소스 URI(McpUrls.baseUrl + /mcp) — 보호 리소스 메타데이터의 resource 와 같은 값
      */
-    private VerifiedToken verifyOAuth2Token(SignedJWT signedJwt, String expectedResource) {
+    private VerifiedToken verifyOAuth2Token(SignedJWT signedJwt, String expectedIssuer, String expectedResource) {
         try {
             String kid = signedJwt.getHeader().getKeyID();
             if (kid == null) {
@@ -241,6 +243,12 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
                 throw new BadCredentialsException("MCP OAuth token has no user identifier");
             }
             int userSeq = Integer.parseInt(subject);
+
+            // 이 테넌트(Host)의 issuer 가 발급한 토큰만 — 서명 키는 테넌트 공용이라 서명만으로는 발급 테넌트를 구분할 수 없다.
+            // 다른 테넌트 토큰은 aud(리소스)·TenantBoundaryFilter 로도 막히지만 발급자 자체를 확인하는 심층 방어
+            if (!expectedIssuer.equals(claims.getIssuer())) {
+                throw new BadCredentialsException("MCP OAuth token issuer does not match this authorization server");
+            }
 
             // RFC 8707 / MCP Token Audience Binding — 이 리소스(테넌트별 /mcp)를 대상으로 발급된 토큰만 받는다.
             // 커스터마이저가 aud 에 issuer + /mcp 를 고정으로 싣는다. 이 규칙 도입 전 발급분(aud = client_id 뿐)은

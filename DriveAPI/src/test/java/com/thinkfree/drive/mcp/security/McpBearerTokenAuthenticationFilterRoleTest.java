@@ -68,7 +68,8 @@ class McpBearerTokenAuthenticationFilterRoleTest {
     private static final String KID = "test-kid";
     private static final String CLIENT_ID = "client-1";
     /** MockHttpServletRequest 기본값(http://localhost:80) 기준 리소스 URI */
-    private static final String RESOURCE = "http://localhost/mcp";
+    private static final String ISSUER = "http://localhost";
+    private static final String RESOURCE = ISSUER + "/mcp";
     private static final int TENANT = 1;
     private static final int USER_SEQ = 10;
 
@@ -118,6 +119,7 @@ class McpBearerTokenAuthenticationFilterRoleTest {
         JWTClaimsSet.Builder builder = new JWTClaimsSet.Builder()
                 .subject(subject)
                 .claim(OAuth2Constants.CLAIMS_SCOPE, List.of("mcp:read"))
+                .issuer(ISSUER)
                 .audience(List.of(CLIENT_ID, RESOURCE))
                 .claim(OAuth2Constants.CLAIMS_CLIENT_ID, CLIENT_ID)
                 .expirationTime(new Date(System.currentTimeMillis() + 600_000));
@@ -221,10 +223,16 @@ class McpBearerTokenAuthenticationFilterRoleTest {
 
     /** aud·client_id 를 직접 정한 OAuth 토큰 — clientIdClaim 이 null 이면 클레임 없음 */
     private static String oauthTokenWithAudience(List<String> audience, String clientIdClaim) throws Exception {
+        return oauthToken(ISSUER, audience, clientIdClaim);
+    }
+
+    /** iss·aud·client_id 를 직접 정한 OAuth 토큰 — null 이면 해당 클레임 없음 */
+    private static String oauthToken(String issuer, List<String> audience, String clientIdClaim) throws Exception {
         JWTClaimsSet.Builder builder = new JWTClaimsSet.Builder()
                 .subject(String.valueOf(USER_SEQ))
                 .claim(OAuth2Constants.CLAIMS_SCOPE, List.of("mcp:read"))
                 .claim(OAuth2Constants.CLAIMS_ROLE, RoleType.USER.name())
+                .issuer(issuer)
                 .audience(audience)
                 .expirationTime(new Date(System.currentTimeMillis() + 600_000));
         if (clientIdClaim != null) {
@@ -233,6 +241,14 @@ class McpBearerTokenAuthenticationFilterRoleTest {
         SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(KID).build(), builder.build());
         jwt.sign(new RSASSASigner((RSAPrivateKey) keyPair.getPrivate()));
         return jwt.serialize();
+    }
+
+    @Test
+    @DisplayName("OAuth — iss 가 이 Host 의 issuer 가 아니거나 없으면 aud 가 맞아도 인증 없음")
+    void oauthIssuerMismatch() throws Exception {
+        assertThat(run(request(oauthToken("https://b.drive.example.com", List.of(CLIENT_ID, RESOURCE), CLIENT_ID)))).isNull();
+        assertThat(run(request(oauthToken(null, List.of(CLIENT_ID, RESOURCE), CLIENT_ID)))).isNull();
+        verify(customUserDetailsService, never()).loadUserByUserSeq(any(), any(RoleType.class), any());
     }
 
     @Test
@@ -257,8 +273,8 @@ class McpBearerTokenAuthenticationFilterRoleTest {
     void oauthAudienceForwardedHost() throws Exception {
         given(customUserDetailsService.loadUserByUserSeq(USER_SEQ, RoleType.USER, AuthSource.EXTERNAL))
                 .willReturn(details(RoleType.USER));
-        MockHttpServletRequest request = request(
-                oauthTokenWithAudience(List.of(CLIENT_ID, "https://a.drive.example.com/mcp"), CLIENT_ID));
+        MockHttpServletRequest request = request(oauthToken("https://a.drive.example.com",
+                List.of(CLIENT_ID, "https://a.drive.example.com/mcp"), CLIENT_ID));
         request.addHeader("X-Forwarded-Host", "a.drive.example.com");
         request.addHeader("X-Forwarded-Proto", "https");
 
