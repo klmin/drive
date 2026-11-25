@@ -67,6 +67,8 @@ class McpBearerTokenAuthenticationFilterRoleTest {
     private static final String KEY = "B6u6gFwHhyBum9Js_LRrcISG54dEC-HpZ45E4gtlvsQ";
     private static final String KID = "test-kid";
     private static final String CLIENT_ID = "client-1";
+    /** MockHttpServletRequest 기본값(http://localhost:80) 기준 리소스 URI */
+    private static final String RESOURCE = "http://localhost/mcp";
     private static final int TENANT = 1;
     private static final int USER_SEQ = 10;
 
@@ -116,7 +118,8 @@ class McpBearerTokenAuthenticationFilterRoleTest {
         JWTClaimsSet.Builder builder = new JWTClaimsSet.Builder()
                 .subject(subject)
                 .claim(OAuth2Constants.CLAIMS_SCOPE, List.of("mcp:read"))
-                .audience(CLIENT_ID)
+                .audience(List.of(CLIENT_ID, RESOURCE))
+                .claim(OAuth2Constants.CLAIMS_CLIENT_ID, CLIENT_ID)
                 .expirationTime(new Date(System.currentTimeMillis() + 600_000));
         if (role != null) {
             builder.claim(OAuth2Constants.CLAIMS_ROLE, role);
@@ -214,6 +217,68 @@ class McpBearerTokenAuthenticationFilterRoleTest {
 
         assertThat(run(request(oauthToken()))).isNull();
         verify(oauth2ClientConnectionService, never()).verifyAndTouch(anyInt(), any());
+    }
+
+    /** aud·client_id 를 직접 정한 OAuth 토큰 — clientIdClaim 이 null 이면 클레임 없음 */
+    private static String oauthTokenWithAudience(List<String> audience, String clientIdClaim) throws Exception {
+        JWTClaimsSet.Builder builder = new JWTClaimsSet.Builder()
+                .subject(String.valueOf(USER_SEQ))
+                .claim(OAuth2Constants.CLAIMS_SCOPE, List.of("mcp:read"))
+                .claim(OAuth2Constants.CLAIMS_ROLE, RoleType.USER.name())
+                .audience(audience)
+                .expirationTime(new Date(System.currentTimeMillis() + 600_000));
+        if (clientIdClaim != null) {
+            builder.claim(OAuth2Constants.CLAIMS_CLIENT_ID, clientIdClaim);
+        }
+        SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(KID).build(), builder.build());
+        jwt.sign(new RSASSASigner((RSAPrivateKey) keyPair.getPrivate()));
+        return jwt.serialize();
+    }
+
+    @Test
+    @DisplayName("OAuth — aud 에 이 리소스(/mcp)가 없는 토큰(도입 이전 발급분 포함)은 로드 없이 인증 없음")
+    void oauthAudienceWithoutResource() throws Exception {
+        assertThat(run(request(oauthTokenWithAudience(List.of(CLIENT_ID), CLIENT_ID)))).isNull();
+        assertThat(run(request(oauthTokenWithAudience(List.of(CLIENT_ID), null)))).isNull();
+        verify(customUserDetailsService, never()).loadUserByUserSeq(any(), any(RoleType.class), any());
+    }
+
+    @Test
+    @DisplayName("OAuth — 다른 테넌트 Host 의 리소스로 발급된 토큰은 인증 없음")
+    void oauthAudienceOtherTenantResource() throws Exception {
+        String otherTenant = oauthTokenWithAudience(List.of(CLIENT_ID, "https://b.drive.example.com/mcp"), CLIENT_ID);
+
+        assertThat(run(request(otherTenant))).isNull();
+        verify(customUserDetailsService, never()).loadUserByUserSeq(any(), any(RoleType.class), any());
+    }
+
+    @Test
+    @DisplayName("OAuth — 기대 리소스는 X-Forwarded-Host/Proto 기준(메타데이터 resource 와 같은 규칙)")
+    void oauthAudienceForwardedHost() throws Exception {
+        given(customUserDetailsService.loadUserByUserSeq(USER_SEQ, RoleType.USER, AuthSource.EXTERNAL))
+                .willReturn(details(RoleType.USER));
+        MockHttpServletRequest request = request(
+                oauthTokenWithAudience(List.of(CLIENT_ID, "https://a.drive.example.com/mcp"), CLIENT_ID));
+        request.addHeader("X-Forwarded-Host", "a.drive.example.com");
+        request.addHeader("X-Forwarded-Proto", "https");
+
+        assertThat(run(request)).isNotNull();
+    }
+
+    @Test
+    @DisplayName("OAuth — aud 에 리소스가 있어도 client_id 클레임이 없으면 인증 없음")
+    void oauthWithoutClientIdClaim() throws Exception {
+        assertThat(run(request(oauthTokenWithAudience(List.of(CLIENT_ID, RESOURCE), null)))).isNull();
+    }
+
+    @Test
+    @DisplayName("OAuth — 연결 상태 확인 키는 client_id 클레임")
+    void oauthConnectionKeyIsClientIdClaim() throws Exception {
+        given(customUserDetailsService.loadUserByUserSeq(USER_SEQ, RoleType.USER, AuthSource.EXTERNAL))
+                .willReturn(details(RoleType.USER));
+
+        assertThat(run(request(oauthTokenWithAudience(List.of(RESOURCE, "something-else"), CLIENT_ID)))).isNotNull();
+        verify(oauth2ClientConnectionService).verifyAndTouch(USER_SEQ, CLIENT_ID);
     }
 
     @Test

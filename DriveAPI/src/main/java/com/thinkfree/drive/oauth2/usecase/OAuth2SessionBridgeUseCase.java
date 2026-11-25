@@ -28,6 +28,9 @@ import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.savedrequest.SavedRequest;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 /**
  * C안 브리지 — 기존 Drive 로그인 JWT(HS256 access)를 AS 세션 인증으로 교환한다
  * (MCP_OAUTH_BRIDGE_FLOW.md, MCP_OAUTH_FLOW.md §3.3).
@@ -81,7 +84,7 @@ public class OAuth2SessionBridgeUseCase {
         verifyOAuthRole(userSeq);
 
         SavedRequest savedRequest = requestCache.getRequest(request, response);
-        if (savedRequest == null || !savedRequest.getRedirectUrl().contains(AUTHORIZE_PATH)) {
+        if (!isPendingAuthorization(savedRequest, request)) {
             throw OAuth2SessionBridgeException.noPendingAuthorization();
         }
 
@@ -89,6 +92,24 @@ public class OAuth2SessionBridgeUseCase {
 
         log.info("[OAuth2SessionBridge] 세션 브리지 성공 - userSeq : {}, tenantSeq : {}", user.getUserSeq(), user.getTenantSeq());
         return new OAuth2SessionBridgeResponse(savedRequest.getRedirectUrl());
+    }
+
+    /**
+     * SavedRequest 가 이 서버의 authorize 엔드포인트 요청인지 — 경로를 정확히 비교한다.
+     * 문자열 포함 검사는 쿼리스트링이나 다른 경로에 "/oauth2/authorize" 가 들어간 잔존 요청도 통과시킨다.
+     * PATH 테넌트 모드에서는 contextPath 가 /t/{tenant} 로 에뮬레이션되므로 그 접두어까지 포함해 비교한다.
+     */
+    static boolean isPendingAuthorization(SavedRequest savedRequest, HttpServletRequest request) {
+        if (savedRequest == null || savedRequest.getRedirectUrl() == null) {
+            return false;
+        }
+        try {
+            String path = new URI(savedRequest.getRedirectUrl()).getPath();
+            String contextPath = request.getContextPath() == null ? "" : request.getContextPath();
+            return (contextPath + AUTHORIZE_PATH).equals(path);
+        } catch (URISyntaxException e) {
+            return false;
+        }
     }
 
     /** 기존 Drive JWT 검증 절차(McpBearerTokenAuthenticationFilter의 HS256 경로와 동일) */

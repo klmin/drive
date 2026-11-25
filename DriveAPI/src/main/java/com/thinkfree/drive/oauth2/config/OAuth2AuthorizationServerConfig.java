@@ -3,6 +3,7 @@ package com.thinkfree.drive.oauth2.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import com.thinkfree.drive.mcp.constants.McpConstants;
 import com.thinkfree.drive.oauth2.OAuth2UserPrincipal;
 import com.thinkfree.drive.oauth2.connection.service.ConnectionRecordingAuthorizationService;
 import com.thinkfree.drive.oauth2.connection.service.OAuth2ClientConnectionService;
@@ -34,6 +35,8 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Toke
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
+
+import java.util.List;
 
 /**
  * OAuth2 인가 서버(AS) 설정 — Spring Authorization Server (MCP_OAUTH_FLOW.md §7).
@@ -195,7 +198,13 @@ public class OAuth2AuthorizationServerConfig {
      * refresh 재발급도 저장된 인가 행의 principal 로 여기를 다시 거친다 — USER 고정 이전 행(역할 여러 개)은 role 을 넣지 않고,
      * 필터가 role 없는 토큰을 USER 로 본다.
      * 테넌트 경계 검증은 토큰 클레임이 아니라 TenantBoundaryFilter가 DB 로드 유저의
-     * tenantSeq로 수행한다 (테넌트 클레임이 필요해지는 건 외부 RS/audience 검증 도입 시).
+     * tenantSeq로 수행한다.
+     *
+     * aud = [client_id, MCP 리소스 URI] (RFC 8707 / MCP Authorization "Token Audience Binding") — 이 AS 는 /mcp 전용이라
+     * 클라이언트가 보낸 resource 값을 복사하지 않고 서버가 정한 리소스 URI(issuer + /mcp)로 고정한다.
+     * issuer 는 요청 Host 기준이라 테넌트마다 리소스 URI 가 달라지고, RS 필터는 같은 규칙(McpUrls.baseUrl + /mcp)으로 기대값을 만든다
+     * (보호 리소스 메타데이터의 authorization_servers 가 issuer 와 같아야 OAuth 가 성립하므로 두 값은 일치한다).
+     * client_id 는 aud 순서에 기대지 않도록 별도 클레임으로도 싣는다.
      */
     @Bean
     public OAuth2TokenCustomizer<JwtEncodingContext> oauth2TokenCustomizer() {
@@ -203,6 +212,11 @@ public class OAuth2AuthorizationServerConfig {
             if (!OAuth2TokenType.ACCESS_TOKEN.equals(context.getTokenType())) {
                 return;
             }
+            String clientId = context.getRegisteredClient().getClientId();
+            String resource = context.getAuthorizationServerContext().getIssuer() + McpConstants.MCP_ENDPOINT;
+            context.getClaims()
+                    .audience(List.of(clientId, resource))
+                    .claim(OAuth2Constants.CLAIMS_CLIENT_ID, clientId);
             if (context.getPrincipal().getPrincipal() instanceof OAuth2UserPrincipal user) {
                 context.getClaims().subject(String.valueOf(user.getUserSeq()));
                 RoleType role = user.actingRole();
