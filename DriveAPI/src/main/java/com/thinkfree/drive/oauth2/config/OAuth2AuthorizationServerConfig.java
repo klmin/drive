@@ -36,6 +36,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -215,7 +216,9 @@ public class OAuth2AuthorizationServerConfig {
             String clientId = context.getRegisteredClient().getClientId();
             String resource = context.getAuthorizationServerContext().getIssuer() + McpConstants.MCP_ENDPOINT;
             context.getClaims()
-                    .audience(List.of(clientId, resource))
+                    // ArrayList 로 — 클레임은 oauth2_authorization 에 Jackson(allowlist) 직렬화되는데 List.of 의 ImmutableCollections 는
+                    // allowlist 밖이라 refresh 시 역직렬화가 실패한다
+                    .audience(new ArrayList<>(List.of(clientId, resource)))
                     .claim(OAuth2Constants.CLAIMS_CLIENT_ID, clientId);
             if (context.getPrincipal().getPrincipal() instanceof OAuth2UserPrincipal user) {
                 context.getClaims().subject(String.valueOf(user.getUserSeq()));

@@ -16,8 +16,16 @@ import org.springframework.security.oauth2.server.authorization.settings.Authori
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.security.jackson2.SecurityJackson2Modules;
+import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.jackson2.OAuth2AuthorizationServerJackson2Module;
+
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -72,6 +80,27 @@ class OAuth2TokenCustomizerTest {
         JwtClaimsSet built = claims.build();
         assertThat(built.getAudience()).containsExactly(CLIENT_ID, "https://a.drive.example.com/mcp");
         assertThat(built.getClaimAsString(OAuth2Constants.CLAIMS_CLIENT_ID)).isEqualTo(CLIENT_ID);
+    }
+
+    @Test
+    @DisplayName("클레임이 인가 저장소 매퍼(allowlist)로 저장·복원된다 — refresh 시 역직렬화 실패 회귀 방지")
+    void claimsSurviveAuthorizationMapperRoundTrip() throws Exception {
+        JwtClaimsSet.Builder claims = baseClaims();
+        customizer.customize(context(OAuth2TokenType.ACCESS_TOKEN, "https://a.drive.example.com", claims));
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModules(SecurityJackson2Modules.getModules(JdbcOAuth2AuthorizationService.class.getClassLoader()));
+        mapper.registerModule(new OAuth2AuthorizationServerJackson2Module());
+        // JdbcOAuth2AuthorizationService 가 토큰 메타데이터(클레임 포함)를 Map 으로 쓰고 읽는 방식과 같다
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("metadata.token.claims", new HashMap<>(claims.build().getClaims()));
+        String json = mapper.writeValueAsString(metadata);
+
+        Map<String, Object> restored = mapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> restoredClaims = (Map<String, Object>) restored.get("metadata.token.claims");
+        assertThat(restoredClaims.get("aud")).isEqualTo(List.of(CLIENT_ID, "https://a.drive.example.com/mcp"));
     }
 
     @Test
