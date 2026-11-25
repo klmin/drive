@@ -5,7 +5,9 @@ import com.thinkfree.drive.oauth2.request.OAuth2ClientRegistrationRequest;
 import com.thinkfree.drive.oauth2.response.OAuth2ClientRegistrationResponse;
 import com.thinkfree.drive.oauth2.service.OAuth2ClientRegistrationResult;
 import com.thinkfree.drive.oauth2.service.OAuth2ClientRegistrationService;
+import com.thinkfree.drive.util.LogSafe;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -19,6 +21,7 @@ import java.util.Set;
  * DCR 등록 유스케이스 — 요청 검증 → 등록 서비스 호출 → RFC 7591 응답 조립.
  * 등록 정책(무엇을 저장하나)은 OAuth2ClientRegistrationService, HTTP 매핑은 컨트롤러 담당.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OAuth2ClientRegistrationUseCase {
@@ -38,6 +41,12 @@ public class OAuth2ClientRegistrationUseCase {
     public OAuth2ClientRegistrationResponse register(OAuth2ClientRegistrationRequest request) {
         List<String> redirectUris = validRedirectUris(request);
         List<String> scopes = parseScopes(request.scope());
+        // RFC 7591 §3.2.1 — 서버는 요청 값을 바꿔 등록할 수 있고 응답이 실제 값을 알린다.
+        // public(none)으로 등록하면 SAS 가 refresh token 을 주지 않아 1시간마다 재로그인이 되므로 secret 방식으로 등록한다
+        if ("none".equals(request.tokenEndpointAuthMethod())) {
+            log.info("[OAuth2 DCR] token_endpoint_auth_method none requested, registering as client_secret_basic/post. client_name : {}",
+                    LogSafe.of(request.clientName()));
+        }
 
         OAuth2ClientRegistrationResult result =
                 oauth2ClientRegistrationService.register(request.clientName(), redirectUris, scopes);

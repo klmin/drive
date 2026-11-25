@@ -43,7 +43,7 @@ class OAuth2ClientRegistrationUseCaseTest {
     private OAuth2ClientRegistrationUseCase useCase;
 
     private static OAuth2ClientRegistrationRequest request(List<String> redirectUris) {
-        return new OAuth2ClientRegistrationRequest("client", redirectUris, null);
+        return new OAuth2ClientRegistrationRequest("client", redirectUris, null, "none");
     }
 
     @ParameterizedTest
