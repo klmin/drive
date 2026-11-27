@@ -313,6 +313,12 @@ drive:
     enabled: ${DRIVE_REDIS_ENABLED:false}
     # 여러 설치가 Redis 하나를 같이 쓸 때 키가 섞이지 않게 설치마다 다르게
     key-prefix: ${DRIVE_REDIS_KEY_PREFIX:drive:}
+  # 로그인 전 화면 요청 수 제한(RateLimitProperty, 분당) — 넘으면 429 + Retry-After. Redis 를 켜면 WAS 끼리 합산, 아니면 WAS 마다
+  rate-limit:
+    enabled: ${DRIVE_RATE_LIMIT_ENABLED:true}
+    login-per-account: ${DRIVE_RATE_LIMIT_LOGIN_PER_ACCOUNT:10}
+    login-per-ip: ${DRIVE_RATE_LIMIT_LOGIN_PER_IP:100}
+    anonymous-login-per-ip: ${DRIVE_RATE_LIMIT_ANONYMOUS_LOGIN_PER_IP:30}
   # 시간대 — 요청 날짜 해석·년월일 검색 경계·응답 시각 표시의 기준(JVM 기본 시간대는 쓰지 않는다). 설치처에서 DRIVE_TIME_ZONE 으로 변경
   time-zone: ${DRIVE_TIME_ZONE:Asia/Seoul}
   license:

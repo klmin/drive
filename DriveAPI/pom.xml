@@ -255,6 +255,17 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+        <!-- 요청 수 제한(토큰 버킷) — Redis 를 켜면 WAS 끼리 버킷 공유(Lettuce), 아니면 WAS 마다 메모리 버킷 -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-core</artifactId>
+            <version>8.14.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-lettuce</artifactId>
+            <version>8.14.0</version>
+        </dependency>
         <dependency>
             <groupId>it.ozimov</groupId>
             <artifactId>embedded-redis</artifactId>

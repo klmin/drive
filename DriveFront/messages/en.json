@@ -650,6 +650,7 @@
     "loginToast": {
         "success": "Logged in successfully.",
         "fail": "Login failed.",
+        "tooManyRequests": "Too many sign-in attempts. Please try again in a moment.",
         "needLogin": "Login required.",
         "duplicateLocalAccount": "This account is already registered. Please log in using the method you signed up with."
     },

@@ -36,6 +36,7 @@ public enum GlobalErrorCode implements ErrorCode{
     NOT_SUPPORTED_METHOD_ERROR(HttpStatus.METHOD_NOT_ALLOWED, "REQUEST_010", "지원하지 않는 HTTP Method 요청입니다."),
     NOT_SUPPORTED_MEDIA_TYPE_ERROR(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "REQUEST_011", "잘못된 미디어 타입입니다."),
     INVALID_ENUM(HttpStatus.BAD_REQUEST, "REQUEST_012", "Enum 타입으로 변경할 수 없습니다."),
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "REQUEST_013", "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
 
     /**
      * 500 : 응답 실패

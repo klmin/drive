@@ -64,7 +64,7 @@ class AuthCookieIssueTest {
     @BeforeEach
     void setUp() {
         authUseCase = mock(AuthUseCase.class);
-        authController = new AuthController(authUseCase, authCookieManager);
+        authController = new AuthController(authUseCase, authCookieManager, mock(com.thinkfree.drive.global.ratelimit.LoginRateLimitGuard.class));
         request = new TenantPathRequestWrapper(new MockHttpServletRequest(), "/t/acme");
         response = new MockHttpServletResponse();
     }

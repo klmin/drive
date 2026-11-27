@@ -78,6 +78,11 @@ export default function Login() {
                 encPwd: password,
             });
 
+            // 요청 수 제한(429) — 잠시 뒤 다시
+            if (res?.errorCode === 'REQUEST_013') {
+                return showSnackbar(t('loginToast.tooManyRequests'), 'error');
+            }
+
             if (res?.status > 399) {
                 if (res?.status === 403) {
                     return setError(t('loginToast.fail'));
