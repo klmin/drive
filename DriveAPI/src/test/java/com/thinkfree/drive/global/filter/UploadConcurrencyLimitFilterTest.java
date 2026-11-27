@@ -39,6 +39,8 @@ class UploadConcurrencyLimitFilterTest {
         assertThat(UploadConcurrencyLimitFilter.isUploadBody("GET", "/api/v1/files")).isFalse();
         assertThat(UploadConcurrencyLimitFilter.isUploadBody("POST", "/api/v1/files/10/copy")).isFalse();
         assertThat(UploadConcurrencyLimitFilter.isUploadBody("PUT", null)).isFalse();
+        // WebOffice 저장은 서명된 서버 간 요청 — 503 재전송이 확인되지 않아 일부러 뺐다
+        assertThat(UploadConcurrencyLimitFilter.isUploadBody("PUT", "/api/v1/tfo-http-storage/v1/put/doc")).isFalse();
     }
 
     @Test

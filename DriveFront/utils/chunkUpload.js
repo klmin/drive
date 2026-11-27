@@ -14,7 +14,10 @@ export const CHUNK_UPLOAD_THRESHOLD = 32 * 1024 * 1024;
 
 const DEFAULT_CONCURRENCY = 4;
 const PART_ATTEMPTS = 4; // 첫 시도 + 재시도 3번
+// 서버가 바쁠 때(503·429)는 대기 최대 약 1분까지 — 1·2·4·8·15·15·15초(지터로 절반까지 짧아질 수 있다)
+const BUSY_PART_ATTEMPTS = 8;
 const RETRY_BASE_MS = 1000;
+const RETRY_MAX_MS = 15000;
 const COMPLETE_POLL_MS = 2000;
 const COMPLETE_POLL_LIMIT = 150; // 2초 × 150 = 5분
 const STORE_KEY = 'drive.chunkUploads';
@@ -131,7 +134,15 @@ const responseError = (res, signal) => {
     // 재발급 뒤 재시도도 실패하면 api 유틸이 본문만 돌려준다 — 그때는 본문의 code 를 쓴다
     if (typeof res.status !== 'number') return toError(res, signal);
     const body = res.data && typeof res.data === 'object' ? res.data : null;
-    return new ChunkUploadError(res.status, body?.errorCode, body?.message);
+    const err = new ChunkUploadError(res.status, body?.errorCode, body?.message);
+    err.retryAfterMs = retryAfterMs(res);
+    return err;
+};
+
+/** Retry-After(초) 헤더 → ms. 없거나 날짜 형식이면 0 */
+const retryAfterMs = res => {
+    const seconds = Number(res?.headers?.['retry-after']);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
 };
 
 /**
@@ -206,6 +217,17 @@ const resumeSession = async (sessionId, file, signal) => {
 
 /** 서버 오류 중 다시 보내면 될 수도 있는 것 — 네트워크 오류·5xx·429 */
 const isRetryable = err => err.status === 0 || err.status >= 500 || err.status === 429;
+/** 서버 업로드 동시 상한(503)·429 — 서버가 바쁘다는 뜻이라 더 오래 기다려 본다 */
+const isBusy = err => err.status === 503 || err.status === 429;
+
+/**
+ * 재시도 대기 — 지수 백오프(최대 RETRY_MAX_MS)에 지터(50~100%)를 섞고, 서버가 준 Retry-After 보다 짧지 않게.
+ * 지터가 없으면 같은 순간 거절된 파트들이 같은 순간 다시 몰려 또 거절된다.
+ */
+const retryDelayMs = (err, attempt) => {
+    const backoff = Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** (attempt - 1));
+    return Math.max(err.retryAfterMs || 0, Math.round(backoff * (0.5 + Math.random() * 0.5)));
+};
 
 const putPart = async (sessionId, partNumber, blob, signal, onPartProgress) => {
     for (let attempt = 1; ; attempt++) {
@@ -218,9 +240,10 @@ const putPart = async (sessionId, partNumber, blob, signal, onPartProgress) => {
         if (res?.status === 200) return;
         const err = responseError(res, signal);
         if (err === CANCELLED) throw CANCELLED;
-        if (!isRetryable(err) || attempt >= PART_ATTEMPTS) throw err;
+        const maxAttempts = isBusy(err) ? BUSY_PART_ATTEMPTS : PART_ATTEMPTS;
+        if (!isRetryable(err) || attempt >= maxAttempts) throw err;
         onPartProgress(0);
-        await sleep(RETRY_BASE_MS * 2 ** (attempt - 1), signal);
+        await sleep(retryDelayMs(err, attempt), signal);
         if (signal?.aborted) throw CANCELLED;
     }
 };

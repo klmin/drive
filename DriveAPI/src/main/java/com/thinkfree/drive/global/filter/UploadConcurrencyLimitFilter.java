@@ -26,6 +26,8 @@ import java.util.regex.Pattern;
  * <ul>
  *   <li>대상: 청크 파트 {@code PUT /api/v1/uploads/{id}/parts/{n}}(octet-stream), 단일 업로드 {@code POST /api/v1/files}(multipart).
  *       multipart 본문은 DispatcherServlet 이 컨트롤러·인터셉터보다 먼저 다 읽으므로 서블릿 필터여야 "본문 읽기 전 거절" 이 된다.</li>
+ *   <li>WebOffice 저장({@code PUT /api/v1/tfo-http-storage/**})은 넣지 않는다. 사용자 브라우저가 아니라 WebOffice 서버가 서명해 보내고
+ *       본문을 읽기 전에 서명·권한을 먼저 확인한다. 503 을 받았을 때 WebOffice 가 다시 보내는지 확인되지 않아, 막으면 문서 저장 실패가 된다.</li>
  *   <li>{@link Semaphore#tryAcquire()} — 기다리지 않는다. 기다리는 동안에도 Tomcat 스레드를 잡기 때문. 넘치면 503 + {@code Retry-After},
  *       프론트(chunkUpload.js·UploadDialog)가 잠시 뒤 다시 보낸다.</li>
  *   <li>본문을 읽지 않고 답하므로 연결을 닫는다({@code Connection: close}) — 남은 본문이 다음 요청으로 읽히지 않게.</li>

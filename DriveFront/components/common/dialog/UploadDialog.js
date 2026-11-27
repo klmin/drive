@@ -42,8 +42,10 @@ const postSingleUploadWithRetry = async (send, signal, bodyFullySent) => {
         attempt < SINGLE_UPLOAD_ATTEMPTS && isBusyUploadResponse(res, signal, bodyFullySent);
         attempt++
     ) {
+        // 지터(50~100%) — 같은 순간 거절된 업로드들이 같은 순간 다시 몰리지 않게. 서버 Retry-After(1초)보다는 길다
+        const backoff = SINGLE_UPLOAD_RETRY_BASE_MS * 2 ** (attempt - 1);
         await new Promise(resolve =>
-            setTimeout(resolve, SINGLE_UPLOAD_RETRY_BASE_MS * 2 ** (attempt - 1))
+            setTimeout(resolve, Math.max(1000, Math.round(backoff * (0.5 + Math.random() * 0.5))))
         );
         if (signal?.aborted) break;
         res = await send();

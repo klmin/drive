@@ -1,0 +1,171 @@
+time="2026-11-27T07:15:19Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/6\": dial: i/o timeout"
+time="2026-11-27T07:15:20Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial: i/o timeout"
+time="2026-11-27T07:15:20Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial: i/o timeout"
+time="2026-11-27T07:15:21Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/18\": dial: i/o timeout"
+time="2026-11-27T07:15:21Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/1\": dial: i/o timeout"
+time="2026-11-27T07:15:22Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/12\": dial: i/o timeout"
+time="2026-11-27T07:15:22Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/9\": dial: i/o timeout"
+time="2026-11-27T07:15:22Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/11\": dial: i/o timeout"
+time="2026-11-27T07:15:22Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/16\": dial: i/o timeout"
+time="2026-11-27T07:15:23Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/10\": dial: i/o timeout"
+time="2026-11-27T07:15:23Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/13\": dial: i/o timeout"
+time="2026-11-27T07:15:23Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/20\": dial: i/o timeout"
+time="2026-11-27T07:15:23Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/17\": dial: i/o timeout"
+time="2026-11-27T07:15:23Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/8\": dial: i/o timeout"
+time="2026-11-27T07:15:23Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/2\": dial: i/o timeout"
+time="2026-11-27T07:15:23Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/14\": dial: i/o timeout"
+time="2026-11-27T07:15:24Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/19\": dial: i/o timeout"
+time="2026-11-27T07:15:26Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/4\": dial: i/o timeout"
+time="2026-11-27T07:15:26Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/3\": dial: i/o timeout"
+time="2026-11-27T07:15:26Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/21\": dial: i/o timeout"
+time="2026-11-27T07:15:26Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/23\": dial: i/o timeout"
+time="2026-11-27T07:15:26Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/15\": dial: i/o timeout"
+time="2026-11-27T07:15:26Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/5\": dial: i/o timeout"
+time="2026-11-27T07:15:26Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/22\": dial: i/o timeout"
+time="2026-11-27T07:15:27Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/24\": dial: i/o timeout"
+time="2026-11-27T07:15:32Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:33Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": request timeout"
+time="2026-11-27T07:15:35Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:35Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:39Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:41Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:41Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:44Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:44Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": request timeout"
+time="2026-11-27T07:15:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:15:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:00Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:00Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:00Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:00Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:03Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:03Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:03Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:03Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:06Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:06Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:06Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:06Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:09Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:09Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:09Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:09Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:15Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:15Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:16Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:16Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:18Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:18Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:18Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:18Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:21Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:21Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:21Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:21Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:24Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:24Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:24Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:24Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T07:16:32Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-4727-7ee5-915f-5b43771998e9/parts/7\": write tcp 10.200.0.3:53518->192.168.65.254:8182: write: connection reset by peer"
+time="2026-11-27T07:16:38Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": request timeout"
+time="2026-11-27T07:16:46Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21bdb-3b3f-7c65-895c-7b1b2ae23cd4/parts/22\": write tcp 10.200.0.3:54586->192.168.65.254:8182: use of closed network connection"
+time="2026-11-27T07:16:57Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/23"
+time="2026-11-27T07:16:57Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/13"
+time="2026-11-27T07:16:57Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/10"
+time="2026-11-27T07:16:57Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/11"
+time="2026-11-27T07:16:57Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/20"
+time="2026-11-27T07:16:59Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/18"
+time="2026-11-27T07:16:59Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/7"
+time="2026-11-27T07:16:59Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/14"
+time="2026-11-27T07:16:59Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/15"
+time="2026-11-27T07:16:59Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/16"
+time="2026-11-27T07:16:59Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/22"
+time="2026-11-27T07:16:59Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/6"
+time="2026-11-27T07:16:59Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/5"
+time="2026-11-27T07:16:59Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/9"
+time="2026-11-27T07:17:06Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/2"
+time="2026-11-27T07:17:07Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/24"
+time="2026-11-27T07:17:07Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/19"
+time="2026-11-27T07:17:08Z" level=warning msg="Stopped after 11 redirects and returned the redirection; pass { redirects: n } in request params or set global maxRedirects to silence this" url="http://host.docker.internal:8182/api/v1/uploads/01a21bda-ef83-7fca-a99b-9c26bd8b47fc/parts/8"
+
+
+  █ THRESHOLDS 
+
+    abuse_part_ms
+    ✓ 'max>=0' max=13.5s
+
+    http_req_failed{api:upload_part}
+    ✓ 'rate<=1' rate=49.34%
+
+    http_req_failed{api:victim_list}
+    ✓ 'rate<=1' rate=0.00%
+
+    victim_list_ms{phase:baseline}
+    ✓ 'max>=0' max=689.63ms
+
+    victim_list_ms{phase:load}
+    ✓ 'max>=0' max=2m10s
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 944    3.923713/s
+    checks_succeeded...: 67.90% 641 out of 944
+    checks_failed......: 32.09% 303 out of 944
+
+    ✓ login 200
+    ✓ victim_list 200
+    ✗ upload_start 201
+      ↳  12% — ✓ 13 / ✗ 94
+    ✗ upload_part 200
+      ↳  12% — ✓ 31 / ✗ 209
+    ✓ upload_cancel 200
+
+    CUSTOM
+    abuse_part_ms..................: avg=1.36s    med=226.99µs p(95)=10.67s   p(99)=12.68s   max=13.5s    count=240 
+    victim_list_ms.................: avg=370.78ms med=29.33ms  p(95)=482.26ms p(99)=2.48s    max=2m10s    count=569 
+      { phase:baseline }...........: avg=42.73ms  med=23.73ms  p(95)=64.05ms  p(99)=688.82ms max=689.63ms count=318 
+      { phase:load }...............: avg=786.4ms  med=85.11ms  p(95)=1.97s    p(99)=2.99s    max=2m10s    count=251 
+
+    HTTP
+    http_req_duration..............: avg=659.92ms med=22.94ms  p(95)=1.36s    p(99)=10.94s   max=2m10s    count=1164
+      { expected_response:true }...: avg=663.89ms med=28.07ms  p(95)=2.11s    p(99)=10.81s   max=2m10s    count=843 
+    http_req_failed................: 27.57% 321 out of 1164
+      { api:upload_part }..........: 49.34% 227 out of 460
+      { api:victim_list }..........: 0.00%  0 out of 569
+    http_reqs......................: 1164   4.838137/s
+
+    EXECUTION
+    iteration_duration.............: avg=2.39s    med=547.2ms  p(95)=3.97s    p(99)=40.19s   max=2m16s    count=673 
+    iterations.....................: 673    2.797308/s
+    vus............................: 5      min=5           max=18
+    vus_max........................: 18     min=18          max=18
+
+    NETWORK
+    data_received..................: 12 MB  52 kB/s
+    data_sent......................: 835 MB 3.5 MB/s
+
+
+
+exit=0

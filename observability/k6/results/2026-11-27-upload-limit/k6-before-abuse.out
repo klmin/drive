@@ -1,0 +1,150 @@
+ Container drive-observability-prometheus-1 Recreate 
+ Container drive-observability-prometheus-1 Recreated 
+ Container drive-observability-prometheus-1 Starting 
+ Container drive-observability-prometheus-1 Started 
+ Container drive-observability-k6-run-a34f89d61dbd Creating 
+ Container drive-observability-k6-run-a34f89d61dbd Created 
+time="2026-11-27T03:57:32Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:57:32Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 9.901678061s while flush period is 5s. Some samples may be dropped." nts=74 output="Prometheus remote write"
+time="2026-11-27T03:57:39Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:57:39Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 6.854714838s while flush period is 5s. Some samples may be dropped." nts=2 output="Prometheus remote write"
+time="2026-11-27T12:59:44+09:00" level=error msg="error waiting for container: unexpected EOF"
+time="2026-11-27T03:57:43Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": dial tcp: lookup prometheus on 127.0.0.11:53: read udp 127.0.0.1:39409->127.0.0.11:53: i/o timeout" output="Prometheus remote write"
+time="2026-11-27T03:57:50Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:57:50Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 6.447795144s while flush period is 5s. Some samples may be dropped." nts=2 output="Prometheus remote write"
+time="2026-11-27T03:57:50Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial: i/o timeout"
+time="2026-11-27T03:57:55Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:57:56Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:57:56Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 5.773690536s while flush period is 5s. Some samples may be dropped." nts=2 output="Prometheus remote write"
+time="2026-11-27T03:57:57Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:04Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:58:04Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 7.830982771s while flush period is 5s. Some samples may be dropped." nts=74 output="Prometheus remote write"
+time="2026-11-27T03:58:04Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:08Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:09Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:58:09Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 5.265073019s while flush period is 5s. Some samples may be dropped." nts=44 output="Prometheus remote write"
+time="2026-11-27T03:58:12Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:16Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:16Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:58:17Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 7.736272153s while flush period is 5s. Some samples may be dropped." nts=44 output="Prometheus remote write"
+time="2026-11-27T03:58:20Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": request timeout"
+time="2026-11-27T03:58:21Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": dial tcp: lookup prometheus on 127.0.0.11:53: read udp 127.0.0.1:44546->127.0.0.11:53: i/o timeout" output="Prometheus remote write"
+time="2026-11-27T03:58:24Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:25Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:28Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:58:28Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 6.835183395s while flush period is 5s. Some samples may be dropped." nts=45 output="Prometheus remote write"
+time="2026-11-27T03:58:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:32Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:33Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:58:34Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 6.541660886s while flush period is 5s. Some samples may be dropped." nts=82 output="Prometheus remote write"
+time="2026-11-27T03:58:40Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:40Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:42Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:58:43Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 7.960508216s while flush period is 5s. Some samples may be dropped." nts=82 output="Prometheus remote write"
+time="2026-11-27T03:58:44Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:48Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": dial tcp: lookup prometheus on 127.0.0.11:53: read udp 127.0.0.1:42090->127.0.0.11:53: i/o timeout" output="Prometheus remote write"
+time="2026-11-27T03:58:49Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:49Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 5.502697071s while flush period is 5s. Some samples may be dropped." nts=82 output="Prometheus remote write"
+time="2026-11-27T03:58:49Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": request timeout"
+time="2026-11-27T03:58:56Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:58:56Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 7.785322477s while flush period is 5s. Some samples may be dropped." nts=74 output="Prometheus remote write"
+time="2026-11-27T03:58:56Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:58:57Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:00Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": request timeout"
+time="2026-11-27T03:59:04Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": request timeout"
+time="2026-11-27T03:59:04Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": request timeout"
+time="2026-11-27T03:59:04Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": request timeout"
+time="2026-11-27T03:59:04Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:04Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:04Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": dial tcp: lookup prometheus on 127.0.0.11:53: read udp 127.0.0.1:52021->127.0.0.11:53: i/o timeout" output="Prometheus remote write"
+time="2026-11-27T03:59:04Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 7.564462621s while flush period is 5s. Some samples may be dropped." nts=112 output="Prometheus remote write"
+time="2026-11-27T03:59:04Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:08Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:08Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:12Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:59:12Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 7.728174469s while flush period is 5s. Some samples may be dropped." nts=52 output="Prometheus remote write"
+time="2026-11-27T03:59:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:8182/api/v1/uploads\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:17Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:17Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": dial tcp: lookup prometheus on 127.0.0.11:53: read udp 127.0.0.1:47149->127.0.0.11:53: i/o timeout" output="Prometheus remote write"
+time="2026-11-27T03:59:18Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 5.365588675s while flush period is 5s. Some samples may be dropped." nts=112 output="Prometheus remote write"
+time="2026-11-27T03:59:26Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)" output="Prometheus remote write"
+time="2026-11-27T03:59:26Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 8.969293893s while flush period is 5s. Some samples may be dropped." nts=75 output="Prometheus remote write"
+time="2026-11-27T03:59:28Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:29Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:32Z" level=error msg="Failed to send the time series data to the endpoint" error="HTTP POST request failed: Post \"http://prometheus:9090/api/v1/write\": dial tcp: lookup prometheus on 127.0.0.11:53: read udp 127.0.0.1:42037->127.0.0.11:53: i/o timeout" output="Prometheus remote write"
+time="2026-11-27T03:59:32Z" level=warning msg="Successful flushed time series to remote write endpoint but it took 5.044213895s while flush period is 5s. Some samples may be dropped." nts=9 output="Prometheus remote write"
+time="2026-11-27T03:59:32Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:35Z" level=warning msg="Request Failed" error="Get \"http://host.docker.internal:8182/api/v1/resources?st=MY&ps=20\": dial tcp 192.168.65.254:8182: connect: no route to host"
+time="2026-11-27T03:59:38Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21b26-16a0-7150-b358-d1079d0b3459/parts/17\": write tcp 172.21.0.9:41468->192.168.65.254:8182: write: broken pipe"
+time="2026-11-27T03:59:38Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21b26-7952-7389-91f1-934ead8d376c/parts/18\": write tcp 172.21.0.9:36342->192.168.65.254:8182: write: broken pipe"
+time="2026-11-27T03:59:38Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21b26-7952-7389-91f1-934ead8d376c/parts/13\": write tcp 172.21.0.9:36312->192.168.65.254:8182: write: broken pipe"
+time="2026-11-27T03:59:38Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21b26-7952-7389-91f1-934ead8d376c/parts/15\": write tcp 172.21.0.9:36186->192.168.65.254:8182: write: connection reset by peer"
+time="2026-11-27T03:59:38Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21b26-7952-7389-91f1-934ead8d376c/parts/7\": write tcp 172.21.0.9:36328->192.168.65.254:8182: write: broken pipe"
+time="2026-11-27T03:59:38Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21b26-7952-7389-91f1-934ead8d376c/parts/8\": write tcp 172.21.0.9:36240->192.168.65.254:8182: write: connection reset by peer"
+time="2026-11-27T03:59:38Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21b26-7952-7389-91f1-934ead8d376c/parts/24\": write tcp 172.21.0.9:36170->192.168.65.254:8182: write: connection reset by peer"
+time="2026-11-27T03:59:38Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21b26-7952-7389-91f1-934ead8d376c/parts/21\": write tcp 172.21.0.9:36270->192.168.65.254:8182: write: broken pipe"
+time="2026-11-27T03:59:38Z" level=warning msg="Request Failed" error="Put \"http://host.docker.internal:8182/api/v1/uploads/01a21b26-7952-7389-91f1-934ead8d376c/parts/4\": write tcp 172.21.0.9:36302->192.168.65.254:8182: write: broken pipe"
+
+
+  █ THRESHOLDS 
+
+    abuse_part_ms
+    ✓ 'max>=0' max=4.11s
+
+    http_req_failed{api:upload_part}
+    ✓ 'rate<=1' rate=14.49%
+
+    http_req_failed{api:victim_list}
+    ✓ 'rate<=1' rate=3.38%
+
+    victim_list_ms{phase:baseline}
+    ✓ 'max>=0' max=31.42ms
+
+    victim_list_ms{phase:load}
+    ✓ 'max>=0' max=3.22s
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 686    2.870661/s
+    checks_succeeded...: 94.60% 649 out of 686
+    checks_failed......: 5.39%  37 out of 686
+
+    ✓ login 200
+    ✗ victim_list 200
+      ↳  96% — ✓ 599 / ✗ 21
+    ✗ upload_start 201
+      ↳  30% — ✓ 7 / ✗ 16
+    ✓ upload_part 200
+    ✓ upload_cancel 200
+
+    CUSTOM
+    abuse_part_ms..................: avg=3.49s    med=3.56s    p(95)=4.08s    p(99)=4.11s   max=4.11s   count=24 
+    victim_list_ms.................: avg=141.34ms med=14.72ms  p(95)=776.97ms p(99)=2.52s   max=3.22s   count=620
+      { phase:baseline }...........: avg=13.9ms   med=13.03ms  p(95)=18.13ms  p(99)=29.25ms max=31.42ms count=354
+      { phase:load }...............: avg=310.94ms med=76.22ms  p(95)=1.72s    p(99)=3.06s   max=3.22s   count=266
+
+    HTTP
+    http_req_duration..............: avg=1.6s     med=15.94ms  p(95)=3.52s    p(99)=50.42s  max=2m46s   count=731
+      { expected_response:true }...: avg=935.08ms med=16.45ms  p(95)=3.25s    p(99)=16.57s  max=2m44s   count=684
+    http_req_failed................: 6.42%  47 out of 731
+      { api:upload_part }..........: 14.49% 10 out of 69
+      { api:victim_list }..........: 3.38%  21 out of 620
+    http_reqs......................: 731    3.05897/s
+
+    EXECUTION
+    iteration_duration.............: avg=2.06s    med=516.63ms p(95)=3.81s    p(99)=24.54s  max=2m6s    count=637
+    iterations.....................: 637    2.665614/s
+    vus............................: 5      min=5         max=18
+    vus_max........................: 18     min=18        max=18
+
+    NETWORK
+    data_received..................: 13 MB  54 kB/s
+    data_sent......................: 1.4 GB 5.7 MB/s
+
+
+
+
