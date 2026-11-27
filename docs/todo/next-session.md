@@ -118,7 +118,7 @@
    - 테스트: "dev DB 고정 데이터 의존(<오류코드>)" 사유로 꺼진 메서드 약 148개를 `DriveFixtures` 로 옮기기(AUTH_009·USER_005·REQUEST_006 가 대부분). SsoControllerTest·CephTokenManagerTest 는 외부 시스템이라 꺼 둔다.
    - CI 가 안정되면 `dependabot.yml` 에 version updates 추가. Actions 시간 절약 후보: CodeQL 을 PR 마다가 아니라 main push·주간 실행으로만.
 
-6. **분산 환경·대용량 트래픽**(2026-11-27 정리) — [scaling.md](scaling.md) A 부터(업로드 세마포어·로그인 잠금 3가지는 Redis 없이 가능). 결정 이유는 [../design/scaling-strategy.md](../design/scaling-strategy.md). §3-3 의 "업로드 파트 동시 상한" 은 scaling.md A 와 같은 항목이다.
+6. **분산 환경·대용량 트래픽**(2026-11-27 정리) — [scaling.md](scaling.md). A 의 주요 항목은 PR #96~#101 로 올라갔고(업로드 세마포어·IP 위조·로그인 잠금·API Key·IP 정책 캐시·테넌트 이름 캐시), A 의 남은 3개(Tomcat 타임아웃·MCP 로깅 필터·OIDC 캐시) 다음 B(Redis) 차례. 결정 이유는 [../design/scaling-strategy.md](../design/scaling-strategy.md). §3-3 의 "업로드 파트 동시 상한" 은 PR #96 으로 반영됐다.
 
 **하지 않기로 한 것**
 - 세션 TTL 1h·COMPLETING 30m 숫자 변경: 운영형 스토리지 측정(§3-1, 배포 시) 전에는 근거가 없다(로컬 RustFS 조립은 1초 미만, §2-0). 파트마다 `touch` 로 연장되고 동시 4개라, 16MB 파트 하나가 1시간을 넘기려면 초당 약 4.5KB 수준의 회선이어야 한다.
