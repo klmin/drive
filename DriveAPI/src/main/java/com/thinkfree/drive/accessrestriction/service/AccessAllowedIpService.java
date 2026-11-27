@@ -1,5 +1,6 @@
 package com.thinkfree.drive.accessrestriction.service;
 
+import com.thinkfree.drive.accessrestriction.cache.AccessPolicyCache;
 import com.thinkfree.drive.access.exception.AccessErrorCode;
 import com.thinkfree.drive.accessrestriction.entity.AccessAllowedIp;
 import com.thinkfree.drive.accessrestriction.repository.AccessAllowedIpRepository;
@@ -20,6 +21,7 @@ import java.util.List;
 public class AccessAllowedIpService {
     private final AccessAllowedIpRepository accessAllowedIpRepository;
     private final AccessAllowedIpQueryRepository accessAllowedIpQueryRepository;
+    private final AccessPolicyCache accessPolicyCache;
 
     @Transactional
     public void replaceAllowedIps(Integer tenantSeq, RoleType roleType, Integer loginUserSeq, List<String> ips) {
@@ -27,6 +29,7 @@ public class AccessAllowedIpService {
                 .map(cidr -> parseCidr(tenantSeq, roleType, cidr, loginUserSeq))
                 .toList();
 
+        accessPolicyCache.invalidate(tenantSeq);
         accessAllowedIpRepository.deleteByTenantAndRole(tenantSeq, roleType);
         if (!entities.isEmpty()) {
             accessAllowedIpRepository.insertAll(entities);
@@ -91,6 +94,7 @@ public class AccessAllowedIpService {
     }
     /** 테넌트 삭제 — 이 테넌트의 행 전부 */
     public void deleteByTenant(Integer tenantSeq) {
+        accessPolicyCache.invalidate(tenantSeq);
         accessAllowedIpRepository.deleteByTenant(tenantSeq);
     }
 }

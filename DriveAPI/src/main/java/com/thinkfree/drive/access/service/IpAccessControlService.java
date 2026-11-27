@@ -4,6 +4,7 @@ import com.maxmind.geoip2.record.Country;
 import com.thinkfree.drive.util.LogSafe;
 import com.thinkfree.drive.access.dto.IpAccessCheckCommand;
 import com.thinkfree.drive.access.exception.AccessErrorCode;
+import com.thinkfree.drive.accessrestriction.cache.AccessPolicyCache;
 import com.thinkfree.drive.accessrestriction.service.AccessAllowedCountryService;
 import com.thinkfree.drive.accessrestriction.service.AccessAllowedIpService;
 import com.thinkfree.drive.global.exception.ApiRuntimeException;
@@ -25,6 +26,7 @@ public class IpAccessControlService {
     private final AccessAllowedCountryService accessAllowedCountryService;
     private final AccessAllowedIpService accessAllowedIpService;
     private final SystemConfigFindService systemConfigFindService;
+    private final AccessPolicyCache accessPolicyCache;
 
     public void checkAllowed(IpAccessCheckCommand command) {
         
@@ -32,22 +34,23 @@ public class IpAccessControlService {
         String clientIp = command.clientIp();
         RoleType role = command.roleType();
         
+        // 정책은 (테넌트, 역할) 단위로 30초 캐시 — 요청마다 DB 3번 조회하지 않게(AccessPolicyCache)
+        AccessPolicyCache.Policy policy = accessPolicyCache.get(tenantSeq, role, () -> loadPolicy(tenantSeq, role));
+
         // ADMIN: IP만 체크 (슈퍼어드민이 어드민 접근 IP 화이트리스트 관리, country 미사용)
         if (role == RoleType.ADMIN) {
-            List<String> allowedIpCidrs = accessAllowedIpService.findAllIpCidrs(tenantSeq, RoleType.ADMIN);
-            checkIpOnly(clientIp, allowedIpCidrs);
+            checkIpOnly(clientIp, policy.ipCidrs());
             return;
         }
-        
-        boolean enabled = systemConfigFindService.findAccessRestrictionStatusConfig(tenantSeq).isEnabled();
-        if (!enabled) {
+
+        if (!policy.enabled()) {
             return;
         }
-        
-        List<String> allowedIpCidrs = accessAllowedIpService.findAllIpCidrs(tenantSeq, RoleType.USER);
+
+        List<String> allowedIpCidrs = policy.ipCidrs();
 
         // USER: IP + Country 체크 (테넌트 어드민이 사용자 접근 IP/국가 화이트리스트 관리)
-        List<String> allowedCountryCodes = accessAllowedCountryService.findAllCountryCodes(tenantSeq);
+        List<String> allowedCountryCodes = policy.countryCodes();
         if (allowedIpCidrs.isEmpty() && allowedCountryCodes.isEmpty()) {
             return;
         }
@@ -74,6 +77,19 @@ public class IpAccessControlService {
                 throw ApiRuntimeException.type(AccessErrorCode.BLOCKED_COUNTRY);
             }
         }
+    }
+
+    private AccessPolicyCache.Policy loadPolicy(Integer tenantSeq, RoleType role) {
+        if (role == RoleType.ADMIN) {
+            return new AccessPolicyCache.Policy(true, accessAllowedIpService.findAllIpCidrs(tenantSeq, RoleType.ADMIN), List.of());
+        }
+        boolean enabled = systemConfigFindService.findAccessRestrictionStatusConfig(tenantSeq).isEnabled();
+        if (!enabled) {
+            return new AccessPolicyCache.Policy(false, List.of(), List.of());
+        }
+        return new AccessPolicyCache.Policy(true,
+                accessAllowedIpService.findAllIpCidrs(tenantSeq, RoleType.USER),
+                accessAllowedCountryService.findAllCountryCodes(tenantSeq));
     }
 
     private void checkIpOnly(String clientIp, List<String> allowedIpCidrs) {

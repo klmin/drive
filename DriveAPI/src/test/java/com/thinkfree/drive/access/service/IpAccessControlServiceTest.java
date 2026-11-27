@@ -1,6 +1,7 @@
 
 package com.thinkfree.drive.access.service;
 import com.thinkfree.drive.access.dto.IpAccessCheckCommand;
+import com.thinkfree.drive.accessrestriction.cache.AccessPolicyCache;
 import com.thinkfree.drive.accessrestriction.entity.AccessAllowedCountry;
 import com.thinkfree.drive.accessrestriction.entity.AccessAllowedIp;
 import com.thinkfree.drive.accessrestriction.repository.AccessAllowedCountryRepository;
@@ -39,10 +40,13 @@ class IpAccessControlServiceTest {
     private AccessAllowedIpRepository accessAllowedIpRepository;
     @Autowired
     private SystemConfigRepository systemConfigRepository;
+    @Autowired
+    private AccessPolicyCache accessPolicyCache;
     @AfterEach
     void tearDown() {
         accessAllowedCountryRepository.deleteByTenant(TENANT);
         accessAllowedIpRepository.deleteByTenantAndRole(TENANT, ROLE);
+        accessPolicyCache.invalidate(TENANT); // 같은 컨텍스트를 쓰는 다른 테스트가 이 테스트의 정책으로 판정되지 않게
     }
     private void setAccessRestrictionEnabled(boolean enabled) {
         systemConfigRepository.upsert(SystemConfig.createSystemConfig(
@@ -51,6 +55,11 @@ class IpAccessControlServiceTest {
                 String.valueOf(enabled),
                 1
         ));
+    }
+    /** 이 테스트는 정책을 리포지토리로 바로 써서 서비스의 캐시 무효화를 거치지 않는다 — 판정 전에 비워 DB 값으로 판정하게 한다 */
+    private void check(IpAccessCheckCommand command) {
+        accessPolicyCache.invalidate(TENANT);
+        ipAccessControlService.checkAllowed(command);
     }
     private static IpAccessCheckCommand cmd(String ip) {
         return new IpAccessCheckCommand(ip, ROLE, TENANT);
@@ -80,7 +89,7 @@ class IpAccessControlServiceTest {
         @DisplayName("접근 제한이 비활성화되어 있으면 모든 IP → 허용")
         void isAllowed_disabledRestriction_returnsTrue(String countryCode, String ip) {
             log.info("[비활성화] countryCode : {}, ip : {}", countryCode, ip);
-            assertThatNoException().isThrownBy(() -> ipAccessControlService.checkAllowed(cmd(ip)));
+            assertThatNoException().isThrownBy(() -> check(cmd(ip)));
         }
     }
     @Nested
@@ -105,12 +114,12 @@ class IpAccessControlServiceTest {
         @DisplayName("활성화 상태에서 허용 국가 목록이 비어있으면 국가 제한 없음 → 모든 IP 허용")
         void isAllowed_enabledWithEmptyCountryList_passes(String countryCode, String ip) {
             log.info("[국가 제한 없음] countryCode : {}, ip : {}", countryCode, ip);
-            assertThatNoException().isThrownBy(() -> ipAccessControlService.checkAllowed(cmd(ip)));
+            assertThatNoException().isThrownBy(() -> check(cmd(ip)));
         }
         @Test
         @DisplayName("사설 IP → 국가 제한 없음 → 허용")
         void isAllowed_privateIp_passes() {
-            assertThatNoException().isThrownBy(() -> ipAccessControlService.checkAllowed(cmd(IpFixtures.IP_PRIVATE)));
+            assertThatNoException().isThrownBy(() -> check(cmd(IpFixtures.IP_PRIVATE)));
         }
     }
     @Nested
@@ -145,14 +154,14 @@ class IpAccessControlServiceTest {
         @DisplayName("허용 국가(KR) IP → 실제 GeoIP DB 조회 → 허용")
         void isAllowed_allowedIp_returnsTrue(String countryCode, String ip) {
             log.info("[success] countryCode : {}, ip : {}", countryCode, ip);
-            assertThatNoException().isThrownBy(() -> ipAccessControlService.checkAllowed(cmd(ip)));
+            assertThatNoException().isThrownBy(() -> check(cmd(ip)));
         }
         @ParameterizedTest(name = "[{index}] 국가코드 {0} ({1}) → 차단")
         @MethodSource("blockedIps")
         @DisplayName("허용 국가 외 IP → 실제 GeoIP DB 조회 → BLOCKED_COUNTRY")
         void isAllowed_nonAllowedIp_returnsFalse(String countryCode, String ip) {
             log.info("[fail] countryCode : {}, ip : {}", countryCode, ip);
-            assertThatThrownBy(() -> ipAccessControlService.checkAllowed(cmd(ip)))
+            assertThatThrownBy(() -> check(cmd(ip)))
                     .isInstanceOf(ApiRuntimeException.class)
                     .satisfies(ex -> assertThat(((ApiRuntimeException) ex).getCode()).isEqualTo(AccessErrorCode.BLOCKED_COUNTRY));
         }
@@ -176,25 +185,25 @@ class IpAccessControlServiceTest {
         @Test
         @DisplayName("허용 국가(KR) + 허용 IP 목록에 포함된 IP → 허용")
         void isAllowed_allowedCountryAndAllowedIp_returnsTrue() {
-            assertThatNoException().isThrownBy(() -> ipAccessControlService.checkAllowed(cmd(IpFixtures.IP_KR)));
+            assertThatNoException().isThrownBy(() -> check(cmd(IpFixtures.IP_KR)));
         }
         @Test
         @DisplayName("허용 국가(KR) + 허용 IP 목록에 없는 IP → 국가로 통과 (OR 조건)")
         void isAllowed_allowedCountryButNotAllowedIp_passedByCountry() {
             // KR 국가이지만 허용 IP 목록에 없는 다른 KR IP → 국가 일치로 통과
-            assertThatNoException().isThrownBy(() -> ipAccessControlService.checkAllowed(cmd("168.126.63.2")));
+            assertThatNoException().isThrownBy(() -> check(cmd("168.126.63.2")));
         }
         @Test
         @DisplayName("차단 국가(JP) + 허용 IP 목록에 있는 IP → IP로 통과 (OR 조건)")
         void isAllowed_blockedCountryButAllowedIp_passedByIp() {
             // JP는 차단 국가이지만 IP 목록에 등록 → IP 일치로 통과
             accessAllowedIpRepository.insertAll(List.of(AccessAllowedIp.create(TENANT, ROLE, IpFixtures.IP_JP, 32, 1)));
-            assertThatNoException().isThrownBy(() -> ipAccessControlService.checkAllowed(cmd(IpFixtures.IP_JP)));
+            assertThatNoException().isThrownBy(() -> check(cmd(IpFixtures.IP_JP)));
         }
         @Test
         @DisplayName("차단 국가(JP) + 허용 IP 목록에도 없는 IP → BLOCKED_COUNTRY")
         void isAllowed_blockedCountryAndNotAllowedIp_throwsBlockedCountry() {
-            assertThatThrownBy(() -> ipAccessControlService.checkAllowed(cmd(IpFixtures.IP_JP)))
+            assertThatThrownBy(() -> check(cmd(IpFixtures.IP_JP)))
                     .isInstanceOf(ApiRuntimeException.class)
                     .satisfies(ex -> assertThat(((ApiRuntimeException) ex).getCode()).isEqualTo(AccessErrorCode.BLOCKED_COUNTRY));
         }
@@ -216,13 +225,13 @@ class IpAccessControlServiceTest {
         @DisplayName("사설 IP + 허용 CIDR 범위 내 → 허용")
         void isAllowed_privateIpInCidr_returnsTrue() {
             // IP_PRIVATE = "192.168.0.1" → 192.168.0.0/24 범위 내
-            assertThatNoException().isThrownBy(() -> ipAccessControlService.checkAllowed(cmd(IpFixtures.IP_PRIVATE)));
+            assertThatNoException().isThrownBy(() -> check(cmd(IpFixtures.IP_PRIVATE)));
         }
         @Test
         @DisplayName("사설 IP + 허용 CIDR 범위 밖 → BLOCKED_IP")
         void isAllowed_privateIpNotInCidr_returnsFalse() {
             // 192.168.1.1 → 192.168.0.0/24 범위 밖
-            assertThatThrownBy(() -> ipAccessControlService.checkAllowed(cmd("192.168.1.1")))
+            assertThatThrownBy(() -> check(cmd("192.168.1.1")))
                     .isInstanceOf(ApiRuntimeException.class)
                     .satisfies(ex -> assertThat(((ApiRuntimeException) ex).getCode()).isEqualTo(AccessErrorCode.BLOCKED_IP));
         }
@@ -252,12 +261,12 @@ class IpAccessControlServiceTest {
         @Test
         @DisplayName("ADMIN + 허용 IP 매칭 → 허용 (KR 국가 체크 무시)")
         void admin_allowedIp_passes() {
-            assertThatNoException().isThrownBy(() -> ipAccessControlService.checkAllowed(cmd("10.0.0.5", RoleType.ADMIN)));
+            assertThatNoException().isThrownBy(() -> check(cmd("10.0.0.5", RoleType.ADMIN)));
         }
         @Test
         @DisplayName("ADMIN + 허용 IP 미매칭 → BLOCKED_IP (KR 국가 코드여도 차단)")
         void admin_notAllowedIp_throwsBlockedIp() {
-            assertThatThrownBy(() -> ipAccessControlService.checkAllowed(cmd(IpFixtures.IP_KR, RoleType.ADMIN)))
+            assertThatThrownBy(() -> check(cmd(IpFixtures.IP_KR, RoleType.ADMIN)))
                     .isInstanceOf(ApiRuntimeException.class)
                     .satisfies(ex -> assertThat(((ApiRuntimeException) ex).getCode()).isEqualTo(AccessErrorCode.BLOCKED_IP));
         }
@@ -265,7 +274,7 @@ class IpAccessControlServiceTest {
         @DisplayName("ADMIN + IP 목록 비어있음 → 통과")
         void admin_emptyIpList_passes() {
             accessAllowedIpRepository.deleteByTenantAndRole(TENANT, RoleType.ADMIN);
-            assertThatNoException().isThrownBy(() -> ipAccessControlService.checkAllowed(cmd(IpFixtures.IP_US, RoleType.ADMIN)));
+            assertThatNoException().isThrownBy(() -> check(cmd(IpFixtures.IP_US, RoleType.ADMIN)));
         }
     }
 

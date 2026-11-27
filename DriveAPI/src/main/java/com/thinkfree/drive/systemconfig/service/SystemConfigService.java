@@ -1,5 +1,6 @@
 package com.thinkfree.drive.systemconfig.service;
 
+import com.thinkfree.drive.accessrestriction.cache.AccessPolicyCache;
 import com.thinkfree.drive.api.v1.admin.systemconfig.request.*;
 import com.thinkfree.drive.systemconfig.converter.SystemConfigConverter;
 import com.thinkfree.drive.systemconfig.entity.SystemConfig;
@@ -20,6 +21,7 @@ public class SystemConfigService {
     private final SystemConfigRepository systemConfigRepository;
     private final SystemConfigConverter systemConfigConverter;
     private final SystemConfigFindService settings;
+    private final AccessPolicyCache accessPolicyCache;
 
     /** Only the Super Admin controller exposes this operation. No tenant type is changed. */
     @Transactional
@@ -93,6 +95,7 @@ public class SystemConfigService {
     public void upsertAccessRestrictionStatus(Integer tenantSeq, Integer loginUserSeq, AccessRestrictionUpdateRequest request) {
         var systemConfig = systemConfigConverter.toUpsertAccessRestrictionStatusSystemConfig(request, tenantSeq, loginUserSeq);
         systemConfigRepository.upsert(systemConfig);
+        accessPolicyCache.invalidate(tenantSeq);
     }
 
     /** 테넌트 공유 기능 사용(share_status) 설정 upsert. */
@@ -139,6 +142,7 @@ public class SystemConfigService {
 
     /** 테넌트 삭제 — 이 테넌트의 행 전부 */
     public void deleteByTenant(Integer tenantSeq) {
+        accessPolicyCache.invalidate(tenantSeq);
         systemConfigRepository.deleteByTenant(tenantSeq);
     }
 }
