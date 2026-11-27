@@ -67,7 +67,8 @@ Super Admin 누락/비활성, 연결 종료를 확인합니다.
 
 ## Developers·TFO 연동은 별도 단계
 
-초기화 성공은 DB 준비만 의미합니다. Drive WAS에는 스토리지·Redis·라이선스 설정도 필요합니다.
+초기화 성공은 DB 준비만 의미합니다. Drive WAS에는 스토리지·라이선스 설정도 필요합니다.
+Redis는 선택입니다(`DRIVE_REDIS_ENABLED`, 기본 `false`). WAS를 여러 대 둘 때 캐시 무효화·로그아웃 토큰·요청 수 제한을 맞추는 데 쓰며, 켜면 `maxmemory-policy noeviction`으로 둡니다. Redis 상태는 health에 넣지 않으므로 프로브에 영향이 없습니다(DriveAPI/ENV_VARIABLES.md §5).
 Drive의 DRIVE_SUPER_ADMIN_EXTERNAL_API_KEY와 Developers의 비밀 설정에 같은 키를 제공합니다.
 initContainer에는 이 키가 필요 없습니다. API Key 호출 경로는 /api/public/v1/super-admin/...입니다.
 

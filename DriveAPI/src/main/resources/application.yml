@@ -76,6 +76,22 @@ spring:
       initialize-schema: never
     timeout: 30m
 
+  # Redis(선택 구성요소) 연결 — drive.redis.enabled=true 일 때만 쓴다. 꺼져 있으면 연결하지 않는다(Lettuce 는 처음 쓸 때 연결).
+  #   timeout 은 짧게 — Redis 가 느리거나 죽었을 때 요청이 오래 붙잡히지 않고 각 기능의 장애 시 동작(DB·통과)으로 빨리 넘어가게
+  data:
+    redis:
+      host: ${DRIVE_REDIS_HOST:localhost}
+      port: ${DRIVE_REDIS_PORT:6379}
+      password: ${DRIVE_REDIS_PASSWORD:}
+      database: ${DRIVE_REDIS_DATABASE:0}
+      ssl:
+        enabled: ${DRIVE_REDIS_SSL_ENABLED:false}
+      timeout: ${DRIVE_REDIS_TIMEOUT:500ms}
+      connect-timeout: ${DRIVE_REDIS_CONNECT_TIMEOUT:1s}
+      # @RedisHash 저장소는 쓰지 않는다 — JPA 저장소와 섞여 기동 로그에 경고가 나지 않게 끈다
+      repositories:
+        enabled: false
+
   mvc:
     async:
       # MVC 비동기 응답 시간 제한 — 이 앱에서 비동기 응답은 StreamingResponseBody 다운로드뿐이다(StreamingAsyncConfig).
@@ -105,7 +121,8 @@ management:
       exposure:
         include: health,info,prometheus
   health:
-    # Redis 는 코드에서 쓰지 않는다(starter 의존성만 남음) — 서버가 없어도 health 가 DOWN 이 되지 않게 지표를 끈다
+    # Redis 를 켠 설치처도 끈다 — 켜면 Redis 장애 때 health 가 DOWN 이 되어 LB·k8s 가 WAS 를 빼 버린다(Redis 는 선택 구성요소, 장애가 전체 장애가 되면 안 됨).
+    #   연결 상태는 지표 drive_redis_up(RedisConnectionMonitor)으로 본다
     redis:
       enabled: false
   metrics:
@@ -290,6 +307,12 @@ smtp:
       key: ${DRIVE_SMTP_AES_SECRET_KEY}
 
 drive:
+  # Redis 사용 스위치(DriveRedisProperty) — 기본 끔. 켜면 Redis 를 쓰는 기능(캐시 무효화·JWT 블랙리스트·rate limit)이 Redis 구현으로 바뀐다.
+  #   연결 정보는 위 spring.data.redis(DRIVE_REDIS_HOST 등). Redis 는 maxmemory-policy noeviction 으로 둔다(docs/design/scaling-strategy.md §3-2)
+  redis:
+    enabled: ${DRIVE_REDIS_ENABLED:false}
+    # 여러 설치가 Redis 하나를 같이 쓸 때 키가 섞이지 않게 설치마다 다르게
+    key-prefix: ${DRIVE_REDIS_KEY_PREFIX:drive:}
   # 시간대 — 요청 날짜 해석·년월일 검색 경계·응답 시각 표시의 기준(JVM 기본 시간대는 쓰지 않는다). 설치처에서 DRIVE_TIME_ZONE 으로 변경
   time-zone: ${DRIVE_TIME_ZONE:Asia/Seoul}
   license:

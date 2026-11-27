@@ -191,7 +191,7 @@ docker·k8s 는 같은 내용을 `KEY=value` 형식(따옴표·`export` 없음)�
 - 서버가 스스로 서명·검증(대칭)하므로 외부와 맞출 필요 없다. 같은 DB 를 쓰는 WAS 끼리만 같은 값이면 된다.
 - 기존 서버(운영·dev)는 지금까지 jar 내장값으로 돌았다 — SMTP AES 는 그 값을 계속 쓴다(`generate_secret_keys.sh --existing-db` 가 넣는 값, `LEGACY` 상수, 로컬 `.env.example` 과 같은 값).
 
-## 5. 선택 — 안 넣으면 기본값 (42개)
+## 5. 선택 — 안 넣으면 기본값 (53개)
 
 | 키 | 기본값 | 설명 |
 |---|---|---|
@@ -210,6 +210,15 @@ docker·k8s 는 같은 내용을 `KEY=value` 형식(따옴표·`export` 없음)�
 | `DRIVE_AUTH_COOKIE_SAME_SITE` | `Lax` | FE·BE 가 다른 사이트면 `None`(+Secure) |
 | `DRIVE_TENANT_DEV_FALLBACK_ENABLED` | `false` | 테넌트 판별 실패 시 기본 테넌트로 대체. 운영은 반드시 `false` |
 | `DRIVE_SCHEDULER_BATCH_ENABLED` | `true` | 공유 DB 배치 스케줄러. k8s 에서 배치 담당이 아닌 파드는 `false` |
+| `DRIVE_REDIS_ENABLED` | `false` | Redis 사용(선택 구성요소). `false` 면 Redis 에 연결하지 않고 Redis 를 쓰는 기능은 DB·로컬 방식으로 동작. `true` 여도 Redis 장애가 서비스 중단이 되지 않는다(기능마다 DB 조회·통과·TTL 반영). 상태는 지표 `drive_redis_up`, health 에는 넣지 않는다 |
+| `DRIVE_REDIS_HOST` | `localhost` | Redis 주소 — `DRIVE_REDIS_ENABLED=true` 일 때만 쓴다 |
+| `DRIVE_REDIS_PORT` | `6379` | Redis 포트 |
+| `DRIVE_REDIS_PASSWORD` | (빈 값 → 인증 없음) | Redis 비밀번호(`requirepass`). ACL 사용자가 필요하면 `SPRING_DATA_REDIS_USERNAME` |
+| `DRIVE_REDIS_DATABASE` | `0` | Redis DB 번호 |
+| `DRIVE_REDIS_SSL_ENABLED` | `false` | TLS 연결(관리형 Redis 등) |
+| `DRIVE_REDIS_TIMEOUT` | `500ms` | 명령 응답 대기. 짧게 둬야 Redis 가 느릴 때 요청이 붙잡히지 않고 장애 시 동작으로 넘어간다 |
+| `DRIVE_REDIS_CONNECT_TIMEOUT` | `1s` | 연결 대기 |
+| `DRIVE_REDIS_KEY_PREFIX` | `drive:` | 모든 키의 접두어. 여러 설치가 Redis 하나를 같이 쓰면 설치마다 다르게. Redis 는 `maxmemory-policy noeviction` 으로 둔다 — 아니면 기동 시 경고(키가 밀려나면 로그아웃 토큰이 통과할 수 있음) |
 | `DRIVE_REST_CLIENT_TRACE_ENABLED` | `false` | 외부 호출 요청·응답 본문까지 로그(본문 버퍼링). 운영은 `false`, dev·로컬은 `true` |
 | `DRIVE_SUPER_ADMIN_ALLOWED_IPS` | (빈 값 → 제한 없음) | 슈퍼어드민 접근 허용 IP·CIDR(쉼표 구분) |
 | `DRIVE_SUPER_ADMIN_EXTERNAL_API_KEY` | (빈 값) | 슈퍼어드민 외부 API 고정 키 |

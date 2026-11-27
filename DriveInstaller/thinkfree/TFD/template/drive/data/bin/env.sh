@@ -36,6 +36,15 @@ export DRIVE_INITIAL_OFFICE_CONNECTION_TYPE="onPremise"
 export DRIVE_INITIAL_OFFICE_TICKET_SERVICE_TOKEN=""
 export DRIVE_INITIAL_OFFICE_HTTP_STORAGE_REQUEST_JWT_SECRET=""
 
+# Redis(선택) — 기본은 쓰지 않는다. 설치기는 Redis 를 띄우지 않으므로, 쓰려면 Redis 를 따로 준비하고 아래를 켠다.
+#   WAS 를 여러 대 둘 때 캐시 무효화·로그아웃 토큰·요청 수 제한을 서버끼리 맞추는 데 쓴다. Redis 가 죽어도 서비스는 계속된다.
+#   Redis 는 maxmemory-policy noeviction 으로 둔다(아니면 기동 시 경고). 자세한 항목은 DriveAPI/ENV_VARIABLES.md §5
+export DRIVE_REDIS_ENABLED="false"
+#export DRIVE_REDIS_HOST="redis"
+#export DRIVE_REDIS_PORT="6379"
+#export DRIVE_REDIS_PASSWORD=''
+#export DRIVE_REDIS_KEY_PREFIX="drive:"
+
 # 서명·암호화 키 (application.yml jwt·smtp.aes·download — 기본값 없음, 빠지면 기동 실패).
 # 비워 두면 setup.sh 가 generate_secret_keys.sh 로 설치처마다 새로 만든다(openssl rand -base64 24 → 32글자). 값이 있으면 그대로 둔다.
 # SMTP AES 키는 DB 에 저장된 SMTP 비밀번호를 푸는 키라, 기존 DB 가 있으면 새로 만들지 않고 예전 jar 내장값을 넣는다.
