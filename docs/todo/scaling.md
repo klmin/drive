@@ -41,7 +41,8 @@
   - `CacheInvalidationBroadcaster`(커밋 뒤 PUBLISH `<prefix>cache-invalidate`, payload `보낸WAS:캐시이름:키`), 캐시가 `LocallyInvalidatable` 구현 — 호출부는 그대로
   - 구독 컨테이너는 기동 때 바로 시작하지 않는다 — Redis 에 닿지 않으면 첫 구독 예외로 앱 기동이 실패했다. 뒤에서 5초마다 시도
   - 확인: Testcontainers Redis 로 컨텍스트 2개, 1초 안 반영. Redis 없이도 기동
-- [ ] **JWT 블랙리스트 Redis 조회** — 설계 §3-2
+- [x] **JWT 블랙리스트 Redis 조회** — 설계 §3-2, PR #104 (아래는 처음 계획 — 구현은 계획대로, SET·표시 키 삭제가 모두 실패하면 최대 1분 통과 창이 남음)
+  - 찾은 것: Redis 를 켜면 로그아웃 전 "이미 있나" 확인이 사본으로 답해 같은 트랜잭션의 두 번째 INSERT 가 유니크 위반 → 저장 직전 DB 확인으로 멱등
   - 어디: `BlacklistTokenFindService` 구현(Redis → 오류 시 DB), 로그아웃 시 DB + afterCommit Redis SET(TTL = 토큰 남은 만료), 재적재 완료 표시 키(없으면 DB 조회), 1분 주기 동기화(ShedLock)
   - Redis `maxmemory-policy noeviction` 을 설치 문서·설치기에 고정 — 밀려나면 로그아웃 토큰이 통과
   - 끝 기준: Redis 정지·재시작(데이터 유실)·SET 실패 각각에서 로그아웃 토큰이 거절됨
