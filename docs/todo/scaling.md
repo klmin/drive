@@ -35,7 +35,8 @@
 
 ## B. Redis 도입 (선택 구성요소, `redis | db | local` 스위치)
 
-- [ ] **Redis 연결·스위치 골격** — 설계 §2-3. `management.health.redis` 는 Redis 를 켠 설치처만. 설치기(`DriveInstaller`)·`ENV_VARIABLES.md` 에 항목 추가
+- [x] **Redis 연결·스위치 골격** — 설계 §2-3, PR #102. `drive.redis.enabled`(기본 false)·`key-prefix`, `@ConditionalOnDriveRedis`, 기동 시 PING·`maxmemory-policy` 경고, 지표 `drive_redis_up`
+  - `management.health.redis` 는 Redis 를 켠 설치처도 **끈다** — 켜면 Redis 장애 때 health DOWN → LB·k8s 가 WAS 를 빼서 전체 장애가 된다. 경보는 `drive_redis_up` 으로
 - [ ] **캐시 무효화 pub/sub** — 설계 §3-1
   - 어디: 새 `CacheInvalidator`(로컬 즉시 삭제 + afterCommit `PUBLISH drive:cache-invalidate "종류:키"`), 기동 시 구독 리스너가 payload 로 분기. `HostTenantCache.invalidateAll()`·`AccessPolicyCache.invalidate` 호출부를 이것으로
   - 끝 기준: WAS 2대에서 한쪽 수정이 다른 쪽에 1초 안에 반영, Redis 꺼도 TTL 로 반영
