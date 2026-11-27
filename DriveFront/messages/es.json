@@ -313,7 +313,7 @@
             },
             "accountLockedDialog": {
                 "title": "Su cuenta ha sido bloqueada.",
-                "desc": "Su cuenta ha sido bloqueada por demasiados intentos fallidos.\nPóngase en contacto con el administrador para desbloquearla."
+                "desc": "Su cuenta ha sido bloqueada por demasiados intentos fallidos.\nInténtelo de nuevo en 15 minutos, restablezca su contraseña o póngase en contacto con el administrador."
             },
             "oidc": {
                 "loginBtn": "Iniciar sesión con cuenta empresarial",

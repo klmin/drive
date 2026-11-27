@@ -7,6 +7,7 @@ import com.thinkfree.drive.user.dto.UserSaveResult;
 import com.thinkfree.drive.user.dto.UserUpdateDto;
 import com.thinkfree.drive.user.data.UserDetailData;
 import com.thinkfree.drive.user.data.UserDetailWithRolesData;
+import com.thinkfree.drive.user.data.LoginAttempt;
 import com.thinkfree.drive.user.data.UserAuthData;
 import com.thinkfree.drive.user.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
@@ -60,7 +61,11 @@ public interface UserService {
 
     UserAuthData updatePasswordByAdmin(Integer userSeq, String encPwd, HttpServletRequest httpRequest);
 
-    void increaseLoginFailureCount(Integer userSeq);
+    /** 비밀번호 비교 전 로그인 시도를 원자적으로 센다 — 새 트랜잭션(로그인이 실패로 롤백돼도 남는다) */
+    LoginAttempt countLoginAttempt(Integer userSeq);
+
+    /** 비밀번호가 맞은 즉시 실패 횟수 초기화 — 새 트랜잭션(MFA 등 뒤 단계가 실패·롤백돼도 맞힌 시도가 잠금으로 쌓이지 않게) */
+    void resetLoginFailureCountOnPasswordMatch(Integer userSeq);
 
     void resetLoginFailureCount(Integer userSeq);
 

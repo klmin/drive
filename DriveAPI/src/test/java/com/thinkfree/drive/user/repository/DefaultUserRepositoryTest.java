@@ -7,7 +7,9 @@ import com.thinkfree.drive.common.RepositoryTest;
 import com.thinkfree.drive.global.exception.ApiRuntimeException;
 import com.thinkfree.drive.global.jooq.JooqBatches;
 import com.thinkfree.drive.global.security.CustomUserDetails;
+import com.thinkfree.drive.user.data.LoginAttempt;
 import com.thinkfree.drive.user.data.UserAuthData;
+import com.thinkfree.drive.user.util.LoginLockPolicy;
 import com.thinkfree.drive.user.enums.RoleType;
 import com.thinkfree.drive.user.data.UserBulkStatusData;
 import com.thinkfree.drive.user.data.UserData;
@@ -843,14 +845,45 @@ class DefaultUserRepositoryTest extends RepositoryTest {
             assertThat(storedDeleteDate).isEqualTo(deleteDate);
             assertThat(loadEntity(u).getDeleteDate()).as("JPA 컨버터도 같은 벽시계").isEqualTo(deleteDate);
 
-            repository.increaseLoginFailureCount(u);
-            repository.increaseLoginFailureCount(u);
+            repository.countLoginAttempt(u, Instant.now());
+            repository.countLoginAttempt(u, Instant.now());
             assertThat(col(u, "login_failure_count", Integer.class)).isEqualTo(2);
             repository.resetLoginFailureCount(u);
             assertThat(col(u, "login_failure_count", Integer.class)).isZero();
             int inactive = insertUser("up-b", "비활성", UserStatus.INACTIVE);
-            repository.increaseLoginFailureCount(inactive);
+            assertThat(repository.countLoginAttempt(inactive, Instant.now()).outcome()).isEqualTo(LoginAttempt.Outcome.NOT_FOUND);
             assertThat(col(inactive, "login_failure_count", Integer.class)).as("ACTIVE 만 증가").isZero();
+        }
+
+        @Test
+        @DisplayName("로그인 시도 원자 카운트 — 5회까지 COUNTED, 그 뒤 LOCKED(값 그대로), 마지막 시도 15분 뒤면 1부터, NULL 시각은 오래전, 없는 계정 NOT_FOUND")
+        void countLoginAttempt() {
+            int u = insertUser("lock-a", "잠금", UserStatus.ACTIVE);
+            Instant t0 = Instant.parse("2030-01-01T00:00:00Z");
+
+            for (int i = 1; i <= LoginLockPolicy.MAX_FAILURES; i++) {
+                assertThat(repository.countLoginAttempt(u, t0.plusSeconds(i))).isEqualTo(LoginAttempt.counted(i));
+            }
+            Instant lastFailure = t0.plusSeconds(LoginLockPolicy.MAX_FAILURES);
+            assertThat(repository.countLoginAttempt(u, lastFailure.plusSeconds(60))).as("잠김").isEqualTo(LoginAttempt.locked());
+            assertThat(col(u, "login_failure_count", Integer.class)).as("잠긴 동안은 세지 않는다").isEqualTo(LoginLockPolicy.MAX_FAILURES);
+            assertThat(repository.countLoginAttempt(u, lastFailure.plus(LoginLockPolicy.LOCK_DURATION).minusSeconds(1)))
+                    .as("잠긴 동안 시도는 시각을 늘리지 않는다 — 마지막 실패 기준 15분 직전").isEqualTo(LoginAttempt.locked());
+            assertThat(repository.countLoginAttempt(u, lastFailure.plus(LoginLockPolicy.LOCK_DURATION).plusSeconds(1)))
+                    .as("15분 지나면 풀리고 1회째").isEqualTo(LoginAttempt.counted(1));
+
+            // 실패 4회 뒤 오래 지나면 1부터(잠기기 전 실패도 만료)
+            Instant t1 = t0.plus(java.time.Duration.ofHours(1));
+            repository.countLoginAttempt(u, t1);
+            repository.countLoginAttempt(u, t1);
+            repository.countLoginAttempt(u, t1);
+            assertThat(repository.countLoginAttempt(u, t1.plus(LoginLockPolicy.LOCK_DURATION).plusSeconds(1))).isEqualTo(LoginAttempt.counted(1));
+
+            // V10 이전 행(시각 NULL)은 오래전 실패로 본다
+            jdbc.update("UPDATE tb_user SET login_failure_count = 5, login_failed_at = NULL WHERE user_seq = ?", u);
+            assertThat(repository.countLoginAttempt(u, t1)).isEqualTo(LoginAttempt.counted(1));
+
+            assertThat(repository.countLoginAttempt(99999, t1)).isEqualTo(LoginAttempt.notFound());
         }
 
         @Test

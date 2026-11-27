@@ -98,10 +98,10 @@ public class AuthServiceTest extends ServiceTest {
             MockHttpServletRequest mockRequest = new MockHttpServletRequest();
             mockRequest.setRemoteAddr("121.157.114.75");
 
-            // increaseLoginFailureCount는 REQUIRES_NEW로 분리돼 테스트 트랜잭션 내 INSERT를 볼 수 없으므로
+            // 서비스의 countLoginAttempt는 REQUIRES_NEW라 테스트 트랜잭션 내 INSERT를 볼 수 없으므로(그때는 읽어 둔 값으로 판단)
             // repository를 직접 호출해 외부 트랜잭션 안에서 count를 3으로 세팅
             for (int i = 0; i < 3; i++) {
-                userRepository.increaseLoginFailureCount(testUser1.getUserSeq());
+                userRepository.countLoginAttempt(testUser1.getUserSeq(), Instant.now());
             }
 
             // when - then: 4회째 실패 → 경고
@@ -119,7 +119,7 @@ public class AuthServiceTest extends ServiceTest {
             mockRequest.setRemoteAddr("121.157.114.75");
 
             for (int i = 0; i < 4; i++) {
-                userRepository.increaseLoginFailureCount(testUser1.getUserSeq());
+                userRepository.countLoginAttempt(testUser1.getUserSeq(), Instant.now());
             }
 
             // when - then: 5회째 실패 → 계정 잠김
@@ -136,7 +136,7 @@ public class AuthServiceTest extends ServiceTest {
             mockRequest.setRemoteAddr("121.157.114.75");
 
             for (int i = 0; i < 5; i++) {
-                userRepository.increaseLoginFailureCount(testUser1.getUserSeq());
+                userRepository.countLoginAttempt(testUser1.getUserSeq(), Instant.now());
             }
 
             // when - then: 올바른 비밀번호여도 잠김
@@ -153,7 +153,7 @@ public class AuthServiceTest extends ServiceTest {
             mockRequest.setRemoteAddr("121.157.114.75");
 
             for (int i = 0; i < 2; i++) {
-                userRepository.increaseLoginFailureCount(testUser1.getUserSeq());
+                userRepository.countLoginAttempt(testUser1.getUserSeq(), Instant.now());
             }
 
             // when
@@ -255,7 +255,7 @@ public class AuthServiceTest extends ServiceTest {
             mockRequest.setRemoteAddr("121.157.114.75");
 
             for (int i = 0; i < 5; i++) {
-                userRepository.increaseLoginFailureCount(userQueryRepository.findActiveAuthByUserId(TEST_ADMIN_01.getTenantSeq(), TEST_ADMIN_01.getUserId(), RoleType.ADMIN).getUserSeq());
+                userRepository.countLoginAttempt(userQueryRepository.findActiveAuthByUserId(TEST_ADMIN_01.getTenantSeq(), TEST_ADMIN_01.getUserId(), RoleType.ADMIN).getUserSeq(), Instant.now());
             }
 
             // when - then: 실패 횟수와 무관하게 계정 잠김이 아닌 로그인 실패

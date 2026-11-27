@@ -45,7 +45,7 @@ class AuthLoginResponseMappingTest {
         Instant t = Instant.parse("2026-10-14T01:02:03Z");
         return new UserAuthData(7, "user7@thinkfree.com", "사용자7", UserStatus.ACTIVE, 1000L, 10L,
                 1, t, 2, t, UserLanguage.KO, "KR", "010-0000-0000", DefaultLandingPage.HOME, "profile/key", 3,
-                MfaStatus.ENABLED, null, 0, MfaMethod.TOTP, "secret");
+                MfaStatus.ENABLED, null, 0, null, MfaMethod.TOTP, "secret");
     }
 
     /** 기존 LoginResponse.of(UserAuthData, …) 와 같은 채움 */

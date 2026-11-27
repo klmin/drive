@@ -313,7 +313,7 @@
             },
             "accountLockedDialog": {
                 "title": "Your account has been locked.",
-                "desc": "Your account has been locked due to too many failed login attempts.\nPlease contact your administrator to unlock it."
+                "desc": "Your account has been locked due to too many failed login attempts.\nTry again in 15 minutes, reset your password, or contact your administrator."
             },
             "oidc": {
                 "loginBtn": "Login with Company Account",

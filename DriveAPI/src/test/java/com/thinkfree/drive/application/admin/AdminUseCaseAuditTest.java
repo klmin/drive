@@ -151,15 +151,30 @@ class AdminUseCaseAuditTest extends AuditMockTest {
 
     // EventName: ACCOUNT_LOCKED_STATUS_CHANGE(LoginAuditService), USER_PASSWORD_CHANGE/ADMIN_PASSWORD_CHANGE(UserAuditService)
     @Test
-    @DisplayName("updatePasswordByAdmin - 잠긴 계정(실패 5회 이상)이면 잠금 해제도 함께 기록한다")
+    @DisplayName("updatePasswordByAdmin - 잠긴 계정(15분 안에 실패 5회)이면 잠금 해제도 함께 기록한다")
     void updatePasswordByAdmin_lockedAccount_recordsUnlockAndPasswordChange() {
         UserAuthData user = authMock(20, RoleType.USER);
         given(user.getLoginFailureCount()).willReturn(5);
+        given(user.getLoginFailedAt()).willReturn(java.time.Instant.now().minusSeconds(60));
         given(userService.updatePasswordByAdmin(anyInt(), any(), any())).willReturn(user);
 
         adminUserUseCase.updatePasswordByAdmin(20, "newpw", Mockito.mock(HttpServletRequest.class));
 
         verify(loginAuditService).recordAccountUnlocked(user);
+        verify(userAuditService).record(EventName.USER_PASSWORD_CHANGE, user);
+    }
+
+    @Test
+    @DisplayName("updatePasswordByAdmin - 실패 5회라도 잠금 시간이 지났으면 이미 풀린 것이라 잠금 해제를 기록하지 않는다")
+    void updatePasswordByAdmin_expiredLock_recordsPasswordChangeOnly() {
+        UserAuthData user = authMock(20, RoleType.USER);
+        given(user.getLoginFailureCount()).willReturn(5);
+        given(user.getLoginFailedAt()).willReturn(java.time.Instant.now().minus(java.time.Duration.ofMinutes(16)));
+        given(userService.updatePasswordByAdmin(anyInt(), any(), any())).willReturn(user);
+
+        adminUserUseCase.updatePasswordByAdmin(20, "newpw", Mockito.mock(HttpServletRequest.class));
+
+        verify(loginAuditService, Mockito.never()).recordAccountUnlocked(any());
         verify(userAuditService).record(EventName.USER_PASSWORD_CHANGE, user);
     }
 

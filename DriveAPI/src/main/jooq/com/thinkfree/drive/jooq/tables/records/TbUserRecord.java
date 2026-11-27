@@ -453,6 +453,22 @@ public class TbUserRecord extends UpdatableRecordImpl<TbUserRecord> {
         return (DefaultLandingPage) get(29);
     }
 
+    /**
+     * Setter for <code>tb_user.login_failed_at</code>. 마지막 로그인 실패(시도) 시각 — 이 시각
+     * + 15분이 지나면 실패 횟수를 1부터 다시 센다. NULL 이면 오래전으로 본다
+     */
+    public void setLoginFailedAt(Instant value) {
+        set(30, value);
+    }
+
+    /**
+     * Getter for <code>tb_user.login_failed_at</code>. 마지막 로그인 실패(시도) 시각 — 이 시각
+     * + 15분이 지나면 실패 횟수를 1부터 다시 센다. NULL 이면 오래전으로 본다
+     */
+    public Instant getLoginFailedAt() {
+        return (Instant) get(30);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -476,7 +492,7 @@ public class TbUserRecord extends UpdatableRecordImpl<TbUserRecord> {
     /**
      * Create a detached, initialised TbUserRecord
      */
-    public TbUserRecord(Integer userSeq, Integer tenantSeq, String userId, String encPwd, SignupType signupType, String userName, UserStatus status, Boolean isProtected, Long totalQuotaByte, Long useQuotaByte, MfaStatus mfaStatus, MfaMethod mfaMethod, String mfaSecretKey, Instant mfaSetupDate, Instant mfaConfirmDate, Integer registerUserSeq, Instant registerDate, Integer updateUserSeq, Instant updateDate, Integer loginFailureCount, Instant pendingDeleteDate, Instant deleteScheduleTime, Instant deleteDate, Boolean isDelete, String countryCode, String phoneNumber, UserLanguage userLanguage, String profileImageKey, JSONB pinnedFolderList, DefaultLandingPage defaultLandingPage) {
+    public TbUserRecord(Integer userSeq, Integer tenantSeq, String userId, String encPwd, SignupType signupType, String userName, UserStatus status, Boolean isProtected, Long totalQuotaByte, Long useQuotaByte, MfaStatus mfaStatus, MfaMethod mfaMethod, String mfaSecretKey, Instant mfaSetupDate, Instant mfaConfirmDate, Integer registerUserSeq, Instant registerDate, Integer updateUserSeq, Instant updateDate, Integer loginFailureCount, Instant pendingDeleteDate, Instant deleteScheduleTime, Instant deleteDate, Boolean isDelete, String countryCode, String phoneNumber, UserLanguage userLanguage, String profileImageKey, JSONB pinnedFolderList, DefaultLandingPage defaultLandingPage, Instant loginFailedAt) {
         super(TbUser.TB_USER);
 
         setUserSeq(userSeq);
@@ -509,6 +525,7 @@ public class TbUserRecord extends UpdatableRecordImpl<TbUserRecord> {
         setProfileImageKey(profileImageKey);
         setPinnedFolderList(pinnedFolderList);
         setDefaultLandingPage(defaultLandingPage);
+        setLoginFailedAt(loginFailedAt);
         resetChangedOnNotNull();
     }
 }

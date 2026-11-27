@@ -55,6 +55,8 @@ public class User extends BaseAuditEntity {
     @Convert(converter = UserLanguageConverter.class)
     private UserLanguage userLanguage;
     private Integer loginFailureCount;
+    /** 마지막 로그인 실패(시도) 시각 — 잠금 해제 판단(LoginLockPolicy). 쓰기는 DefaultUserRepository#countLoginAttempt */
+    private Instant loginFailedAt;
     @Deprecated
     private String isDelete;
     private Instant deleteScheduleTime;

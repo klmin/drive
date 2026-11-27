@@ -225,6 +225,12 @@ public class TbUser extends TableImpl<TbUserRecord> {
      */
     public final TableField<TbUserRecord, DefaultLandingPage> DEFAULT_LANDING_PAGE = createField(DSL.name("default_landing_page"), SQLDataType.VARCHAR(10).nullable(false).defaultValue(DSL.field(DSL.raw("'home'::character varying"), SQLDataType.VARCHAR)), this, "로그인 후 진입할 기본 페이지", new DefaultLandingPageJooqConverter());
 
+    /**
+     * The column <code>tb_user.login_failed_at</code>. 마지막 로그인 실패(시도) 시각 — 이 시각
+     * + 15분이 지나면 실패 횟수를 1부터 다시 센다. NULL 이면 오래전으로 본다
+     */
+    public final TableField<TbUserRecord, Instant> LOGIN_FAILED_AT = createField(DSL.name("login_failed_at"), SQLDataType.INSTANT, this, "마지막 로그인 실패(시도) 시각 — 이 시각 + 15분이 지나면 실패 횟수를 1부터 다시 센다. NULL 이면 오래전으로 본다");
+
     private TbUser(Name alias, Table<TbUserRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }
