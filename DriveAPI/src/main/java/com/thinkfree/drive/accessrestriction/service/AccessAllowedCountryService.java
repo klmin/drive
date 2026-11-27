@@ -1,5 +1,6 @@
 package com.thinkfree.drive.accessrestriction.service;
 
+import com.thinkfree.drive.accessrestriction.cache.AccessPolicyCache;
 import com.thinkfree.drive.access.exception.AccessErrorCode;
 import com.thinkfree.drive.accessrestriction.component.CountryCodeRegistry;
 import com.thinkfree.drive.accessrestriction.entity.AccessAllowedCountry;
@@ -19,6 +20,7 @@ public class AccessAllowedCountryService {
     private final AccessAllowedCountryRepository accessAllowedCountryRepository;
     private final AccessAllowedCountryQueryRepository accessAllowedCountryQueryRepository;
     private final CountryCodeRegistry countryCodeRegistry;
+    private final AccessPolicyCache accessPolicyCache;
 
     @Transactional
     public void replaceAllowedCountries(Integer tenantSeq, Integer loginUserSeq, List<String> countries) {
@@ -28,6 +30,7 @@ public class AccessAllowedCountryService {
                         .with("countryCode", code);
             }
         });
+        accessPolicyCache.invalidate(tenantSeq);
         accessAllowedCountryRepository.deleteByTenant(tenantSeq);
         if (!countries.isEmpty()) {
             var entities = countries.stream()
@@ -44,6 +47,7 @@ public class AccessAllowedCountryService {
     
     /** 테넌트 삭제 — 이 테넌트의 행 전부 */
     public void deleteByTenant(Integer tenantSeq) {
+        accessPolicyCache.invalidate(tenantSeq);
         accessAllowedCountryRepository.deleteByTenant(tenantSeq);
     }
 }
