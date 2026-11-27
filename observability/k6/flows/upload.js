@@ -15,12 +15,17 @@ const MB = 1024 * 1024;
 // k6 쪽 커스텀 지표 — 파일 하나를 올리는 데 걸린 전체 시간(첫 요청~마지막 응답). 사용자가 체감하는 시간
 //   Prometheus 에는 k6_upload_file_duration_p95 등으로 간다(kind 태그: small / chunk)
 const uploadFileDuration = new Trend('upload_file_duration', true);
-// 서버가 바쁘다고(503·429, 업로드 동시 상한) 하거나 응답 없이 끊긴(0) 요청을 브라우저처럼 1·2·4초 뒤 다시 보낸 횟수,
+// 서버가 바쁘다고(503·429, 업로드 동시 상한) 하거나 응답 없이 끊긴(0, 단일 업로드는 본문을 쓰다 끊겼을 때만) 요청을 브라우저처럼 1·2·4초 뒤 다시 보낸 횟수,
 // 재시도까지 해서 끝내 올라간 파일 비율 — 첫 시도 실패는 http_req_failed 에 남고, 사용자가 보는 결과는 upload_ok 다
 const uploadRetries = new Counter('upload_retries');
 const uploadOk = new Rate('upload_ok');
 const RETRY_DELAYS_S = [1, 2, 4]; // DriveFront utils/chunkUpload.js·UploadDialog 와 같은 간격
 const isBusy = (status) => status === 503 || status === 429 || status === 0;
+// 단일 업로드(POST /files)는 멱등하지 않다 — 보낼 때마다 새 파일이 생긴다. 응답 없이 끊긴(0) 경우는 본문을 쓰다 끊겼을 때만
+// (서버가 본문을 읽기 전에 거절하고 연결을 닫은 경우) 다시 보낸다. 타임아웃·응답 읽다 끊김은 서버가 이미 저장했을 수 있어
+// 다시 보내면 지우지 못한 파일이 쌓인다(deletePermanently 는 마지막 응답의 파일만 지운다). 브라우저(UploadDialog)도 같은 기준
+const isBusySingle = (res) =>
+  res.status === 503 || res.status === 429 || (res.status === 0 && /\bwrite\b/.test(res.error || ''));
 
 let loggedIn = false;
 let partBuffer = null; // VU 마다 파트 크기만큼 한 번 만든다(반복마다 수십 MB 를 새로 만들지 않게)
@@ -61,7 +66,7 @@ export function smallUpload(sizeKb = 512) {
   const file = http.file(textBytes(Math.round(sizeKb * 1024)), fileName('small'), 'text/plain');
   let res = request('POST', '/api/v1/files', 'upload_small', { file }, { expect: 201 });
   for (const delay of RETRY_DELAYS_S) {
-    if (!isBusy(res.status)) break;
+    if (!isBusySingle(res)) break;
     uploadRetries.add(1, { kind: 'small' });
     sleep(delay);
     res = request('POST', '/api/v1/files', 'upload_small', { file }, { expect: 201 });

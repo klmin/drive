@@ -32,6 +32,11 @@ class UploadConcurrencyLimitFilterTest {
     void matchesOnlyUploadBodies() {
         assertThat(UploadConcurrencyLimitFilter.isUploadBody("PUT", PART)).isTrue();
         assertThat(UploadConcurrencyLimitFilter.isUploadBody("POST", "/api/v1/files")).isTrue();
+        // 외부 API(API Key)로 열린 같은 업로드 핸들러도 센다
+        assertThat(UploadConcurrencyLimitFilter.isUploadBody("POST", "/api/public/v1/files")).isTrue();
+        assertThat(UploadConcurrencyLimitFilter.isUploadBody("PUT", "/api/public/v1/uploads/abc/parts/1")).isTrue();
+        assertThat(UploadConcurrencyLimitFilter.isUploadBody("GET", "/api/public/v1/files")).isFalse();
+        assertThat(UploadConcurrencyLimitFilter.isUploadBody("POST", "/api/public/v1/files/10/copy")).isFalse();
 
         assertThat(UploadConcurrencyLimitFilter.isUploadBody("GET", PART)).isFalse();
         assertThat(UploadConcurrencyLimitFilter.isUploadBody("POST", "/api/v1/uploads")).isFalse();

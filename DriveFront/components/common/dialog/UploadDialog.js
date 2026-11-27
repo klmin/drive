@@ -47,7 +47,9 @@ const postSingleUploadWithRetry = async (send, signal, bodyFullySent) => {
         await new Promise(resolve =>
             setTimeout(resolve, Math.max(1000, Math.round(backoff * (0.5 + Math.random() * 0.5))))
         );
-        if (signal?.aborted) break;
+        // 기다리는 동안 취소 — 이전 오류 응답(503 등)을 돌려주면 호출부가 취소가 아니라 실패로 처리한다.
+        // undefined 를 돌려줘 호출부의 기존 취소 경로(!res)를 타게 한다
+        if (signal?.aborted) return undefined;
         res = await send();
     }
     return res;

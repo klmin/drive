@@ -25,6 +25,7 @@ import java.util.regex.Pattern;
  * 상한이 없으면 업로드가 몰리거나 한 클라이언트가 파트를 한꺼번에 보낼 때 Tomcat 스레드(200)를 거의 다 써서 목록·로그인까지 막힌다.
  * <ul>
  *   <li>대상: 청크 파트 {@code PUT /api/v1/uploads/{id}/parts/{n}}(octet-stream), 단일 업로드 {@code POST /api/v1/files}(multipart).
+ *       API Key 로 부르는 외부 경로({@code /api/public/v1/files}, 같은 핸들러)도 같은 상한에 센다.
  *       multipart 본문은 DispatcherServlet 이 컨트롤러·인터셉터보다 먼저 다 읽으므로 서블릿 필터여야 "본문 읽기 전 거절" 이 된다.</li>
  *   <li>WebOffice 저장({@code PUT /api/v1/tfo-http-storage/**})은 넣지 않는다. 사용자 브라우저가 아니라 WebOffice 서버가 서명해 보내고
  *       본문을 읽기 전에 서명·권한을 먼저 확인한다. 503 을 받았을 때 WebOffice 가 다시 보내는지 확인되지 않아, 막으면 문서 저장 실패가 된다.</li>
@@ -44,8 +45,9 @@ public class UploadConcurrencyLimitFilter extends OncePerRequestFilter {
     static final String REJECTED_METRIC = "drive.upload.body.rejected";
     static final String RETRY_AFTER_SECONDS = "1";
 
-    private static final Pattern PART_PATH = Pattern.compile("^/api/v1/uploads/[^/]+/parts/[^/]+/?$");
-    private static final Pattern SINGLE_UPLOAD_PATH = Pattern.compile("^/api/v1/files/?$");
+    // @ExternalApi 핸들러는 /api/public/v1 아래에도 같이 등록된다(ExternalApiHandlerMapping) — 단일 업로드가 그렇다. 같은 상한에 센다
+    private static final Pattern PART_PATH = Pattern.compile("^/api/(public/)?v1/uploads/[^/]+/parts/[^/]+/?$");
+    private static final Pattern SINGLE_UPLOAD_PATH = Pattern.compile("^/api/(public/)?v1/files/?$");
 
     private final int maxConcurrent;
     private final Semaphore permits;
