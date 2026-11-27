@@ -309,12 +309,45 @@ class DefaultApiKeyRepositoryTest extends RepositoryTest {
         int seq = insert(TENANT, ADMIN, "lu-1", RoleType.USER, FUTURE);
         Instant before = Instant.now().truncatedTo(ChronoUnit.SECONDS);
 
-        repository.updateLastUsedDate("lu-1");
+        assertThat(repository.updateLastUsedDate("lu-1", staleBefore())).as("NULL 이면 쓴다").isEqualTo(1);
         Instant stored = column("last_used_date", seq, OffsetDateTime.class).toInstant();
         assertThat(stored).isAfterOrEqualTo(before);
         assertThat(stored.getNano()).isZero();
         assertThat(column("update_date", seq, OffsetDateTime.class)).as("수정일은 그대로(NULL)").isNull();
         assertThat(queryRepository.findById(seq).getLastUsedDate()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("updateLastUsedDate — 1분 안에 이미 썼으면 건너뜀: 같은 키 100번 호출에 UPDATE 1번, 1분 지난 값은 다시 씀")
+    void updateLastUsedDate_skipsWithinInterval() {
+        int seq = insert(TENANT, ADMIN, "lu-2", RoleType.USER, FUTURE);
+
+        int written = 0;
+        for (int i = 0; i < 100; i++) {
+            written += repository.updateLastUsedDate("lu-2", staleBefore());
+        }
+        assertThat(written).isEqualTo(1);
+
+        Instant old = Instant.now().minus(ApiKeyService.LAST_USED_WRITE_INTERVAL).minusSeconds(5).truncatedTo(ChronoUnit.SECONDS);
+        jdbc.update("UPDATE tb_api_key SET last_used_date = ? WHERE api_key_seq = ?", OffsetDateTime.ofInstant(old, java.time.ZoneOffset.UTC), seq);
+        assertThat(repository.updateLastUsedDate("lu-2", staleBefore())).as("1분 지났으면 다시 쓴다").isEqualTo(1);
+        assertThat(column("last_used_date", seq, OffsetDateTime.class).toInstant()).isAfter(old);
+    }
+
+    @Test
+    @DisplayName("ApiKeyService.updateLastUsedDate — 인증 조회에서 읽은 값이 1분 안이면 DB 에 가지 않음")
+    void serviceSkipsWhenReadValueIsRecent() {
+        int seq = insert(TENANT, ADMIN, "lu-3", RoleType.USER, FUTURE);
+
+        apiKeyService.updateLastUsedDate("lu-3", Instant.now().minusSeconds(10));
+        assertThat(column("last_used_date", seq, OffsetDateTime.class)).as("읽은 값이 최근 — UPDATE 안 함(DB 는 NULL 그대로)").isNull();
+
+        apiKeyService.updateLastUsedDate("lu-3", null);
+        assertThat(column("last_used_date", seq, OffsetDateTime.class)).as("읽은 값이 NULL — 기록").isNotNull();
+    }
+
+    private static Instant staleBefore() {
+        return Instant.now().minus(ApiKeyService.LAST_USED_WRITE_INTERVAL);
     }
 
     @Test

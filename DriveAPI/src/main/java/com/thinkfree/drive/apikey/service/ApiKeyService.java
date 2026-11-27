@@ -3,6 +3,7 @@ package com.thinkfree.drive.apikey.service;
 import com.thinkfree.drive.apikey.dto.ApiKeySaveDto;
 import com.thinkfree.drive.apikey.enums.ApiKeyStatus;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -34,7 +35,15 @@ public interface ApiKeyService {
     String reissueByRegisterUser(int apiKeySeq, Integer registerUserSeq);
     String reissueForSuperAdmin(int apiKeySeq);
 
-    void updateLastUsedDate(String apiKey);
+    /**
+     * 인증마다 부르는 마지막 사용일 기록 — 1분({@code LAST_USED_WRITE_INTERVAL}) 안에 이미 기록됐으면 건너뛴다.
+     * @param lastUsedDate 인증 조회에서 읽은 현재 값(null 가능) — 최근이면 DB 에 가지 않는다
+     */
+    void updateLastUsedDate(String apiKey, Instant lastUsedDate);
+
+    /** 마지막 사용일을 다시 쓰는 최소 간격 — 화면 표시용 값이라 1분 정밀도면 충분 */
+    Duration LAST_USED_WRITE_INTERVAL = Duration.ofMinutes(1);
+
     /** 테넌트 삭제 — 이 테넌트의 행 전부 */
     void deleteByTenant(Integer tenantSeq);
 }
