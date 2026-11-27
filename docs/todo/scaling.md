@@ -37,9 +37,10 @@
 
 - [x] **Redis 연결·스위치 골격** — 설계 §2-3, PR #102. `drive.redis.enabled`(기본 false)·`key-prefix`, `@ConditionalOnDriveRedis`, 기동 시 PING·`maxmemory-policy` 경고, 지표 `drive_redis_up`
   - `management.health.redis` 는 Redis 를 켠 설치처도 **끈다** — 켜면 Redis 장애 때 health DOWN → LB·k8s 가 WAS 를 빼서 전체 장애가 된다. 경보는 `drive_redis_up` 으로
-- [ ] **캐시 무효화 pub/sub** — 설계 §3-1
-  - 어디: 새 `CacheInvalidator`(로컬 즉시 삭제 + afterCommit `PUBLISH drive:cache-invalidate "종류:키"`), 기동 시 구독 리스너가 payload 로 분기. `HostTenantCache.invalidateAll()`·`AccessPolicyCache.invalidate` 호출부를 이것으로
-  - 끝 기준: WAS 2대에서 한쪽 수정이 다른 쪽에 1초 안에 반영, Redis 꺼도 TTL 로 반영
+- [x] **캐시 무효화 pub/sub** — 설계 §3-1, PR #103
+  - `CacheInvalidationBroadcaster`(커밋 뒤 PUBLISH `<prefix>cache-invalidate`, payload `보낸WAS:캐시이름:키`), 캐시가 `LocallyInvalidatable` 구현 — 호출부는 그대로
+  - 구독 컨테이너는 기동 때 바로 시작하지 않는다 — Redis 에 닿지 않으면 첫 구독 예외로 앱 기동이 실패했다. 뒤에서 5초마다 시도
+  - 확인: Testcontainers Redis 로 컨텍스트 2개, 1초 안 반영. Redis 없이도 기동
 - [ ] **JWT 블랙리스트 Redis 조회** — 설계 §3-2
   - 어디: `BlacklistTokenFindService` 구현(Redis → 오류 시 DB), 로그아웃 시 DB + afterCommit Redis SET(TTL = 토큰 남은 만료), 재적재 완료 표시 키(없으면 DB 조회), 1분 주기 동기화(ShedLock)
   - Redis `maxmemory-policy noeviction` 을 설치 문서·설치기에 고정 — 밀려나면 로그아웃 토큰이 통과
