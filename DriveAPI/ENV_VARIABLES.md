@@ -60,6 +60,9 @@ docker·k8s 는 같은 내용을 `KEY=value` 형식(따옴표·`export` 없음)�
 - **dev**: 키 3개는 로컬 `.env.example` 과 같은 값을 쓴다(같은 dev DB 라 SMTP AES 가 같아야 하고, 그대로 옮기면 가장 간단하다). 기존 dev 동작을 유지하려면 `DRIVE_FRONT_BASE_URL`(기존 `http://localhost:3000`), `DRIVE_TENANT_DEV_FALLBACK_ENABLED=true`, 외부 호출 본문 로그 `DRIVE_REST_CLIENT_TRACE_ENABLED=true`(기존 dev 는 켜짐), 감사 로그 인스턴스 이름 `GOVERNANCE_ORIGIN_INSTANCE_ID`(예: `tfd-dev`). Ceph 용량 조회를 쓰면 `DRIVE_STORAGE_ADMIN_*` 3개.
 - **운영**: 키 3개 — SMTP AES 는 **예전 jar 내장값 그대로**(`--existing-db` 가 넣어 준다), JWT·다운로드는 새로 만든다. `GOVERNANCE_ORIGIN_INSTANCE_ID` 에 설치처 이름, `DRIVE_EMBED_ALLOWED_ORIGINS` 에 허용 origin 지정(기본 `*`), HTTPS 로 서비스하면 `DRIVE_AUTH_COOKIE_SECURE=true`. `DRIVE_TENANT_DEV_FALLBACK_ENABLED`·`DRIVE_REST_CLIENT_TRACE_ENABLED` 는 넣지 않는다(기본 `false`).
 - **k8s**: 배치 담당이 아닌 파드는 `DRIVE_SCHEDULER_BATCH_ENABLED=false`.
+- **앞단 프록시(Apache·nginx·LB)와 클라이언트 IP**: 앱은 `X-Forwarded-For` 를 직접 읽지 않고, Tomcat 이 **신뢰 프록시에서 온 요청만** 그 헤더로 클라이언트 IP 를 정한다(IP 접근 제한·감사 로그가 이 값을 쓴다). 기본 신뢰 범위는 사설 대역(10/8·172.16/12·192.168/16·127/8 등)이다.
+  - 프록시가 공인 IP 면(CDN 등) `SERVER_TOMCAT_REMOTEIP_TRUSTEDPROXIES` 에 그 주소 정규식을 넣는다. 안 넣으면 모든 요청이 프록시 IP 로 보인다.
+  - 사용자 PC 가 사설 대역에 있는 설치처는 `SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES` 를 **프록시 주소만**으로 좁힌다(예: `10\.0\.1\.5`). 기본 범위 그대로면 사설 대역 사용자가 보낸 `X-Forwarded-For` 도 프록시가 붙인 것으로 보고 따라가, IP 접근 제한을 피할 수 있다.
 
 ### 1-3. 키 3개 만들기 — `DriveInstaller/thinkfree/TFD/generate_secret_keys.sh`
 

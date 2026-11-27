@@ -53,7 +53,7 @@ class IpAccessFilterTest {
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
         chain = new MockFilterChain();
-        request.addHeader("X-Forwarded-For", CLIENT_IP);
+        request.setRemoteAddr(CLIENT_IP); // 프록시 뒤 실제 IP 는 RemoteIpValve 가 remoteAddr 로 넣어 준다
         TenantContext.set(TENANT);
     }
 
