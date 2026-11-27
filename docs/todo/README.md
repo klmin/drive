@@ -13,4 +13,5 @@
 |---|---|---|
 | [next-session.md](next-session.md) | **새 세션 시작점** — 읽는 순서·진행 상태·다음 할 일·환경 메모 | — |
 | [upload-session.md](upload-session.md) | 업로드 세션 재설계 남은 작업(단계 4 이후·정리·운영) | [설계](../design/upload-session-redesign.md), [현재 구현](../design/upload-session-as-built.md) |
+| [scaling.md](scaling.md) | 분산 환경·대용량 트래픽(업로드 상한·로그인 잠금·캐시·Redis·rate limit·비동기) | [설계](../design/scaling-strategy.md) |
 | [dependabot.md](dependabot.md) | Dependabot 경고 2건(백엔드) 처리 | Dependabot PR #28·#29 |
