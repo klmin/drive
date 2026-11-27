@@ -5,6 +5,7 @@ import com.thinkfree.drive.auth.token.blacklist.entity.BlacklistToken;
 import com.thinkfree.drive.auth.token.blacklist.query.BlacklistTokenExpireQuery;
 import com.thinkfree.drive.auth.token.blacklist.repository.BlacklistTokenRepository;
 import com.thinkfree.drive.auth.token.blacklist.service.BlacklistTokenService;
+import com.thinkfree.drive.auth.token.blacklist.store.BlacklistStore;
 import com.thinkfree.drive.auth.utils.JwtProvider;
 import com.thinkfree.drive.auth.utils.TokenHasher;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class DefaultBlacklistTokenService implements BlacklistTokenService {
     private final BlacklistTokenConverter blacklistTokenConverter;
     private final BlacklistTokenRepository blacklistTokenRepository;
     private final JwtProvider jwtProvider;
+    private final BlacklistStore blacklistStore;
     
     @Override
     public void save(String accessToken) {
@@ -31,6 +33,7 @@ public class DefaultBlacklistTokenService implements BlacklistTokenService {
         var tokenHash = TokenHasher.hash(accessToken);
         BlacklistToken entity = blacklistTokenConverter.toSaveBlacklistToken(loginTokenClaims, tokenHash);
         blacklistTokenRepository.save(entity);
+        blacklistStore.add(tokenHash, entity.getExpirationDate()); // DB 커밋 뒤 Redis 사본에도
     }
     
     @Override

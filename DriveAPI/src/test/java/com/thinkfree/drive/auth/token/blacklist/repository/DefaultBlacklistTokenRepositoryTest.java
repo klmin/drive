@@ -112,4 +112,18 @@ class DefaultBlacklistTokenRepositoryTest extends RepositoryTest {
         assertThat(repository.deleteExpiredTokens(now.plus(1, ChronoUnit.DAYS))).as("기준이 만료 뒤면 삭제").isEqualTo(1);
         assertThat(exists(hash("live"))).isFalse();
     }
+
+    @Test
+    @DisplayName("findAllNotExpired — 만료 시각 > 기준인 (해시, 만료) 만, Redis 재적재용")
+    void findAllNotExpired() {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        repository.save(token(USER_A, hash("gone"), now.minusSeconds(7200), now.minusSeconds(60)));
+        repository.save(token(USER_B, hash("alive"), now, now.plusSeconds(3600)));
+
+        var entries = queryRepository.findAllNotExpired(now).stream()
+                .filter(e -> e.tokenHash().equals(hash("gone")) || e.tokenHash().equals(hash("alive")))
+                .toList();
+        assertThat(entries).extracting(e -> e.tokenHash()).containsExactly(hash("alive"));
+        assertThat(entries.get(0).expirationDate()).isEqualTo(now.plusSeconds(3600));
+    }
 }
