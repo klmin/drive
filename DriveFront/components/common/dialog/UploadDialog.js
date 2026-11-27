@@ -27,6 +27,30 @@ import {
 // 비동기 흐름에서 "e === STOP" 비교가 실패할 수 있음 → 컴포넌트 외부로 이동
 const STOP = Symbol('STOP_UPLOAD');
 
+// 단일 요청 업로드(POST /files) 재시도 — 서버가 업로드 동시 상한을 넘으면 본문을 읽기 전에 503(+ 연결 끊김)으로 거절한다.
+// 청크 파트(chunkUpload.js)와 같이 1·2·4초 간격으로 3번 더 보낸다.
+// 응답 없이 연결이 끊긴 경우는 본문을 다 보내기 전일 때만 재시도한다 — 다 보낸 뒤라면 서버가 이미 저장했을 수 있어 다시 보내면 파일이 둘이 된다.
+const SINGLE_UPLOAD_ATTEMPTS = 4;
+const SINGLE_UPLOAD_RETRY_BASE_MS = 1000;
+const isBusyUploadResponse = (res, signal, bodyFullySent) =>
+    !signal?.aborted &&
+    (res?.code === 503 || res?.code === 429 || (res === undefined && !bodyFullySent()));
+const postSingleUploadWithRetry = async (send, signal, bodyFullySent) => {
+    let res = await send();
+    for (
+        let attempt = 1;
+        attempt < SINGLE_UPLOAD_ATTEMPTS && isBusyUploadResponse(res, signal, bodyFullySent);
+        attempt++
+    ) {
+        await new Promise(resolve =>
+            setTimeout(resolve, SINGLE_UPLOAD_RETRY_BASE_MS * 2 ** (attempt - 1))
+        );
+        if (signal?.aborted) break;
+        res = await send();
+    }
+    return res;
+};
+
 const UPLOAD_STATUS = {
     WAITING: '대기',
     UPLOADING: '진행중',
@@ -632,20 +656,25 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                       })
                     : USE_SINGLE_REQUEST;
             if (res === USE_SINGLE_REQUEST) {
-                res = await api.PostForm(
-                    'files',
-                    {
-                        file: fileToSend,
-                        pfs: parentPfs,
-                        ss: currentSs || undefined,
-                    },
-                    {
-                        signal: controller.signal,
-                        onUploadProgress: event => {
-                            if (!event) return;
-                            if (event.total && event.loaded >= event.total) markSent();
-                        },
-                    }
+                res = await postSingleUploadWithRetry(
+                    () =>
+                        api.PostForm(
+                            'files',
+                            {
+                                file: fileToSend,
+                                pfs: parentPfs,
+                                ss: currentSs || undefined,
+                            },
+                            {
+                                signal: controller.signal,
+                                onUploadProgress: event => {
+                                    if (!event) return;
+                                    if (event.total && event.loaded >= event.total) markSent();
+                                },
+                            }
+                        ),
+                    controller.signal,
+                    () => sentMarked
                 );
             }
 
@@ -981,26 +1010,31 @@ export default function UploadDialog({ open, onClose, uploadSource = 'input', ..
                               })
                             : USE_SINGLE_REQUEST;
                     if (res === USE_SINGLE_REQUEST) {
-                        res = await api.PostForm(
-                            'files',
-                            {
-                                file: fileToSend,
-                                pfs: parentPfs,
-                                ss: currentSs || undefined,
-                                ...(existingResourceSeq && {
-                                    rs: existingResourceSeq,
-                                    st: saveType,
-                                }),
-                            },
-                            {
-                                signal: controller.signal,
-                                onUploadProgress: event => {
-                                    if (!event) return;
-                                    if (event.total && event.loaded >= event.total) {
-                                        markSent();
+                        res = await postSingleUploadWithRetry(
+                            () =>
+                                api.PostForm(
+                                    'files',
+                                    {
+                                        file: fileToSend,
+                                        pfs: parentPfs,
+                                        ss: currentSs || undefined,
+                                        ...(existingResourceSeq && {
+                                            rs: existingResourceSeq,
+                                            st: saveType,
+                                        }),
+                                    },
+                                    {
+                                        signal: controller.signal,
+                                        onUploadProgress: event => {
+                                            if (!event) return;
+                                            if (event.total && event.loaded >= event.total) {
+                                                markSent();
+                                            }
+                                        },
                                     }
-                                },
-                            }
+                                ),
+                            controller.signal,
+                            () => sentMarked
                         );
                     }
 

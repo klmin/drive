@@ -6,8 +6,8 @@
 // 올린 파일은 DELETE /api/v1/files/{id}(휴지통을 거치지 않는 영구 삭제)로 지운다 — 사용자 용량(seed 100MB)이 차지 않게, 삭제 대기열도 같이 지나가게.
 //   부하 테스트 실행 구성은 배치 스케줄러가 꺼져 있어 스토리지 객체는 실제로 지워지지 않고 tb_storage_deletion 에 쌓인다.
 import http from 'k6/http';
-import { check } from 'k6';
-import { Trend } from 'k6/metrics';
+import { check, sleep } from 'k6';
+import { Counter, Rate, Trend } from 'k6/metrics';
 import { BASE_URL, loginAsVuUser, request, roleHeaders, data } from '../lib/drive.js';
 
 const MB = 1024 * 1024;
@@ -15,6 +15,12 @@ const MB = 1024 * 1024;
 // k6 쪽 커스텀 지표 — 파일 하나를 올리는 데 걸린 전체 시간(첫 요청~마지막 응답). 사용자가 체감하는 시간
 //   Prometheus 에는 k6_upload_file_duration_p95 등으로 간다(kind 태그: small / chunk)
 const uploadFileDuration = new Trend('upload_file_duration', true);
+// 서버가 바쁘다고(503·429, 업로드 동시 상한) 하거나 응답 없이 끊긴(0) 요청을 브라우저처럼 1·2·4초 뒤 다시 보낸 횟수,
+// 재시도까지 해서 끝내 올라간 파일 비율 — 첫 시도 실패는 http_req_failed 에 남고, 사용자가 보는 결과는 upload_ok 다
+const uploadRetries = new Counter('upload_retries');
+const uploadOk = new Rate('upload_ok');
+const RETRY_DELAYS_S = [1, 2, 4]; // DriveFront utils/chunkUpload.js·UploadDialog 와 같은 간격
+const isBusy = (status) => status === 503 || status === 429 || status === 0;
 
 let loggedIn = false;
 let partBuffer = null; // VU 마다 파트 크기만큼 한 번 만든다(반복마다 수십 MB 를 새로 만들지 않게)
@@ -53,8 +59,15 @@ export function smallUpload(sizeKb = 512) {
   ensureLogin();
   const started = Date.now();
   const file = http.file(textBytes(Math.round(sizeKb * 1024)), fileName('small'), 'text/plain');
-  const res = request('POST', '/api/v1/files', 'upload_small', { file }, { expect: 201 });
+  let res = request('POST', '/api/v1/files', 'upload_small', { file }, { expect: 201 });
+  for (const delay of RETRY_DELAYS_S) {
+    if (!isBusy(res.status)) break;
+    uploadRetries.add(1, { kind: 'small' });
+    sleep(delay);
+    res = request('POST', '/api/v1/files', 'upload_small', { file }, { expect: 201 });
+  }
   const saved = data(res);
+  uploadOk.add(!!saved, { kind: 'small' });
   if (saved) uploadFileDuration.add(Date.now() - started, { kind: 'small' });
   deletePermanently(saved && saved.resourceSeq);
 }
@@ -87,7 +100,16 @@ function uploadChunked(name, size, cancelling = false) {
       batch.push({ method: 'PUT', url: `${BASE_URL}/api/v1/uploads/${sessionId}/parts/${n}`, body: n === partCount ? lastBuffer : partBuffer, params });
     }
     let ok = true;
-    for (const res of http.batch(batch)) {
+    const results = http.batch(batch);
+    for (let i = 0; i < results.length; i++) {
+      let res = results[i];
+      // 브라우저처럼 바쁨(503·429)·끊김(0)은 그 파트만 1·2·4초 뒤 다시 보낸다
+      for (const delay of RETRY_DELAYS_S) {
+        if (!isBusy(res.status)) break;
+        uploadRetries.add(1, { kind: 'chunk' });
+        sleep(delay);
+        res = http.request(batch[i].method, batch[i].url, batch[i].body, params);
+      }
       ok = check(res, { 'upload_part 200': (r) => r.status === 200 }) && ok;
     }
     if (!ok) {
@@ -108,7 +130,9 @@ function uploadChunked(name, size, cancelling = false) {
 export function chunkUpload(sizeMb = 40, cancelRate = 0.1) {
   ensureLogin();
   const started = Date.now();
-  const done = uploadChunked(fileName('chunk'), Math.round(sizeMb * MB), Math.random() < cancelRate);
+  const cancelling = Math.random() < cancelRate;
+  const done = uploadChunked(fileName('chunk'), Math.round(sizeMb * MB), cancelling);
+  if (!cancelling) uploadOk.add(!!done, { kind: 'chunk' });
   if (done) uploadFileDuration.add(Date.now() - started, { kind: 'chunk' });
   deletePermanently(done && done.resourceSeq);
 }

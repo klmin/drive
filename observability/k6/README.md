@@ -403,8 +403,7 @@ k6 는 코어 7~9, WAS·PG 는 코어 0~6 에 고정했다(WAS 힙 4GB, Tomcat �
 **남은 일**
 1. 수정 후 jar 로 재측정 — 다운로드 50·100·150·200명(100명까지 대기 없이 받고 넘치면 503 인지, Tomcat 바쁜 스레드가 낮게 유지되는지),
    업로드 비정상 클라이언트(파트 500 → 503, 피해 사용자 p95), 업로드 정상(`upload.js -e PROFILE=stress -e THINK=0`, 실패 0 유지). 이 표에 전후로 채운다.
-2. 업로드 파트 동시 상한 — 지금은 서버가 막지 않아 Tomcat 스레드 200 까지 쓸 수 있다(비정상 클라이언트 측정에서 198/200). WAS 인스턴스 단위 세마포어(50 안팎, 본문 읽기 전 503 + `Retry-After`)로 막고,
-   S3 풀 = 다운로드 상한 + 업로드 상한 + 20 으로 맞춘다. 프론트(`DriveFront/utils/chunkUpload.js`)는 파트 5xx·네트워크 오류를 1·2·4초 간격으로 3번 재시도한다.
+2. ~~업로드 파트 동시 상한~~ → 2026-11-27 `UploadConcurrencyLimitFilter`(`drive.upload.max-concurrent-bodies`, 기본 50)로 넣고 전후를 쟀다 — 아래 "결과 8".
 3. 다운로드 상한을 설치처 회선·스토리지 사양으로 정한다 — 이 PC 는 내부 전송(약 960MB/s)이라 회선 병목이 재현되지 않는다. 운영과 같은 구성(WAS·스토리지 분리)에서 1인당 속도를 확인한다.
 4. 범위 밖으로 둔 것: 전송용·제어용(complete·abort·삭제) S3 클라이언트 분리, `S3AsyncClient` 풀, WAS 여러 대일 때 스토리지 동시 연결(풀 × WAS 대수) 한도 확인.
 
@@ -448,13 +447,16 @@ bash observability/k6/results/2026-11-22-s3-pool/run-k6.sh after-abuse abuse-par
   - 종류별 동시 수가 필요하면 `writeTo` 시작·끝에서 올리고 내리는 게이지를 `kind`(file·zip·version·profile) 라벨로 둔다.
   - 스트리밍 기능별로 상한을 따로 두려면 실행기 하나(크기 = 합계) + 기능별 세마포어(넘치면 그 기능만 503).
 
-#### 설계 메모 — 업로드 파트 동시 상한(남은 일 2)
+#### 설계 메모 — 업로드 파트 동시 상한(남은 일 2, 구현: `global/filter/UploadConcurrencyLimitFilter`)
 
+- 대상은 본문을 받는 두 경로 — 청크 파트 `PUT .../parts/{n}`(octet-stream)과 단일 업로드 `POST /api/v1/files`(multipart). multipart 는 DispatcherServlet 이 컨트롤러·인터셉터보다 먼저 본문을 다 읽으므로 서블릿 필터(테넌트 필터 다음, 시큐리티 앞)에 둔다.
+- 거절 응답에는 `Connection: close` 를 붙인다 — 읽지 않은 본문이 같은 연결의 다음 요청으로 읽히지 않게. 단일 업로드도 프론트(`UploadDialog`)가 503·429 를 1·2·4초 간격으로 재시도한다(응답 없이 끊긴 경우는 본문을 다 보내기 전일 때만 — 다 보낸 뒤면 이미 저장됐을 수 있다).
+- 지표 이름은 `drive_upload_body_active`·`drive_upload_body_max`·`drive_upload_body_rejected_total`.
 - 업로드 파트(`PUT /api/v1/uploads/{sessionId}/parts/{n}`)는 동기 요청이라 Tomcat 요청 스레드가 파트 전송(16MB) 동안 S3 연결과 함께 점유한다. 별도 스레드 풀을 만들지 않고 **개수만 센다**.
 - WAS 인스턴스 단위 `java.util.concurrent.Semaphore`(JVM 안의 카운터, OS 세마포어 아님) 50 안팎:
   `tryAcquire()`(기다리지 않음) 실패 → 본문을 읽기 전에 503 + `Retry-After: 1`, 성공하면 처리 후 `finally` 에서 반납. 업로드가 없을 때는 Tomcat 200 을 다른 API 가 다 쓴다 — 미리 떼어 두는 게 아니라 최대치만 묶는다.
 - 세션 단위·Redis 로 세지 않는 이유: 한 세션의 파트가 여러 WAS 로 흩어지고, Redis 카운터는 WAS 가 죽으면 반납되지 않는다. 지키려는 것은 그 WAS 의 Tomcat 스레드와 S3 풀이다. WAS 가 여러 대면 전체 상한 = 50 × 대수.
-- 지표: 사용 중 게이지·거절 카운터(`drive.upload.part.rejected`). 프론트(`DriveFront/utils/chunkUpload.js`)는 파트 5xx·429·네트워크 오류를 1·2·4초 간격으로 3번 재시도한다 —
+- 프론트(`DriveFront/utils/chunkUpload.js`)는 파트 5xx·429·네트워크 오류를 1·2·4초 간격으로 3번 재시도한다 —
   본문을 다 읽지 않고 거절하면 Tomcat 이 연결을 끊어 네트워크 오류로 보일 수 있는데 이것도 재시도 대상이다. 7초 넘게 붐비면 그 파트는 실패하고, 올린 파트는 남아 이어 올릴 수 있다.
 - 이 상한 없이 S3 풀만으로도 업로드는 결국 막히지만(2초 대기 뒤 503), 그동안 Tomcat 스레드가 200 까지 찰 수 있고 업로드·다운로드가 S3 풀을 서로 빼앗는다.
 
