@@ -40,7 +40,7 @@ class LoginRateLimitTest {
     }
 
     private LoginRateLimitGuard guard(long perAccount, long perIp) {
-        return new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(true, perAccount, perIp, 3), meters);
+        return new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(true, perAccount, perIp, 3, 2, 2, 3), meters);
     }
 
     private static MockHttpServletRequest from(String ip) {
@@ -61,6 +61,59 @@ class LoginRateLimitTest {
         assertThat(wait).isPositive().isLessThanOrEqualTo(Duration.ofSeconds(20));
         assertThat(limiter.tryConsume("b", rule)).as("다른 키").isZero();
         assertThat(limiter.tryConsume("a", new RateLimitRule("u", 3, Duration.ofMinutes(1)))).as("다른 규칙").isZero();
+    }
+
+    @Test
+    @DisplayName("MFA 코드 확인 — 같은 사용자 분당 N 번, 다른 사용자는 따로")
+    void mfaPerUser() {
+        LoginRateLimitGuard guard = guard(10, 100); // mfaPerUser = 2
+
+        guard.checkMfa(7);
+        guard.checkMfa(7);
+        assertThatThrownBy(() -> guard.checkMfa(7)).isInstanceOf(RateLimitExceededException.class);
+        assertThatNoException().isThrownBy(() -> guard.checkMfa(8));
+        assertThat(meters.counter("drive.rate.limit.rejected", "rule", "mfa-user").count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("재설정 링크 요청 — 같은 아이디는 IP 가 달라도 15분에 N 번, 테넌트가 다르면 따로")
+    void resetLinkPerAccount() {
+        LoginRateLimitGuard guard = guard(10, 100); // passwordResetLinkPerAccount = 2
+        TenantContext.set(1);
+
+        guard.checkPasswordResetLink("victim@test.com", from("10.0.0.1"));
+        guard.checkPasswordResetLink(" Victim@Test.com ", from("10.0.0.2"));
+        assertThatThrownBy(() -> guard.checkPasswordResetLink("victim@test.com", from("10.0.0.3")))
+                .isInstanceOf(RateLimitExceededException.class)
+                .satisfies(e -> assertThat(((RateLimitExceededException) e).getRetryAfterSeconds())
+                        .as("15분에 2개 → 다음 토큰 약 7.5분").isBetween(420L, 480L));
+
+        TenantContext.set(2);
+        assertThatNoException().isThrownBy(() -> guard.checkPasswordResetLink("victim@test.com", from("10.0.0.1")));
+    }
+
+    @Test
+    @DisplayName("재설정 링크 요청 — 같은 IP 는 아이디를 바꿔도 분당 N 번")
+    void resetLinkPerIp() {
+        LoginRateLimitGuard guard = guard(10, 100); // passwordResetLinkPerIp = 3
+        TenantContext.set(1);
+
+        guard.checkPasswordResetLink("a@test.com", from("10.0.0.9"));
+        guard.checkPasswordResetLink("b@test.com", from("10.0.0.9"));
+        guard.checkPasswordResetLink("c@test.com", from("10.0.0.9"));
+        assertThatThrownBy(() -> guard.checkPasswordResetLink("d@test.com", from("10.0.0.9")))
+                .isInstanceOf(RateLimitExceededException.class);
+    }
+
+    @Test
+    @DisplayName("설정 화면의 본인 재설정 링크 요청 — 사용자 기준, 로그인 전 요청(아이디 키)과는 따로 센다")
+    void myResetLinkPerUser() {
+        LoginRateLimitGuard guard = guard(10, 100);
+
+        guard.checkMyPasswordResetLink(5);
+        guard.checkMyPasswordResetLink(5);
+        assertThatThrownBy(() -> guard.checkMyPasswordResetLink(5)).isInstanceOf(RateLimitExceededException.class);
+        assertThatNoException().isThrownBy(() -> guard.checkMyPasswordResetLink(6));
     }
 
     @Test
@@ -125,7 +178,7 @@ class LoginRateLimitTest {
     @DisplayName("꺼져 있으면 제한하지 않는다")
     void disabled() {
         TenantContext.set(1);
-        LoginRateLimitGuard guard = new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(false, 1, 1, 1), meters);
+        LoginRateLimitGuard guard = new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(false, 1, 1, 1, 1, 1, 1), meters);
         for (int i = 0; i < 5; i++) {
             guard.checkLogin(RoleType.USER, "kim", from("10.0.0.1"));
             guard.checkAnonymousLogin(from("10.0.0.1"));

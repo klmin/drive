@@ -324,6 +324,9 @@ drive:
     login-per-account: ${DRIVE_RATE_LIMIT_LOGIN_PER_ACCOUNT:10}
     login-per-ip: ${DRIVE_RATE_LIMIT_LOGIN_PER_IP:100}
     anonymous-login-per-ip: ${DRIVE_RATE_LIMIT_ANONYMOUS_LOGIN_PER_IP:30}
+    mfa-per-user: ${DRIVE_RATE_LIMIT_MFA_PER_USER:5}
+    password-reset-link-per-account: ${DRIVE_RATE_LIMIT_PASSWORD_RESET_LINK_PER_ACCOUNT:3}   # 15분당
+    password-reset-link-per-ip: ${DRIVE_RATE_LIMIT_PASSWORD_RESET_LINK_PER_IP:20}
   # 시간대 — 요청 날짜 해석·년월일 검색 경계·응답 시각 표시의 기준(JVM 기본 시간대는 쓰지 않는다). 설치처에서 DRIVE_TIME_ZONE 으로 변경
   time-zone: ${DRIVE_TIME_ZONE:Asia/Seoul}
   license:

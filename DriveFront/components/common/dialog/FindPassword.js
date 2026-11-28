@@ -49,6 +49,9 @@ export default function FindPassword({ open, onClose, ...props }) {
             if (res?.code === 200) {
                 showSnackbar(t('passwordResetEmail.success'), 'success');
                 onClose();
+            } else if (res?.errorCode === 'REQUEST_013') {
+                // 요청 수 제한(429)
+                showSnackbar(t('passwordResetEmail.tooManyRequests'), 'error');
             } else {
                 showSnackbar(t('passwordResetEmail.fail'), 'error');
             }

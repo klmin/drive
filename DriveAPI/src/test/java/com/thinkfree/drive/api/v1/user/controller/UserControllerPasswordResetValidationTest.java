@@ -30,7 +30,7 @@ class UserControllerPasswordResetValidationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new UserController(mock(UserUseCase.class), userService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new UserController(mock(UserUseCase.class), userService, mock(com.thinkfree.drive.global.ratelimit.LoginRateLimitGuard.class))).build();
     }
 
     private org.springframework.test.web.servlet.ResultActions send(String json) throws Exception {

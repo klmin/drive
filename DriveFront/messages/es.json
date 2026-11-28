@@ -582,7 +582,8 @@
     },
     "passwordResetEmail": {
         "success": "Por favor, revisa tu correo electrónico. Se ha enviado un mensaje con instrucciones para restablecer tu contraseña.",
-        "fail": "Error al enviar el correo electrónico."
+        "fail": "Error al enviar el correo electrónico.",
+        "tooManyRequests": "Ha solicitado correos de restablecimiento con demasiada frecuencia. Inténtelo de nuevo más tarde."
     },
     "notifications": {
         "title": "Notificaciones",
@@ -1011,6 +1012,7 @@
     },
     "mfaVerify": {
         "description": "Introduce el código de 6 dígitos que aparece en tu aplicación de autenticación.",
+        "tooManyRequests": "Demasiados intentos de verificación. Inténtelo de nuevo más tarde.",
         "placeholder": "000000",
         "invalidCode": "El código de verificación no es válido. Por favor, inténtalo de nuevo.",
         "expiredChallenge": "La solicitud de autenticación ha caducado. Por favor, inicia sesión de nuevo."

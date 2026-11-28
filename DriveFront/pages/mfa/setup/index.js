@@ -81,6 +81,12 @@ export default function Setup() {
                 t: confirmToken,
             });
 
+            // 요청 수 제한(429) — api 공통 처리가 에러를 throw 하지 않고 본문을 돌려준다
+            if (res?.errorCode === 'REQUEST_013') {
+                showSnackbar(t('mfaVerify.tooManyRequests'), 'error');
+                return;
+            }
+
             if (res?.code === 200) {
                 removeMfaSetup();
 
