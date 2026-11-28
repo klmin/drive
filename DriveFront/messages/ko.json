@@ -504,7 +504,8 @@
         },
         "access": {
             "success": "공유 링크 접근 성공",
-            "fail": "공유 링크 접근 실패"
+            "fail": "공유 링크 접근 실패",
+            "tooManyRequests": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."
         },
         "update": {
             "success": "공유 수정 성공",

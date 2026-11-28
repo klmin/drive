@@ -331,6 +331,7 @@ drive:
     password-reset-link-per-account: ${DRIVE_RATE_LIMIT_PASSWORD_RESET_LINK_PER_ACCOUNT:3}   # 15분당
     password-reset-link-per-ip: ${DRIVE_RATE_LIMIT_PASSWORD_RESET_LINK_PER_IP:20}
     api-key-per-key: ${DRIVE_RATE_LIMIT_API_KEY_PER_KEY:600}   # API Key·MCP 연동 하나당 분당
+    share-link-access: ${DRIVE_RATE_LIMIT_SHARE_LINK_ACCESS:60}   # 공유 링크 열기 — IP(로그인 시 사용자) 분당
   # 시간대 — 요청 날짜 해석·년월일 검색 경계·응답 시각 표시의 기준(JVM 기본 시간대는 쓰지 않는다). 설치처에서 DRIVE_TIME_ZONE 으로 변경
   time-zone: ${DRIVE_TIME_ZONE:Asia/Seoul}
   license:

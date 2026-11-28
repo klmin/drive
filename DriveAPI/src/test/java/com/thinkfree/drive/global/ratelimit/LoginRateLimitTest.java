@@ -2,6 +2,14 @@ package com.thinkfree.drive.global.ratelimit;
 
 import com.thinkfree.drive.api.v1.auth.controller.AuthController;
 import com.thinkfree.drive.api.v1.auth.usecase.AuthUseCase;
+import com.thinkfree.drive.api.v1.share.controller.ShareController;
+import com.thinkfree.drive.api.v1.share.converter.ShareRequestConverter;
+import com.thinkfree.drive.api.v1.share.converter.ShareResponseConverter;
+import com.thinkfree.drive.api.v1.share.request.ShareLinkAccessRequest;
+import com.thinkfree.drive.application.share.ShareUseCase;
+import com.thinkfree.drive.global.enums.AuthSource;
+import com.thinkfree.drive.global.security.CustomUserDetails;
+import com.thinkfree.drive.global.security.UserDetailDto;
 import com.thinkfree.drive.auth.cookie.AuthCookieManager;
 import com.thinkfree.drive.global.exception.ApiGlobalExceptionHandler;
 import com.thinkfree.drive.global.security.TenantContext;
@@ -23,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -40,7 +49,7 @@ class LoginRateLimitTest {
     }
 
     private LoginRateLimitGuard guard(long perAccount, long perIp) {
-        return new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(true, perAccount, perIp, 3, 2, 2, 3, 600), meters);
+        return new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(true, perAccount, perIp, 3, 2, 2, 3, 600, 2), meters);
     }
 
     private static MockHttpServletRequest from(String ip) {
@@ -178,7 +187,7 @@ class LoginRateLimitTest {
     @DisplayName("꺼져 있으면 제한하지 않는다")
     void disabled() {
         TenantContext.set(1);
-        LoginRateLimitGuard guard = new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(false, 1, 1, 1, 1, 1, 1, 1), meters);
+        LoginRateLimitGuard guard = new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(false, 1, 1, 1, 1, 1, 1, 1, 1), meters);
         for (int i = 0; i < 5; i++) {
             guard.checkLogin(RoleType.USER, "kim", from("10.0.0.1"));
             guard.checkAnonymousLogin(from("10.0.0.1"));
@@ -210,5 +219,49 @@ class LoginRateLimitTest {
                 .andExpect(header().exists("Retry-After"))
                 .andExpect(jsonPath("$.errorCode").value("REQUEST_013"));
         verify(useCase, never()).adminLogin(any(), any());
+    }
+
+    @Test
+    @DisplayName("공유 링크 열기 — 미로그인은 IP(테넌트별), 로그인은 사용자 기준, 익명 로그인과 버킷이 따로")
+    void shareLinkAccess() {
+        TenantContext.set(1);
+        LoginRateLimitGuard guard = guard(100, 100); // 공유 링크 한도 2
+        guard.checkShareLinkAccess(null, from("10.0.0.5"));
+        guard.checkShareLinkAccess(null, from("10.0.0.5"));
+        assertThatThrownBy(() -> guard.checkShareLinkAccess(null, from("10.0.0.5")))
+                .isInstanceOf(RateLimitExceededException.class)
+                .extracting("rule").isEqualTo("share-link-ip");
+        assertThatNoException().isThrownBy(() -> guard.checkAnonymousLogin(from("10.0.0.5")));   // 익명 로그인은 따로
+        assertThatNoException().isThrownBy(() -> guard.checkShareLinkAccess(null, from("10.0.0.6")));
+
+        TenantContext.set(2);
+        assertThatNoException().isThrownBy(() -> guard.checkShareLinkAccess(null, from("10.0.0.5"))); // 다른 테넌트
+
+        guard.checkShareLinkAccess(77, from("10.0.0.5"));
+        guard.checkShareLinkAccess(77, from("10.0.0.5"));
+        assertThatThrownBy(() -> guard.checkShareLinkAccess(77, from("10.0.0.9")))
+                .isInstanceOf(RateLimitExceededException.class)
+                .extracting("rule").isEqualTo("share-link-user");
+        assertThatNoException().isThrownBy(() -> guard.checkShareLinkAccess(78, from("10.0.0.5")));
+    }
+
+    @Test
+    @DisplayName("공유 링크 컨트롤러 — 초과면 토큰 조회(UseCase) 전에 거절, 익명 세션은 사용자가 아니라 IP 로 센다")
+    void shareLinkController() {
+        TenantContext.set(1);
+        ShareUseCase useCase = mock(ShareUseCase.class);
+        LoginRateLimitGuard guard = guard(100, 100);
+        ShareController controller = new ShareController(useCase, mock(ShareRequestConverter.class), mock(ShareResponseConverter.class), guard);
+        // 익명 세션 — 모든 방문자가 같은 익명 계정(userSeq 1)
+        CustomUserDetails anonymous = new CustomUserDetails(new UserDetailDto(1, "anonymous", "anonymous",
+                RoleType.ANONYMOUS.getAuthority(), AuthSource.INTERNAL, 1, null));
+
+        controller.accessLink(new ShareLinkAccessRequest("t"), anonymous, from("10.0.0.1"));
+        controller.accessLink(new ShareLinkAccessRequest("t"), null, from("10.0.0.1"));
+        assertThatThrownBy(() -> controller.accessLink(new ShareLinkAccessRequest("t"), anonymous, from("10.0.0.1")))
+                .isInstanceOf(RateLimitExceededException.class);
+        // 다른 IP 의 익명 방문자는 영향 없음(익명 계정 하나로 묶이지 않음)
+        assertThatNoException().isThrownBy(() -> controller.accessLink(new ShareLinkAccessRequest("t"), anonymous, from("10.0.0.2")));
+        verify(useCase, times(3)).accessShareLinkByToken(any(), any(), any(), any());
     }
 }

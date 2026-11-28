@@ -14,6 +14,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param passwordResetLinkPerAccount  재설정 링크 메일 요청 — 같은 계정 15분당(남의 메일함 폭주 방지)
  * @param passwordResetLinkPerIp       재설정 링크 메일 요청 — 같은 IP(테넌트별) 분당
  * @param apiKeyPerKey                 API Key 하나(MCP OAuth 는 사용자·연동 하나) 분당 — 순간 이만큼, 평균 초당 값/60. 외부·내부·/mcp 체인이 한 버킷을 나눠 쓴다
+ * @param shareLinkAccess              공유 링크 열기 — 같은 IP(테넌트별) 분당, 로그인한 요청은 같은 사용자 분당(링크 토큰 추측·대량 조회 방지)
  */
 @ConfigurationProperties("drive.rate-limit")
 public record RateLimitProperty(
@@ -24,6 +25,7 @@ public record RateLimitProperty(
         @DefaultValue("5") long mfaPerUser,
         @DefaultValue("3") long passwordResetLinkPerAccount,
         @DefaultValue("20") long passwordResetLinkPerIp,
-        @DefaultValue("600") long apiKeyPerKey
+        @DefaultValue("600") long apiKeyPerKey,
+        @DefaultValue("60") long shareLinkAccess
 ) {
 }

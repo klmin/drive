@@ -504,7 +504,8 @@
         },
         "access": {
             "success": "Share link accessed successfully.",
-            "fail": "Failed to access share link."
+            "fail": "Failed to access share link.",
+            "tooManyRequests": "Too many requests. Please try again in a moment."
         },
         "update": {
             "success": "Sharing updated successfully.",
