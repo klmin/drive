@@ -194,7 +194,7 @@ docker·k8s 는 같은 내용을 `KEY=value` 형식(따옴표·`export` 없음)�
 - 서버가 스스로 서명·검증(대칭)하므로 외부와 맞출 필요 없다. 같은 DB 를 쓰는 WAS 끼리만 같은 값이면 된다.
 - 기존 서버(운영·dev)는 지금까지 jar 내장값으로 돌았다 — SMTP AES 는 그 값을 계속 쓴다(`generate_secret_keys.sh --existing-db` 가 넣는 값, `LEGACY` 상수, 로컬 `.env.example` 과 같은 값).
 
-## 5. 선택 — 안 넣으면 기본값 (57개)
+## 5. 선택 — 안 넣으면 기본값 (58개)
 
 | 키 | 기본값 | 설명 |
 |---|---|---|
@@ -230,6 +230,7 @@ docker·k8s 는 같은 내용을 `KEY=value` 형식(따옴표·`export` 없음)�
 | `DRIVE_SUPER_ADMIN_ALLOWED_IPS` | (빈 값 → 제한 없음) | 슈퍼어드민 접근 허용 IP·CIDR(쉼표 구분) |
 | `DRIVE_SUPER_ADMIN_EXTERNAL_API_KEY` | (빈 값) | 슈퍼어드민 외부 API 고정 키 |
 | `DRIVE_TIME_ZONE` | `Asia/Seoul` | 날짜 해석·표시 시간대 |
+| `DRIVE_TOMCAT_CONNECTION_TIMEOUT` | `20s` | 톰캣이 요청 줄·본문 읽기 한 번을 기다리는 상한. 바이트를 멈춘 업로드 연결은 이 시간 뒤 끊기고 업로드 허가를 반납. 읽기 한 번 기준이라 조금씩 흘려 보내는 연결은 앞단 Apache `mod_reqtimeout`(최소 속도)이 막는다 |
 | `DRIVE_WEB_LOG_ENABLED` | `true` | 톰캣 액세스 로그 |
 | `DRIVE_WEB_LOG_DIRECTORY` | `/log/drive/web` | 액세스 로그 폴더 |
 | `DRIVE_WEB_LOG_PATTERN` | `[%{yyyy-MM-dd HH:mm:ss}t] \| [%I] \| %h \| "%r" \| %s \| %b \| ...` | 액세스 로그 형식 |

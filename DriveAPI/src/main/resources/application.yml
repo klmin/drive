@@ -251,6 +251,9 @@ file:
 server:
   forward-headers-strategy: native
   tomcat:
+    # 연결 뒤 요청 줄을 기다리는 시간이자 본문 읽기 한 번의 대기 상한(소켓 읽기 타임아웃) — 바이트를 멈춘 연결이 업로드 허가·스레드를 잡고 있지 않게.
+    # 읽기 한 번 기준이라 느린 회선이라도 바이트가 오는 동안은 끊지 않는다. 조금씩 흘려 보내는 연결은 앞단 Apache mod_reqtimeout(최소 속도)이 막는다. keep-alive 유휴 연결도 이 시간 뒤 닫힘
+    connection-timeout: ${DRIVE_TOMCAT_CONNECTION_TIMEOUT:20s}
     # Tomcat 요청 스레드 지표(tomcat_threads_busy/current/config_max) — 기본은 꺼져 있다. CPU 여유가 있는데 처리량이 안 오를 때 스레드 고갈인지 가린다
     mbeanregistry:
       enabled: true

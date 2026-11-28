@@ -21,10 +21,7 @@
 - [x] **IP 정책·접근 제한 설정 Caffeine 캐시** — 설계 §3-1, PR #100
   - `AccessPolicyCache` 키 `tenantSeq + role`, TTL 30s, 정책·사용 여부·테넌트 삭제 시 로컬 무효화 + 커밋 뒤 한 번 더. 다른 WAS 는 B 의 무효화 전까지 최대 30초 늦음
 - [x] **`CachedTenantNameResolver` 를 Caffeine TTL 로** — PR #101 (5분, 최대 1만 건)
-- [ ] **Tomcat `connection-timeout`**
-  - 왜: 설정이 없어 바이트를 조금씩 흘려 보내는 클라이언트가 업로드 허가·Tomcat 스레드를 오래 잡는다(세마포어 상한을 적은 연결로 채울 수 있음)
-  - 어디: `application.yml` `server.tomcat.connection-timeout`, 앞단 Apache `Timeout` 과 같이. 느린 회선의 정상 16MB 파트가 끊기지 않는 값
-  - 끝 기준: 바이트를 멈춘 연결이 설정 시간 뒤 끊기고 허가가 반납됨(테스트 또는 k6 느린 클라이언트)
+- [x] **Tomcat `connection-timeout`** — 20s(`DRIVE_TOMCAT_CONNECTION_TIMEOUT`). 요청 줄 대기이자 본문 읽기 한 번의 상한이라 바이트를 멈춘 연결은 끊기고 업로드 허가 반납(내장 Tomcat 테스트). 조금씩 흘려 보내는 연결은 읽기마다 시계가 다시 돌아 못 막는다 — Apache `mod_reqtimeout`(본문 최소 500B/s, 이미지 기본)이 막고, Apache 없이 노출하는 배포는 앞단에 같은 설정 필요
 - [x] **MCP 로깅 필터 본문 무제한 읽기** — 미리 읽지 않고 다운스트림(인증 뒤 MCP 전송)이 읽는 대로 앞 64KB 만 복사. 인증 거절이면 본문을 읽지 않음
 - [ ] **OIDC 캐시 만료**
   - 왜: `OidcAuthHandler` 가 디스커버리 문서·`RestClient`·`JwtDecoder` 를 `ConcurrentHashMap` 에 만료 없이 보관한다(설계 §1 표). IdP 의 엔드포인트·`jwks_uri` 변경은 재기동 전까지 반영되지 않는다. JWK 키 회전이 디코더 안에서 갱신되는지는 확인 필요
