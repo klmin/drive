@@ -70,6 +70,15 @@ public class ApiGlobalExceptionHandler {
         return ApiExceptionResponse.error(e.getStatus(), e.getMessage());
     }
         
+    /** 요청 수 제한 초과 — 429 + Retry-After(초). 흔한 일이라 스택 없이 WARN 한 줄 */
+    @ExceptionHandler(com.thinkfree.drive.global.ratelimit.RateLimitExceededException.class)
+    public ResponseEntity<ApiExceptionResponse> rateLimitExceeded(com.thinkfree.drive.global.ratelimit.RateLimitExceededException e) {
+        log.warn("rate limit exceeded: rule={}, retryAfter={}s", e.getRule(), e.getRetryAfterSeconds());
+        return ResponseEntity.status(GlobalErrorCode.TOO_MANY_REQUESTS.getStatus())
+                .header("Retry-After", String.valueOf(e.getRetryAfterSeconds()))
+                .body(ApiExceptionResponse.of(GlobalErrorCode.TOO_MANY_REQUESTS));
+    }
+
     @ExceptionHandler(ApiRuntimeException.class)
     public ResponseEntity<ApiExceptionResponse> applicationException(ApiRuntimeException e){
         ErrorCode code = e.getCode();

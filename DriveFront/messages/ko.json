@@ -652,6 +652,7 @@
     "loginToast": {
         "success": "로그인 성공",
         "fail": "로그인 실패",
+        "tooManyRequests": "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.",
         "needLogin": "로그인이 필요합니다.",
         "duplicateLocalAccount": "이미 가입된 계정입니다. 가입한 방식으로 로그인해주세요."
     },

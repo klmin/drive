@@ -652,6 +652,7 @@
     "loginToast": {
         "success": "Inicio de sesión correcto.",
         "fail": "Error al iniciar sesión.",
+        "tooManyRequests": "Demasiados intentos de inicio de sesión. Vuelva a intentarlo en unos momentos.",
         "needLogin": "Se requiere iniciar sesión.",
         "duplicateLocalAccount": "Esta cuenta ya está registrada. Por favor, inicia sesión con el método que usaste al registrarte."
     },
