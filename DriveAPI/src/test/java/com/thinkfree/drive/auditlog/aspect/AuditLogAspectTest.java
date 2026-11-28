@@ -9,6 +9,7 @@ import com.thinkfree.drive.auditlog.enums.EventName;
 import com.thinkfree.drive.auditlog.payload.AuditLogPayload;
 import com.thinkfree.drive.auditlog.sender.AuditLogSender;
 import com.thinkfree.drive.auditlog.validator.AuditLogPayloadValidator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -35,6 +36,12 @@ class AuditLogAspectTest extends AuditMockTest {
     @Mock private AuditLogSender sender;
 
     @Captor private ArgumentCaptor<List<AuditLogPayload>> payloadsCaptor;
+
+    /** 홀더는 ThreadLocal — 앞선 테스트가 남긴 컨텍스트가 섞이지 않게 */
+    @BeforeEach
+    void clearHolder() {
+        AuditLogContextHolder.clear();
+    }
 
     /** @AuditLog가 붙은 메서드를 프록시로 감싸 Aspect가 실제로 적용되도록 한다. */
     private Sample proxy() {
