@@ -95,14 +95,15 @@ CacheInvalidator.invalidate("ip-policy", "3")
 
 ### 3-2. JWT 블랙리스트 — DB 원본 + Redis 조회
 - 로그아웃: DB INSERT(원본) → 커밋 후 Redis `SET drive:bl:{tokenHash} 1 EX <토큰 남은 만료>`.
-- 조회: Redis → 오류면 DB. 필터는 그대로, `BlacklistTokenFindService` 구현만 바꾼다.
+- 조회: Redis → 오류이거나 적재 완료 표시 키가 없으면 DB. 필터는 그대로, `BlacklistTokenFindService` 구현만 바꾼다.
 - Redis 에 "없음" 을 "블랙리스트 아님" 으로 믿으려면 Redis 가 DB 와 맞아야 한다. 어긋나는 경우와 대응:
 
 | 상황 | 결과 | 대응 |
 |---|---|---|
 | Redis 전체 장애 | 조회 오류 → DB → 안전 | fallback |
 | Redis 재시작으로 데이터 유실 | 조회는 성공, "없음" → **로그아웃 토큰 통과** | 기동·재연결 시 DB 의 미만료 항목을 Redis 로 재적재 |
-| SET 한 번 실패(순간 끊김) | 위와 같음 | 재시도 + 1분 주기(ShedLock) "최근 N분 DB 항목 → Redis" 동기화 |
+| SET 한 번 실패(순간 끊김) | 위와 같음 | 표시 키를 지워 재적재가 끝날 때까지 DB 로 확인 + 1분 주기(ShedLock) 재적재. 표시 키 삭제도 실패하면 다음 동기화까지 통과 창 |
+| 재적재가 DB 를 읽은 뒤 커밋된 로그아웃의 SET 실패 | 재적재가 표시 키를 다시 두면 위와 같음 | 세대 키(`bl-epoch`): 쓰기 실패 시 새 값 + 표시 키 삭제(Lua), 재적재는 DB 읽기 전 본 세대가 같을 때만 표시(Lua) — PR #104 |
 
 - 재적재를 "재연결 이벤트" 에 걸 수 없다: Lettuce 는 끊기면 알아서 다시 붙어 앱은 Redis 가 재시작돼 비었는지 모른다. 그래서 **적재 완료 표시 키**(예: `drive:bl:loaded`, 만료 없음)를 두고, 조회 때 이 키가 없으면 Redis 를 믿지 않고 DB 로 본 뒤 재적재한다.
 - Redis `maxmemory-policy` 는 **`noeviction`** 으로 고정한다. `allkeys-lru` 등이면 메모리가 찰 때 블랙리스트 키가 밀려나 로그아웃 토큰이 통과한다(설치 문서·설치기에 명시).
