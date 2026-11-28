@@ -31,7 +31,7 @@ class OfficeConnectionSettingsTest {
     @Test void disablingPreservesExistingConnectionForOpenDocuments() {
         var repository = org.mockito.Mockito.mock(com.thinkfree.drive.systemconfig.repository.SystemConfigRepository.class);
         var converter = org.mockito.Mockito.mock(com.thinkfree.drive.systemconfig.converter.SystemConfigConverter.class);
-        var service = new com.thinkfree.drive.systemconfig.service.SystemConfigService(repository, converter, org.mockito.Mockito.mock(com.thinkfree.drive.systemconfig.service.SystemConfigFindService.class));
+        var service = new com.thinkfree.drive.systemconfig.service.SystemConfigService(repository, converter, org.mockito.Mockito.mock(com.thinkfree.drive.systemconfig.service.SystemConfigFindService.class), new com.thinkfree.drive.accessrestriction.cache.AccessPolicyCache());
         service.upsertOffice(42, 7, new OfficeUpdateRequest("https://old.test","ticket","old-token","old-key","none"));
         org.mockito.Mockito.verify(repository).upsertBatch(org.mockito.ArgumentMatchers.argThat(rows ->
             rows.size() == 1 && rows.get(0).getTenantSeq() == 42
@@ -78,7 +78,7 @@ class OfficeConnectionSettingsTest {
         var repository=org.mockito.Mockito.mock(com.thinkfree.drive.systemconfig.repository.SystemConfigRepository.class);
         var find=org.mockito.Mockito.mock(com.thinkfree.drive.systemconfig.service.SystemConfigFindService.class);
         org.mockito.Mockito.when(find.findOfficeConfig(42)).thenReturn(com.thinkfree.drive.systemconfig.data.OfficeData.builder().officeHttpStorageAdapterName("existing-id").build());
-        var service=new com.thinkfree.drive.systemconfig.service.SystemConfigService(repository,null,find);
+        var service=new com.thinkfree.drive.systemconfig.service.SystemConfigService(repository,null,find,new com.thinkfree.drive.accessrestriction.cache.AccessPolicyCache());
         service.upsertOffice(42,7,new OfficeUpdateRequest("https://office.test","ticket","token","k".repeat(32),"onPremise","storage-id"));
         org.mockito.Mockito.verify(repository).upsertBatch(org.mockito.ArgumentMatchers.argThat(rows->rows.stream().anyMatch(r->r.getSettingKey().equals("office_http_storage_adapter_name")&&r.getValueText().equals("storage-id"))));
         service.upsertOffice(42,7,new OfficeUpdateRequest("https://office.test","ticket","token","k".repeat(32),"onPremise"));
