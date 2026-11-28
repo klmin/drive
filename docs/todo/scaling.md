@@ -48,6 +48,7 @@
   - 끝 기준: Redis 정지·재시작(데이터 유실)·SET 실패 각각에서 로그아웃 토큰이 거절됨
 - [ ] **rate limit(Bucket4j + Redis)** — 설계 §3-4
   - [x] 로그인 전 화면(사용자·관리자·슈퍼관리자 로그인: IP 분당 100·아이디 분당 10, 익명 로그인: IP 분당 30) — PR #105. Redis 장애는 통과 대신 WAS 메모리 버킷으로 계속
+  - [x] 익명 DCR(`/connect/register`) IP 별 등록 제한을 공용 RateLimiter 로(WAS 별 메모리 카운터 → Redis 켜면 합산). 메모리 버킷은 규칙 기간(DCR 1시간)보다 먼저 버리지 않게
   - [ ] 다음: MFA 인증·재설정 링크 요청 → API Key → 공유 링크 → 무거운 API → 테넌트
   - 끝 기준: 초과 시 429 + `Retry-After`, WAS 2대에서 한도가 합산으로 지켜짐, Redis 장애 시 통과
 

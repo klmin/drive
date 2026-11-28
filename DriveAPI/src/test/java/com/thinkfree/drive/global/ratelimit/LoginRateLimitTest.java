@@ -64,6 +64,13 @@ class LoginRateLimitTest {
     }
 
     @Test
+    @DisplayName("메모리 버킷은 규칙 기간보다 먼저 버리지 않는다 — 버리면 꽉 찬 새 버킷이 생겨 한도가 늘어남")
+    void localBucketIdleExpiryCoversRulePeriod() {
+        assertThat(LocalRateLimiter.idleExpiry(new RateLimitRule("short", 1, Duration.ofMinutes(1)))).isEqualTo(LocalRateLimiter.IDLE_EXPIRY);
+        assertThat(LocalRateLimiter.idleExpiry(new RateLimitRule("long", 1, Duration.ofHours(1)))).isEqualTo(Duration.ofHours(1));
+    }
+
+    @Test
     @DisplayName("같은 아이디는 IP 가 달라도 분당 N 번 — 대소문자·공백은 같은 아이디")
     void perAccountAcrossIps() {
         TenantContext.set(1);
