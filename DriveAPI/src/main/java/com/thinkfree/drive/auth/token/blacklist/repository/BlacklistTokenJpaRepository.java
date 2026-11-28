@@ -1,6 +1,7 @@
 package com.thinkfree.drive.auth.token.blacklist.repository;
 
 import com.thinkfree.drive.auth.token.blacklist.entity.BlacklistToken;
+import com.thinkfree.drive.auth.token.blacklist.query.BlacklistEntry;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -18,6 +19,10 @@ interface BlacklistTokenJpaRepository extends JpaRepository<BlacklistToken, Long
 
     @Query("select count(t) > 0 from BlacklistToken t where t.tokenHash = :tokenHash")
     boolean existsByTokenHash(@Param("tokenHash") String tokenHash);
+
+    /** 아직 만료되지 않은 항목 — Redis 재적재(RedisBlacklistStore) */
+    @Query("select new com.thinkfree.drive.auth.token.blacklist.query.BlacklistEntry(t.tokenHash, t.expirationDate) from BlacklistToken t where t.expirationDate > :now")
+    List<BlacklistEntry> findAllNotExpired(@Param("now") Instant now);
 
     /** 사용자 삭제·탈퇴 시 해당 사용자들의 블랙리스트 정리 — 빈 목록 가드는 호출부(Default 리포) */
     @Transactional
