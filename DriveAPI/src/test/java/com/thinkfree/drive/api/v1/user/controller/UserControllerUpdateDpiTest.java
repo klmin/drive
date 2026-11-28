@@ -49,7 +49,7 @@ class UserControllerUpdateDpiTest {
         FormattingConversionService conversion = new WebMvcConfigurationSupport().mvcConversionService();
         conversion.addConverter(new UserLanguageConverter());
         conversion.addConverter(new DefaultLandingPageConverter());
-        mockMvc = MockMvcBuilders.standaloneSetup(new UserController(mock(UserUseCase.class), userService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new UserController(mock(UserUseCase.class), userService, mock(com.thinkfree.drive.global.ratelimit.LoginRateLimitGuard.class)))
                 .setConversionService(conversion)
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .build();

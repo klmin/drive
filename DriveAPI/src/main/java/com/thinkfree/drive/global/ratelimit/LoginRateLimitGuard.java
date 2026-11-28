@@ -27,6 +27,7 @@ import java.util.Locale;
 public class LoginRateLimitGuard {
 
     static final Duration PERIOD = Duration.ofMinutes(1);
+    static final Duration RESET_LINK_PERIOD = Duration.ofMinutes(15);
 
     private final RateLimiter rateLimiter;
     private final RateLimitProperty property;
@@ -34,6 +35,9 @@ public class LoginRateLimitGuard {
     private final RateLimitRule perAccount;
     private final RateLimitRule perIp;
     private final RateLimitRule anonymousPerIp;
+    private final RateLimitRule mfaPerUser;
+    private final RateLimitRule resetLinkPerAccount;
+    private final RateLimitRule resetLinkPerIp;
 
     public LoginRateLimitGuard(RateLimiter rateLimiter, RateLimitProperty property, MeterRegistry meterRegistry) {
         this.rateLimiter = rateLimiter;
@@ -42,6 +46,9 @@ public class LoginRateLimitGuard {
         this.perAccount = new RateLimitRule("login-account", property.loginPerAccount(), PERIOD);
         this.perIp = new RateLimitRule("login-ip", property.loginPerIp(), PERIOD);
         this.anonymousPerIp = new RateLimitRule("anonymous-login-ip", property.anonymousLoginPerIp(), PERIOD);
+        this.mfaPerUser = new RateLimitRule("mfa-user", property.mfaPerUser(), PERIOD);
+        this.resetLinkPerAccount = new RateLimitRule("reset-link-account", property.passwordResetLinkPerAccount(), RESET_LINK_PERIOD);
+        this.resetLinkPerIp = new RateLimitRule("reset-link-ip", property.passwordResetLinkPerIp(), PERIOD);
     }
 
     /** 아이디·비밀번호 로그인(사용자·관리자·슈퍼관리자) — IP 먼저, 그다음 아이디 */
@@ -60,6 +67,36 @@ public class LoginRateLimitGuard {
             return;
         }
         consume(anonymousPerIp, scope(RoleType.ANONYMOUS) + ":" + IpUtil.extractClientIp(request));
+    }
+
+    /**
+     * MFA 코드 확인(로그인 2단계·첫 설정 확인) — 서명을 검증한 MFA 토큰에서 꺼낸 사용자 기준이라 키를 위조할 수 없다.
+     * 틀린 MFA 코드는 로그인 잠금에 세지 않으므로(비밀번호가 맞으면 MFA 전에 초기화) 이것이 6자리 OTP 추측을 막는다.
+     * userSeq 는 전체에서 유일해 테넌트를 따로 넣지 않는다.
+     */
+    public void checkMfa(int userSeq) {
+        if (!property.enabled()) {
+            return;
+        }
+        consume(mfaPerUser, String.valueOf(userSeq));
+    }
+
+    /** 비밀번호 재설정 링크 메일 요청(로그인 전) — IP 먼저, 그다음 입력한 아이디(해시). 남의 메일함을 폭주시키지 못하게 */
+    public void checkPasswordResetLink(String userId, HttpServletRequest request) {
+        if (!property.enabled()) {
+            return;
+        }
+        String scope = scope(RoleType.USER);
+        consume(resetLinkPerIp, scope + ":" + IpUtil.extractClientIp(request));
+        consume(resetLinkPerAccount, scope + ":id:" + accountKey(userId));
+    }
+
+    /** 비밀번호 재설정 링크 메일 요청(설정 화면, 로그인한 본인) — 사용자 기준, 로그인 전 요청과 같은 한도 */
+    public void checkMyPasswordResetLink(int userSeq) {
+        if (!property.enabled()) {
+            return;
+        }
+        consume(resetLinkPerAccount, "seq:" + userSeq);
     }
 
     private void consume(RateLimitRule rule, String key) {

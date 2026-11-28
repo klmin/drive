@@ -11,6 +11,7 @@ import com.thinkfree.drive.api.v1.user.response.UserSearchResponse;
 import com.thinkfree.drive.api.v1.user.usecase.UserUseCase;
 import com.thinkfree.drive.global.annotation.AnonymousAccessible;
 import com.thinkfree.drive.global.config.externalapi.ExternalApi;
+import com.thinkfree.drive.global.ratelimit.LoginRateLimitGuard;
 import com.thinkfree.drive.global.security.CustomUserDetails;
 import com.thinkfree.drive.global.security.TenantContext;
 import com.thinkfree.drive.user.dto.ProfileImageResult;
@@ -42,6 +43,7 @@ public class UserController {
     
     private final UserUseCase userUseCase;
     private final UserService userService;
+    private final LoginRateLimitGuard loginRateLimitGuard;
 
     @ExternalApi
     @Operation(summary = "Get your profile",
@@ -131,6 +133,7 @@ public class UserController {
             description = "Requests a password reset email for the user ID supplied in the request.")
     @PostMapping("/password/reset-link")
     public ResponseEntity<ApiResponse<Void>> sendPasswordResetLink(@Valid @RequestBody PasswordResetRequest request, HttpServletRequest httpRequest) {
+        loginRateLimitGuard.checkPasswordResetLink(request.getUserId(), httpRequest);
         userService.sendPasswordResetLink(request.getUserId(), httpRequest);
         return ApiResponse.success();
     }
@@ -141,6 +144,7 @@ public class UserController {
             description = "Requests a password reset email for the signed-in user's account.")
     @PostMapping("/password/reset-link/me")
     public ResponseEntity<ApiResponse<Void>> sendMyPasswordResetLink(@AuthenticationPrincipal CustomUserDetails userDetails, HttpServletRequest httpRequest) {
+        loginRateLimitGuard.checkMyPasswordResetLink(userDetails.getUserSeq());
         userService.sendPasswordResetLink(userDetails.getUserSeq(), httpRequest);
         return ApiResponse.success();
     }

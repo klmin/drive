@@ -23,6 +23,7 @@ import com.thinkfree.drive.auth.utils.JwtProvider;
 import com.thinkfree.drive.auth.utils.TokenHasher;
 import com.thinkfree.drive.basedomain.service.BaseDomainFindService;
 import com.thinkfree.drive.global.exception.ApiRuntimeException;
+import com.thinkfree.drive.global.ratelimit.LoginRateLimitGuard;
 import com.thinkfree.drive.valid.DriveAssert;
 import com.thinkfree.drive.global.security.TenantGuard;
 import com.thinkfree.drive.mfa.result.MfaLoginSetupResult;
@@ -80,6 +81,7 @@ public class AuthService {
     private final ShareFindService shareFindService;
     private final UserRoleFindService userRoleFindService;
     private final TenantPolicy tenantPolicy;
+    private final LoginRateLimitGuard loginRateLimitGuard;
 
     @Transactional
     public AuthLoginResult login(LoginDto loginDto, int tenantSeq, HttpServletRequest httpRequest) {
@@ -185,6 +187,7 @@ public class AuthService {
         log.info("[verifyMfaLogin - start]");
 
         int userSeq = parseUserSeqAndValidate(challengeToken, JwtType.MFA_CHALLENGE);
+        loginRateLimitGuard.checkMfa(userSeq); // 서명 검증한 토큰의 사용자 기준 — 코드 비교 전에, 감사 로그(실패 기록) 전에
         UserAuthData user = userFindService.findAuthByUserSeq(userSeq);
 
         try {
@@ -312,6 +315,7 @@ public class AuthService {
         log.info("[confirmMfaForLogin - start]");
         
         int userSeq = parseUserSeqAndValidate(confirmToken, JwtType.MFA_CONFIRM_CHALLENGE);
+        loginRateLimitGuard.checkMfa(userSeq);
         UserAuthData user = userFindService.findAuthByUserSeq(userSeq);
 
         try {

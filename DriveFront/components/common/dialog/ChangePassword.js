@@ -110,6 +110,9 @@ export default function ChangePassword({ open, onClose, ...props }) {
                     router.replace(ROUTES.LOGIN);
                 }
                 onClose();
+            } else if (res?.errorCode === 'REQUEST_013') {
+                // 요청 수 제한(429)
+                showSnackbar(t('passwordResetEmail.tooManyRequests'), 'error');
             } else {
                 showSnackbar(t('passwordResetEmail.fail'), 'error');
             }

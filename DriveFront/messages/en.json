@@ -582,7 +582,8 @@
     },
     "passwordResetEmail": {
         "success": "Please check your email. A password reset guide has been sent to you.",
-        "fail": "Failed to send email."
+        "fail": "Failed to send email.",
+        "tooManyRequests": "You have requested reset emails too often. Please try again later."
     },
     "notifications": {
         "title": "Notifications",
@@ -1011,6 +1012,7 @@
     },
     "mfaVerify": {
         "description": "Enter the 6-digit code displayed in your authenticator app.",
+        "tooManyRequests": "Too many verification attempts. Please try again later.",
         "placeholder": "000000",
         "invalidCode": "The verification code is invalid. Please try again.",
         "expiredChallenge": "The authentication request has expired. Please log in again."

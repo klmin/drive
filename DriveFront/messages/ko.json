@@ -582,7 +582,8 @@
     },
     "passwordResetEmail": {
         "success": "이메일을 확인해 주세요. 비밀번호 재설정 안내 메일이 발송되었습니다.",
-        "fail": "이메일 발송에 실패했습니다."
+        "fail": "이메일 발송에 실패했습니다.",
+        "tooManyRequests": "재설정 메일을 너무 자주 요청했습니다. 잠시 후 다시 시도해 주세요."
     },
     "notifications": {
         "title": "알림",
@@ -1011,6 +1012,7 @@
     },
     "mfaVerify": {
         "description": "인증 앱에 표시된 6자리 인증 번호를 입력해 주세요.",
+        "tooManyRequests": "인증 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.",
         "placeholder": "000000",
         "invalidCode": "인증 코드가 유효하지 않습니다. 다시 시도해 주세요.",
         "expiredChallenge": "인증 요청이 만료되었습니다. 다시 로그인해 주세요."
