@@ -1,0 +1,60 @@
+ Container drive-observability-prometheus-1 Running 
+ Container drive-observability-k6-run-34619e765f87 Creating 
+ Container drive-observability-k6-run-34619e765f87 Created 
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate>0.99' rate=99.95%
+
+    http_req_duration{api:upload_complete}
+    ✓ 'p(95)<5000' p(95)=317.19ms
+
+    http_req_duration{api:upload_small}
+    ✓ 'p(95)<2000' p(95)=644.66ms
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.04%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 4087   19.450391/s
+    checks_succeeded...: 99.95% 4085 out of 4087
+    checks_failed......: 0.04%  2 out of 4087
+
+    ✓ login 200
+    ✓ upload_start 201
+    ✗ upload_small 201
+      ↳  99% — ✓ 1292 / ✗ 1
+    ✗ upload_part 200
+      ↳  99% — ✓ 723 / ✗ 1
+    ✓ delete_file 200
+    ✓ upload_complete 200
+    ✓ upload_cancel 200
+
+    CUSTOM
+    upload_file_duration...........: avg=1.04s    min=143ms    med=436ms    max=10.08s   p(90)=2.97s    p(95)=5.62s   
+    upload_ok......................: 99.86% 1520 out of 1522
+
+    HTTP
+    http_req_duration..............: avg=745.48ms min=16.66ms  med=232.53ms max=35.2s    p(90)=2.35s    p(95)=4.07s   
+      { api:upload_complete }......: avg=219.56ms min=81.59ms  med=211.84ms max=593.96ms p(90)=302.82ms p(95)=317.19ms
+      { api:upload_small }.........: avg=413.01ms min=129.3ms  med=364.74ms max=30.37s   p(90)=557.28ms p(95)=644.66ms
+      { expected_response:true }...: avg=729.79ms min=16.66ms  med=232.49ms max=9.07s    p(90)=2.31s    p(95)=4.04s   
+    http_req_failed................: 0.04%  2 out of 4087
+    http_reqs......................: 4087   19.450391/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.25s    min=199.32ms med=546.22ms max=35.37s   p(90)=3.58s    p(95)=6.03s   
+    iterations.....................: 1559   7.419417/s
+    vus............................: 2      min=0            max=18
+    vus_max........................: 18     min=18           max=18
+
+    NETWORK
+    data_received..................: 2.1 MB 10 kB/s
+    data_sent......................: 11 GB  52 MB/s
+
+
+
