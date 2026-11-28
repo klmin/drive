@@ -23,9 +23,7 @@
 - [x] **`CachedTenantNameResolver` 를 Caffeine TTL 로** — PR #101 (5분, 최대 1만 건)
 - [x] **Tomcat `connection-timeout`** — 20s(`DRIVE_TOMCAT_CONNECTION_TIMEOUT`). 요청 줄 대기이자 본문 읽기 한 번의 상한이라 바이트를 멈춘 연결은 끊기고 업로드 허가 반납(내장 Tomcat 테스트). 조금씩 흘려 보내는 연결은 읽기마다 시계가 다시 돌아 못 막는다 — Apache `mod_reqtimeout`(본문 최소 500B/s, 이미지 기본)이 막고, Apache 없이 노출하는 배포는 앞단에 같은 설정 필요
 - [x] **MCP 로깅 필터 본문 무제한 읽기** — 미리 읽지 않고 다운스트림(인증 뒤 MCP 전송)이 읽는 대로 앞 64KB 만 복사. 인증 거절이면 본문을 읽지 않음
-- [ ] **OIDC 캐시 만료**
-  - 왜: `OidcAuthHandler` 가 디스커버리 문서·`RestClient`·`JwtDecoder` 를 `ConcurrentHashMap` 에 만료 없이 보관한다(설계 §1 표). IdP 의 엔드포인트·`jwks_uri` 변경은 재기동 전까지 반영되지 않는다. JWK 키 회전이 디코더 안에서 갱신되는지는 확인 필요
-  - 끝 기준: TTL(Caffeine) 또는 검증 실패 시 다시 받기, 크기 제한
+- [x] **OIDC 캐시 만료** — 디스커버리 1시간 TTL + 토큰 교환·ID Token 검증 실패 시 버리고 다시 받기, RestClient·디코더 6시간 미사용 만료, 모두 최대 1000. 디코더 키에 issuer 추가(검증기가 issuer 를 품는데 키에 없었다). JWK 키 회전은 Nimbus 가 모르는 kid 에서 다시 받음
 
 ## B. Redis 도입 (선택 구성요소, `redis | db | local` 스위치)
 
@@ -42,6 +40,7 @@
   - 끝 기준: Redis 정지·재시작(데이터 유실)·SET 실패 각각에서 로그아웃 토큰이 거절됨
 - [ ] **rate limit(Bucket4j + Redis)** — 설계 §3-4
   - [x] 로그인 전 화면(사용자·관리자·슈퍼관리자 로그인: IP 분당 100·아이디 분당 10, 익명 로그인: IP 분당 30) — PR #105. Redis 장애는 통과 대신 WAS 메모리 버킷으로 계속
+  - [x] 익명 DCR(`/connect/register`) IP 별 등록 제한을 공용 RateLimiter 로(WAS 별 메모리 카운터 → Redis 켜면 합산). 메모리 버킷은 규칙 기간(DCR 1시간)보다 먼저 버리지 않게
   - [ ] 다음: MFA 인증·재설정 링크 요청 → API Key → 공유 링크 → 무거운 API → 테넌트
   - 끝 기준: 초과 시 429 + `Retry-After`, WAS 2대에서 한도가 합산으로 지켜짐, Redis 장애 시 통과
 

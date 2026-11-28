@@ -5,7 +5,6 @@ import com.thinkfree.drive.oauth2.exception.InvalidClientRegistrationException;
 import com.thinkfree.drive.oauth2.request.OAuth2ClientRegistrationRequest;
 import com.thinkfree.drive.oauth2.response.OAuth2ClientRegistrationResponse;
 import com.thinkfree.drive.oauth2.response.OAuth2RegistrationErrorResponse;
-import com.thinkfree.drive.oauth2.properties.OAuth2RegistrationProperty;
 import com.thinkfree.drive.oauth2.service.OAuth2ClientRegistrationRateLimiter;
 import com.thinkfree.drive.oauth2.usecase.OAuth2ClientRegistrationUseCase;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +16,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.Duration;
 
 /**
  * 익명 DCR — RFC 7591 Dynamic Client Registration (MCP_OAUTH_FLOW.md §2.4).
@@ -38,14 +39,14 @@ public class OAuth2DynamicClientRegistrationController {
 
     private final OAuth2ClientRegistrationUseCase oauth2ClientRegistrationUseCase;
     private final OAuth2ClientRegistrationRateLimiter oauth2ClientRegistrationRateLimiter;
-    private final OAuth2RegistrationProperty oauth2RegistrationProperty;
 
     @PostMapping(OAuth2Constants.REGISTRATION_PATH)
     public ResponseEntity<?> register(@RequestBody OAuth2ClientRegistrationRequest request, HttpServletRequest httpRequest) {
         // 검증 실패 요청도 횟수에 포함 — 잘못된 요청 반복도 남용이다
-        if (!oauth2ClientRegistrationRateLimiter.tryAcquire(httpRequest.getRemoteAddr())) {
+        Duration wait = oauth2ClientRegistrationRateLimiter.tryAcquire(httpRequest.getRemoteAddr());
+        if (!wait.isZero()) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .header(HttpHeaders.RETRY_AFTER, String.valueOf(oauth2RegistrationProperty.window().toSeconds()))
+                    .header(HttpHeaders.RETRY_AFTER, String.valueOf(Math.max(1, (wait.toMillis() + 999) / 1000)))
                     .body(new OAuth2RegistrationErrorResponse("too_many_requests", "client registration rate limit exceeded"));
         }
         var response = oauth2ClientRegistrationUseCase.register(request);
