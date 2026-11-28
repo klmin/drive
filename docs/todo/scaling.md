@@ -29,9 +29,7 @@
   - 왜: 인증 전에 요청 본문 전체를 크기 제한 없이 메모리로 읽는다 — 인증 없는 큰 요청으로 힙을 쓸 수 있음
   - 어디: `McpRequestLoggingFilter` — 상한(예: 64KB)까지만 담고 나머지는 흘려보내거나, 인증 뒤로 옮김
   - 끝 기준: 상한을 넘는 본문에서 메모리에 담는 양이 상한으로 묶임(단위 테스트)
-- [ ] **OIDC 캐시 만료**
-  - 왜: `OidcAuthHandler` 가 디스커버리 문서·`RestClient`·`JwtDecoder` 를 `ConcurrentHashMap` 에 만료 없이 보관한다(설계 §1 표). IdP 의 엔드포인트·`jwks_uri` 변경은 재기동 전까지 반영되지 않는다. JWK 키 회전이 디코더 안에서 갱신되는지는 확인 필요
-  - 끝 기준: TTL(Caffeine) 또는 검증 실패 시 다시 받기, 크기 제한
+- [x] **OIDC 캐시 만료** — 디스커버리 1시간 TTL + 토큰 교환·ID Token 검증 실패 시 버리고 다시 받기, RestClient·디코더 6시간 미사용 만료, 모두 최대 1000. 디코더 키에 issuer 추가(검증기가 issuer 를 품는데 키에 없었다). JWK 키 회전은 Nimbus 가 모르는 kid 에서 다시 받음
 
 ## B. Redis 도입 (선택 구성요소, `redis | db | local` 스위치)
 
