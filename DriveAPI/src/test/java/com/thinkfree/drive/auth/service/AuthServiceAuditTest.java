@@ -15,13 +15,16 @@ import com.thinkfree.drive.share.service.ShareFindService;
 import com.thinkfree.drive.superadmin.token.service.TenantAccessTokenService;
 import com.thinkfree.drive.systemconfig.service.SystemConfigFindService;
 import com.thinkfree.drive.user.entity.Password;
+import com.thinkfree.drive.user.data.LoginAttempt;
 import com.thinkfree.drive.user.data.UserAuthData;
+import com.thinkfree.drive.user.util.LoginLockPolicy;
 import com.thinkfree.drive.user.enums.RoleType;
 import com.thinkfree.drive.user.role.service.UserRoleFindService;
 import com.thinkfree.drive.user.service.UserFindService;
 import com.thinkfree.drive.user.service.UserService;
 import com.thinkfree.drive.userlog.service.UserLogService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -91,7 +94,7 @@ class AuthServiceAuditTest extends AuditMockTest {
         Password pwd = Mockito.mock(Password.class);
         given(user.getEncPwd()).willReturn(pwd);
         given(pwd.isSamePassword(any(), any())).willReturn(false); // 비밀번호 불일치
-        given(user.getLoginFailureCount()).willReturn(3);          // 직전 3회 → 이번이 4회째
+        given(userService.countLoginAttempt(20)).willReturn(LoginAttempt.counted(4)); // 이번이 4회째
         given(userFindService.findActiveAuthInTenant(any(), anyInt())).willReturn(user);
 
         assertThatThrownBy(() -> authService.login(new LoginDto("user20@thinkfree.com", "wrong"), TENANT, Mockito.mock(HttpServletRequest.class)))
@@ -109,7 +112,7 @@ class AuthServiceAuditTest extends AuditMockTest {
         Password pwd = Mockito.mock(Password.class);
         given(user.getEncPwd()).willReturn(pwd);
         given(pwd.isSamePassword(any(), any())).willReturn(false);
-        given(user.getLoginFailureCount()).willReturn(4);          // 직전 4회 → 이번이 5회째(잠김)
+        given(userService.countLoginAttempt(20)).willReturn(LoginAttempt.counted(5)); // 이번이 5회째(잠김)
         given(userFindService.findActiveAuthInTenant(any(), anyInt())).willReturn(user);
 
         assertThatThrownBy(() -> authService.login(new LoginDto("user20@thinkfree.com", "wrong"), TENANT, Mockito.mock(HttpServletRequest.class)))
@@ -118,6 +121,72 @@ class AuthServiceAuditTest extends AuditMockTest {
 
         verify(loginAuditService).recordLoginFailure(user);
         verify(loginAuditService).recordAccountLocked(user);
+    }
+
+    @Test
+    @DisplayName("login - 이미 잠긴 계정은 비밀번호를 비교하지 않고 ACCOUNT_LOCKED, LOGIN_FAILED 만 기록(잠금 전환 아님)")
+    void login_alreadyLocked_skipsPasswordCompare() {
+        UserAuthData user = userMock(20, RoleType.USER);
+        Password pwd = Mockito.mock(Password.class);
+        given(user.getEncPwd()).willReturn(pwd);
+        given(userService.countLoginAttempt(20)).willReturn(LoginAttempt.locked());
+        given(userFindService.findActiveAuthInTenant(any(), anyInt())).willReturn(user);
+
+        assertThatThrownBy(() -> authService.login(new LoginDto("user20@thinkfree.com", "right"), TENANT, Mockito.mock(HttpServletRequest.class)))
+                .isInstanceOf(ApiRuntimeException.class)
+                .hasMessage(AuthErrorCode.ACCOUNT_LOCKED.getMessage());
+
+        verify(pwd, never()).isSamePassword(any(), any());
+        verify(loginAuditService).recordLoginFailure(user);
+        verify(loginAuditService, never()).recordAccountLocked(any());
+        verify(userService, never()).resetLoginFailureCountOnPasswordMatch(any());
+    }
+
+    @Test
+    @DisplayName("login - 5회째 시도라도 비밀번호가 맞으면 그 자리에서 실패 횟수를 초기화한다(MFA 전 단계에서 잠금으로 남지 않게)")
+    void login_passwordMatch_resetsFailureCountBeforeMfa() {
+        UserAuthData user = userMock(20, RoleType.USER);
+        Password pwd = Mockito.mock(Password.class);
+        given(user.getEncPwd()).willReturn(pwd);
+        given(pwd.isSamePassword(any(), any())).willReturn(true);
+        given(userService.countLoginAttempt(20)).willReturn(LoginAttempt.counted(5));
+        given(userFindService.findActiveAuthInTenant(any(), anyInt())).willReturn(user);
+        // MFA 단계가 남는 테넌트 — 비밀번호 확인 뒤 예외로 끝나도 초기화는 이미 별도 트랜잭션으로 끝났다
+        given(systemConfigFindService.findMfaStatusConfig(TENANT)).willThrow(new IllegalStateException("mfa lookup failed"));
+
+        assertThatThrownBy(() -> authService.login(new LoginDto("user20@thinkfree.com", "right"), TENANT, Mockito.mock(HttpServletRequest.class)))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(userService).resetLoginFailureCountOnPasswordMatch(20);
+        verify(loginAuditService, never()).recordLoginFailure(any());
+        verify(loginAuditService, never()).recordAccountLocked(any());
+    }
+
+    @Test
+    @DisplayName("login - 새 트랜잭션에서 행이 안 보이면(NOT_FOUND) 읽어 둔 값으로 판단 — 15분 안의 5회는 잠김, 지난 5회는 1회째로 다시 센다")
+    void login_notFound_fallsBackToReadValues() {
+        UserAuthData locked = userMock(20, RoleType.USER);
+        given(locked.getLoginFailureCount()).willReturn(5);
+        given(locked.getLoginFailedAt()).willReturn(Instant.now().minusSeconds(60));
+        given(userService.countLoginAttempt(20)).willReturn(LoginAttempt.notFound());
+        given(userFindService.findActiveAuthInTenant(any(), anyInt())).willReturn(locked);
+
+        assertThatThrownBy(() -> authService.login(new LoginDto("user20@thinkfree.com", "right"), TENANT, Mockito.mock(HttpServletRequest.class)))
+                .isInstanceOf(ApiRuntimeException.class)
+                .hasMessage(AuthErrorCode.ACCOUNT_LOCKED.getMessage());
+
+        UserAuthData expired = userMock(21, RoleType.USER);
+        Password pwd = Mockito.mock(Password.class);
+        given(expired.getEncPwd()).willReturn(pwd);
+        given(pwd.isSamePassword(any(), any())).willReturn(false);
+        given(expired.getLoginFailureCount()).willReturn(5);
+        given(expired.getLoginFailedAt()).willReturn(Instant.now().minus(LoginLockPolicy.LOCK_DURATION).minusSeconds(60));
+        given(userService.countLoginAttempt(21)).willReturn(LoginAttempt.notFound());
+        given(userFindService.findActiveAuthInTenant(any(), anyInt())).willReturn(expired);
+
+        assertThatThrownBy(() -> authService.login(new LoginDto("user21@thinkfree.com", "wrong"), TENANT, Mockito.mock(HttpServletRequest.class)))
+                .isInstanceOf(ApiRuntimeException.class)
+                .hasMessage(AuthErrorCode.LOGIN_FAILED.getMessage());
     }
 
     @Test

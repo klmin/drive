@@ -313,7 +313,7 @@
             },
             "accountLockedDialog": {
                 "title": "Your account has been locked.",
-                "desc": "Your account has been locked due to too many failed login attempts.\nPlease contact your administrator to unlock it."
+                "desc": "Your account has been locked due to too many failed login attempts.\nTry again in 15 minutes, reset your password, or contact your administrator."
             },
             "oidc": {
                 "loginBtn": "Login with Company Account",
@@ -344,7 +344,9 @@
             "title": "<b>{appName}</b>",
             "desc": "Requesting access to your {serviceName} account.",
             "allow": "Allow",
-            "deny": "Deny"
+            "deny": "Deny",
+            "redirectLabel": "If you allow, you will be sent to",
+            "redirectNotice": "The app name is chosen by the app itself. Make sure the destination matches the app you are using."
         }
     },
     "filePreviewDialog": {

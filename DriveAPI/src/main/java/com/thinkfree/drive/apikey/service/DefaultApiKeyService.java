@@ -114,8 +114,13 @@ public class DefaultApiKeyService implements ApiKeyService {
     }
 
     @Override
-    public void updateLastUsedDate(String apiKey) {
-        apiKeyRepository.updateLastUsedDate(apiKey);
+    public void updateLastUsedDate(String apiKey, Instant lastUsedDate) {
+        Instant staleBefore = Instant.now().minus(LAST_USED_WRITE_INTERVAL);
+        // 읽은 값이 최근이면 DB 왕복도 생략. 동시 요청이 함께 통과해도 UPDATE 조건(staleBefore)이 한 번만 쓰게 한다
+        if (lastUsedDate != null && !lastUsedDate.isBefore(staleBefore)) {
+            return;
+        }
+        apiKeyRepository.updateLastUsedDate(apiKey, staleBefore);
     }
 
     private static String reissue(ApiKey apiKey) {

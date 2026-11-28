@@ -21,6 +21,6 @@ class DefaultApiKeyServiceTest {
     @Transactional
     void updateLastUsedDate() {
         String apiKey = "hNVqJPQpKcN_P8UDr9ZkjocC9H4kSSI_TRwkJxgYiMM";
-        apiKeyService.updateLastUsedDate(apiKey);
+        apiKeyService.updateLastUsedDate(apiKey, null);
     }
 }

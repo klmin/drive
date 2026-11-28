@@ -14,6 +14,9 @@ import java.util.List;
 public record OAuth2ClientRegistrationRequest(
         String clientName,
         List<String> redirectUris,
-        String scope
+        String scope,
+        // 클라이언트가 원한 토큰 엔드포인트 인증 방식 — 등록 정책은 항상 secret(confidential)이라 값은 바꾸지 않고
+        // none 요청을 로그로만 남긴다(어떤 클라이언트가 public 을 원하는지 운영 데이터). 응답에는 실제 적용 방식이 나간다
+        String tokenEndpointAuthMethod
 ) {
 }

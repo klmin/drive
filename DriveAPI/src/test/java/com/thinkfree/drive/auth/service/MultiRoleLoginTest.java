@@ -1,5 +1,6 @@
 package com.thinkfree.drive.auth.service;
 
+import java.time.Instant;
 import com.thinkfree.drive.auth.dto.LoginDto;
 import com.thinkfree.drive.auth.exception.AuthErrorCode;
 import com.thinkfree.drive.auth.result.LoginResult;
@@ -100,7 +101,7 @@ class MultiRoleLoginTest extends ServiceTest {
     void lockFollowsScreen() {
         User user = insert("mr-lock@test.com", RoleType.USER, RoleType.ADMIN);
         for (int i = 0; i < 5; i++) {
-            userRepository.increaseLoginFailureCount(user.getUserSeq());
+            userRepository.countLoginAttempt(user.getUserSeq(), Instant.now());
         }
 
         var locked = catchThrowableOfType(ApiRuntimeException.class, () -> authService.login(new LoginDto(user.getUserId(), PW), TENANT, request()));

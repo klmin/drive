@@ -2,6 +2,7 @@ package com.thinkfree.drive.apikey.repository;
 
 import com.thinkfree.drive.apikey.entity.ApiKey;
 
+import java.time.Instant;
 import java.util.List;
 
 /** 쓰기(Service 가 주입) + 쓰기에 묶인 조회(고칠 행 로드). 읽기는 {@link ApiKeyQueryRepository}. */
@@ -18,8 +19,8 @@ public interface ApiKeyRepository {
 
     int deleteByUserSeqList(List<Integer> userSeqList);
 
-    /** last_used_date = 현재 시각(초 절삭) */
-    void updateLastUsedDate(String apiKey);
+    /** last_used_date = 현재 시각(초 절삭). 마지막 사용일이 staleBefore 이후면 쓰지 않는다. 쓴 행 수(0 또는 1) */
+    int updateLastUsedDate(String apiKey, Instant staleBefore);
     /** 테넌트 삭제 — 이 테넌트의 행 전부. 지운 행 수 */
     int deleteByTenant(Integer tenantSeq);
 }

@@ -33,7 +33,9 @@ import com.thinkfree.drive.superadmin.token.service.TenantAccessTokenService;
 import com.thinkfree.drive.systemconfig.service.SystemConfigFindService;
 import com.thinkfree.drive.tenant.policy.TenantPolicy;
 import com.thinkfree.drive.user.data.UserDetailData;
+import com.thinkfree.drive.user.data.LoginAttempt;
 import com.thinkfree.drive.user.data.UserAuthData;
+import com.thinkfree.drive.user.util.LoginLockPolicy;
 import com.thinkfree.drive.user.data.UserIdentity;
 import com.thinkfree.drive.user.enums.MfaMethod;
 import com.thinkfree.drive.user.enums.MfaStatus;
@@ -52,6 +54,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 import static com.thinkfree.drive.global.utils.PasswordEncoderUtils.ENCODER;
@@ -83,8 +86,7 @@ public class AuthService {
         log.info("{ AuthService } : 로그인");
         loginConfigService.validateLoginType(tenantSeq, LoginType.LOCAL);
         UserAuthData findUser = findUserOrThrowLoginFailed(() -> userFindService.findActiveAuthInTenant(loginDto.userId(), tenantSeq));
-        validateAccountNotLocked(findUser, RoleType.USER);
-        validatePassword(loginDto.encPwd(), findUser, RoleType.USER);
+        verifyPassword(loginDto.encPwd(), findUser, RoleType.USER);
         log.info("{ AuthService } : 비밀번호 일치");
 
         boolean tenantMfaEnabled = systemConfigFindService.findMfaStatusConfig(tenantSeq).isEnabled();
@@ -102,8 +104,7 @@ public class AuthService {
         log.info("{ AuthService } : 관리자 로그인");
         UserAuthData findAdmin = findUserOrThrowLoginFailed(() -> userFindService.findActiveAdminAuthInTenant(loginDto.userId(), tenantSeq));
 
-        validateAccountNotLocked(findAdmin, RoleType.ADMIN);
-        validatePassword(loginDto.encPwd(), findAdmin, RoleType.ADMIN);
+        verifyPassword(loginDto.encPwd(), findAdmin, RoleType.ADMIN);
         log.info("{ AuthService } : 비밀번호 일치");
 
         boolean hasChangedPassword = userLogService.hasChangedPassword(findAdmin.getUserSeq());
@@ -118,8 +119,7 @@ public class AuthService {
         log.info("{ AuthService } : 슈퍼 관리자 로그인");
         UserAuthData findSuperAdmin = findUserOrThrowLoginFailed(() -> userFindService.findSuperAdminAuthByUserId(loginDto.userId()));
 
-        validateAccountNotLocked(findSuperAdmin, RoleType.SUPER_ADMIN);
-        validatePassword(loginDto.encPwd(), findSuperAdmin, RoleType.SUPER_ADMIN);
+        verifyPassword(loginDto.encPwd(), findSuperAdmin, RoleType.SUPER_ADMIN);
         log.info("{ AuthService } : 비밀번호 일치");
 
         boolean hasChangedPassword = userLogService.hasChangedPassword(findSuperAdmin.getUserSeq());
@@ -204,33 +204,31 @@ public class AuthService {
         return response;
     }
 
-    // 이미 잠긴 계정으로 재시도하는 경우 - 상태 전환(UNLOCKED->LOCKED)이 없으므로 ACCOUNT_LOCKED_STATUS_CHANGE가 아니라
-    // 그냥 로그인 실패(LOGIN_FAILED)로 기록한다.
-    // 잠금은 사용자 로그인 화면에서만 — 계정 역할이 아니라 로그인 화면(loginRole) 기준(관리자·슈퍼관리자 화면은 잠금 없음)
-    private void validateAccountNotLocked(UserAuthData findUser, RoleType loginRole) {
-        if (RoleType.USER != loginRole) return;
-        if (findUser.getLoginFailureCount() >= 5) {
-            loginAuditService.recordLoginFailure(findUser);
-            throw ApiRuntimeException.type(AuthErrorCode.ACCOUNT_LOCKED);
-        }
-    }
-
-    private void validatePassword(String comparePassword, UserAuthData findUser, RoleType loginRole) {
-        if (findUser.getEncPwd().isSamePassword(comparePassword, ENCODER)) {
-            return;
-        }
-
-        // 관리자 / 슈퍼관리자 로그인 화면은 계정 잠금 없이 로그인 실패만 반환
+    /**
+     * 비밀번호 확인. 잠금은 사용자 로그인 화면에서만 — 계정 역할이 아니라 로그인 화면(loginRole) 기준(관리자·슈퍼관리자 화면은 잠금 없음).
+     * <p>사용자 화면은 비교 <b>전에</b> 시도를 원자적으로 센다({@link UserService#countLoginAttempt}, 새 트랜잭션).
+     * 예전처럼 요청 시작 때 읽은 횟수로 판단하면 동시에 보낸 요청이 모두 "잠기지 않음" 으로 통과해 잠금 한도보다 많이 비교할 수 있었다.
+     * 마지막 실패 뒤 {@link LoginLockPolicy#LOCK_DURATION} 이 지나면 잠금이 풀린다.
+     * 비밀번호가 맞으면 그 자리에서 횟수를 0 으로 되돌린다(새 트랜잭션) — MFA 단계가 남거나 뒤 단계가 실패해도 맞힌 시도가 잠금으로 쌓이지 않게.
+     */
+    private void verifyPassword(String comparePassword, UserAuthData findUser, RoleType loginRole) {
         if (RoleType.USER != loginRole) {
+            if (findUser.getEncPwd().isSamePassword(comparePassword, ENCODER)) {
+                return;
+            }
             loginAuditService.recordLoginFailure(findUser);
             throw ApiRuntimeException.type(AuthErrorCode.LOGIN_FAILED);
         }
 
-        int nextFailureCount = findUser.getLoginFailureCount() + 1;
-        userService.increaseLoginFailureCount(findUser.getUserSeq());
+        int failureCount = countLoginAttempt(findUser);
+
+        if (findUser.getEncPwd().isSamePassword(comparePassword, ENCODER)) {
+            userService.resetLoginFailureCountOnPasswordMatch(findUser.getUserSeq());
+            return;
+        }
 
         // 5회째(잠기는 순간)는 "로그인 실패"와 "계정 잠금"이 동시에 일어난 별개의 사실이므로 둘 다 기록한다.
-        if (nextFailureCount >= 5) {
+        if (failureCount >= LoginLockPolicy.MAX_FAILURES) {
             loginAuditService.recordLoginFailure(findUser);
             loginAuditService.recordAccountLocked(findUser);
             throw ApiRuntimeException.type(AuthErrorCode.ACCOUNT_LOCKED);
@@ -238,10 +236,35 @@ public class AuthService {
 
         // 1~4회째는 전부 로그인 실패로 기록한다(4회째는 경고 응답이지만 감사 로그상 이벤트는 동일하게 LOGIN_FAILED).
         loginAuditService.recordLoginFailure(findUser);
-        if (nextFailureCount == 4) {
+        if (failureCount == LoginLockPolicy.MAX_FAILURES - 1) {
             throw ApiRuntimeException.type(AuthErrorCode.LOGIN_FAILURE_WARNING);
         }
         throw ApiRuntimeException.type(AuthErrorCode.LOGIN_FAILED);
+    }
+
+    /**
+     * 이번 시도를 센 뒤 횟수. 잠겨 있으면 비밀번호를 비교하지 않고 ACCOUNT_LOCKED —
+     * 이미 잠긴 계정의 재시도는 상태 전환(UNLOCKED->LOCKED)이 없으므로 ACCOUNT_LOCKED_STATUS_CHANGE 가 아니라 LOGIN_FAILED 로 기록한다.
+     */
+    private int countLoginAttempt(UserAuthData findUser) {
+        LoginAttempt attempt = userService.countLoginAttempt(findUser.getUserSeq());
+        switch (attempt.outcome()) {
+            case COUNTED:
+                return attempt.failureCount();
+            case LOCKED:
+                loginAuditService.recordLoginFailure(findUser);
+                throw ApiRuntimeException.type(AuthErrorCode.ACCOUNT_LOCKED);
+            case NOT_FOUND:
+            default:
+                // 새 트랜잭션에서 행이 보이지 않음 = 조회 직후 비활성·삭제됐거나, 이 트랜잭션이 아직 커밋하지 않은 계정(통합 테스트).
+                // 이때만 읽어 둔 값으로 판단한다(원자적이지 않고 쓰지도 않음 — 예전 동작과 같다).
+                Instant now = Instant.now();
+                if (LoginLockPolicy.isLocked(findUser.getLoginFailureCount(), findUser.getLoginFailedAt(), now)) {
+                    loginAuditService.recordLoginFailure(findUser);
+                    throw ApiRuntimeException.type(AuthErrorCode.ACCOUNT_LOCKED);
+                }
+                return LoginLockPolicy.nextCount(findUser.getLoginFailureCount(), findUser.getLoginFailedAt(), now);
+        }
     }
 
     private UserAuthData findUserOrThrowLoginFailed(java.util.function.Supplier<UserAuthData> supplier) {

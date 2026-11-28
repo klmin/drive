@@ -22,6 +22,7 @@ import com.thinkfree.drive.storage.service.StorageService;
 import com.thinkfree.drive.user.admin.dto.AdminUserSaveDto;
 import com.thinkfree.drive.user.admin.dto.AdminUserUpdateDto;
 import com.thinkfree.drive.user.converter.UserConverter;
+import com.thinkfree.drive.user.data.LoginAttempt;
 import com.thinkfree.drive.user.data.UserAuthData;
 import com.thinkfree.drive.user.data.UserDetailData;
 import com.thinkfree.drive.user.data.UserDetailWithRolesData;
@@ -443,10 +444,17 @@ public class DefaultUserService implements UserService {
         return findUser;
     }
 
-    // 해당 메서드는 새 트랜잭션으로 분리해서 처리 ex) 로그인 실패로 트랜잭션이 롤백돼도 증가 쿼리는 적용
+    // 새 트랜잭션으로 분리 — 로그인 실패로 바깥 트랜잭션이 롤백돼도 센 시도는 남는다
+    @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void increaseLoginFailureCount(Integer userSeq) {
-        userRepository.increaseLoginFailureCount(userSeq);
+    public LoginAttempt countLoginAttempt(Integer userSeq) {
+        return userRepository.countLoginAttempt(userSeq, Instant.now());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void resetLoginFailureCountOnPasswordMatch(Integer userSeq) {
+        userRepository.resetLoginFailureCount(userSeq);
     }
 
     @Transactional
@@ -540,8 +548,9 @@ public class DefaultUserService implements UserService {
         // 메일을 막은 테넌트(SYSTEM_MANAGED)는 토큰도 만들지 않는다
         tenantPolicy.require(user.getTenantSeq(), TenantFeature.MAIL);
 
-        userRepository.resetLoginFailureCount(user.getUserSeq());
-        
+        // 실패 횟수는 여기서 초기화하지 않는다 — 인증 없이 아무 아이디로나 부를 수 있어, 초기화하면 누구나 잠금을 풀고 시도를 이어 갈 수 있다.
+        // 잠금은 링크로 비밀번호를 바꿀 때(User#changePassword) 또는 시간이 지나면(LoginLockPolicy) 풀린다.
+
         int tenantSeq = user.getTenantSeq();
 
         String serviceName = brandingMetaService.findServiceNameOrDefault(tenantSeq);

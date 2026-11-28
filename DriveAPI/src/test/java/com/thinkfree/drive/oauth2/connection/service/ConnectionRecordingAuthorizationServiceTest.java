@@ -95,6 +95,23 @@ class ConnectionRecordingAuthorizationServiceTest {
     }
 
     @Test
+    @DisplayName("access 토큰 무효화 저장(코드 재사용 탐지·revoke) — 연결 행을 지워 기발급 토큰을 막고, 다시 기록하지 않는다")
+    void invalidatedAccessTokenRevokesConnection() {
+        OAuth2Authorization authorization = authorizationWithAccessToken();
+        authorizationService.save(authorization);
+        assertThat(connectionRows()).isEqualTo(1);
+
+        // SAS OAuth2AuthorizationCodeAuthenticationProvider 가 코드 재사용 시 하는 것과 같은 무효화
+        OAuth2Authorization invalidated = OAuth2Authorization.from(authorization)
+                .invalidate(authorization.getAccessToken().getToken())
+                .build();
+        authorizationService.save(invalidated);
+
+        assertThat(connectionRows()).isZero();
+        assertThat(authorizationRows(authorization)).as("SAS 인가 행은 무효 상태로 남는다").isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("연결 upsert 실패 — 예외가 전파되고 토큰 저장도 롤백된다")
     void upsertFailureRollsBackTokenSave() {
         OAuth2Authorization authorization = authorizationWithAccessToken();

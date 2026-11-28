@@ -5,8 +5,12 @@ import com.thinkfree.drive.oauth2.exception.InvalidClientRegistrationException;
 import com.thinkfree.drive.oauth2.request.OAuth2ClientRegistrationRequest;
 import com.thinkfree.drive.oauth2.response.OAuth2ClientRegistrationResponse;
 import com.thinkfree.drive.oauth2.response.OAuth2RegistrationErrorResponse;
+import com.thinkfree.drive.oauth2.properties.OAuth2RegistrationProperty;
+import com.thinkfree.drive.oauth2.service.OAuth2ClientRegistrationRateLimiter;
 import com.thinkfree.drive.oauth2.usecase.OAuth2ClientRegistrationUseCase;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -25,16 +29,25 @@ import org.springframework.web.bind.annotation.RestController;
  * 등록 정책은 OAuth2ClientRegistrationService.
  *
  * 어떤 시큐리티 체인 matcher에도 안 걸리는 경로라 익명 접근 가능.
- * TODO: 익명 등록 남용 방지용 rate limit (운영 전환 시).
+ * 남용 방지: IP 별·전역 등록 횟수 제한(OAuth2ClientRegistrationRateLimiter, 초과 시 429),
+ * 쓰이지 않은 등록은 OAuth2AuthorizationCleanupScheduler 가 정리한다.
  */
 @RestController
 @RequiredArgsConstructor
 public class OAuth2DynamicClientRegistrationController {
 
     private final OAuth2ClientRegistrationUseCase oauth2ClientRegistrationUseCase;
+    private final OAuth2ClientRegistrationRateLimiter oauth2ClientRegistrationRateLimiter;
+    private final OAuth2RegistrationProperty oauth2RegistrationProperty;
 
     @PostMapping(OAuth2Constants.REGISTRATION_PATH)
-    public ResponseEntity<OAuth2ClientRegistrationResponse> register(@RequestBody OAuth2ClientRegistrationRequest request) {
+    public ResponseEntity<?> register(@RequestBody OAuth2ClientRegistrationRequest request, HttpServletRequest httpRequest) {
+        // 검증 실패 요청도 횟수에 포함 — 잘못된 요청 반복도 남용이다
+        if (!oauth2ClientRegistrationRateLimiter.tryAcquire(httpRequest.getRemoteAddr())) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .header(HttpHeaders.RETRY_AFTER, String.valueOf(oauth2RegistrationProperty.window().toSeconds()))
+                    .body(new OAuth2RegistrationErrorResponse("too_many_requests", "client registration rate limit exceeded"));
+        }
         var response = oauth2ClientRegistrationUseCase.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
