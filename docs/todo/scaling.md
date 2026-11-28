@@ -26,9 +26,7 @@
   - 어디: `application.yml` `server.tomcat.connection-timeout`, 앞단 Apache `Timeout` 과 같이. 느린 회선의 정상 16MB 파트가 끊기지 않는 값
   - 끝 기준: 바이트를 멈춘 연결이 설정 시간 뒤 끊기고 허가가 반납됨(테스트 또는 k6 느린 클라이언트)
 - [x] **MCP 로깅 필터 본문 무제한 읽기** — 미리 읽지 않고 다운스트림(인증 뒤 MCP 전송)이 읽는 대로 앞 64KB 만 복사. 인증 거절이면 본문을 읽지 않음
-- [ ] **OIDC 캐시 만료**
-  - 왜: `OidcAuthHandler` 가 디스커버리 문서·`RestClient`·`JwtDecoder` 를 `ConcurrentHashMap` 에 만료 없이 보관한다(설계 §1 표). IdP 의 엔드포인트·`jwks_uri` 변경은 재기동 전까지 반영되지 않는다. JWK 키 회전이 디코더 안에서 갱신되는지는 확인 필요
-  - 끝 기준: TTL(Caffeine) 또는 검증 실패 시 다시 받기, 크기 제한
+- [x] **OIDC 캐시 만료** — 디스커버리 1시간 TTL + 토큰 교환·ID Token 검증 실패 시 버리고 다시 받기, RestClient·디코더 6시간 미사용 만료, 모두 최대 1000. 디코더 키에 issuer 추가(검증기가 issuer 를 품는데 키에 없었다). JWK 키 회전은 Nimbus 가 모르는 kid 에서 다시 받음
 
 ## B. Redis 도입 (선택 구성요소, `redis | db | local` 스위치)
 
