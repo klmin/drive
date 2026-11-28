@@ -149,19 +149,24 @@ class RedisBlacklistStoreTest {
         assertThat(redis.hasKey("bt:bl-loaded")).isTrue();
     }
 
+    /** opsForValue().set(k, v, ttl) 만 실패하고 나머지는 실제 Redis 로 가는 템플릿 */
+    private static StringRedisTemplate failingTokenSet() {
+        StringRedisTemplate spy = org.mockito.Mockito.spy(redis);
+        ValueOperations<String, String> real = redis.opsForValue();
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, String> ops = mock(ValueOperations.class, org.mockito.AdditionalAnswers.delegatesTo(real));
+        org.mockito.Mockito.doThrow(new RedisConnectionFailureException("blip")).when(ops).set(anyString(), anyString(), any(Duration.class));
+        org.mockito.Mockito.doReturn(ops).when(spy).opsForValue();
+        return spy;
+    }
+
     @Test
     @DisplayName("SET 실패 — 표시 키를 지워 DB 로 확인하게 한다(다른 토큰도 사본을 믿지 않음)")
     void writeFailureDropsLoadedMarker() {
         given(db.findAllNotExpired(any())).willReturn(List.of());
         store.reload();
 
-        StringRedisTemplate failingSet = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> ops = mock(ValueOperations.class);
-        when(failingSet.opsForValue()).thenReturn(ops);
-        org.mockito.Mockito.doThrow(new RedisConnectionFailureException("blip")).when(ops).set(anyString(), anyString(), any(Duration.class));
-        when(failingSet.delete(anyString())).thenAnswer(inv -> redis.delete((String) inv.getArgument(0)));
-        RedisBlacklistStore flaky = new RedisBlacklistStore(failingSet, db, property, new SimpleMeterRegistry());
+        RedisBlacklistStore flaky = new RedisBlacklistStore(failingTokenSet(), db, property, new SimpleMeterRegistry());
 
         flaky.add("h4", IN_ONE_HOUR);
         assertThat(redis.hasKey("bt:bl-loaded")).as("표시 키 삭제").isFalse();
@@ -169,6 +174,41 @@ class RedisBlacklistStoreTest {
         when(db.existsByTokenHash(new BlacklistFindQuery("h4"))).thenReturn(true);
         assertThat(isBlacklisted("h4")).as("Redis 사본엔 없지만 DB 로 거절").isTrue();
         flaky.shutdown();
+    }
+
+    @Test
+    @DisplayName("재적재가 DB 를 읽은 뒤 다른 WAS 의 로그아웃 SET 이 실패하면 표시 키를 두지 않는다 — 다음 재적재에서 반영")
+    void writeFailureDuringReloadKeepsDbFallback() throws InterruptedException {
+        RedisBlacklistStore otherWas = new RedisBlacklistStore(failingTokenSet(), db, property, new SimpleMeterRegistry());
+        java.util.concurrent.atomic.AtomicBoolean firstRead = new java.util.concurrent.atomic.AtomicBoolean(true);
+        given(db.findAllNotExpired(any())).willAnswer(inv -> {
+            if (firstRead.getAndSet(false)) {
+                otherWas.add("h7", IN_ONE_HOUR); // DB 목록을 읽은 직후 커밋된 로그아웃, Redis SET 실패
+                return List.of();
+            }
+            return List.of(new BlacklistEntry("h7", IN_ONE_HOUR)); // 그 뒤 읽기엔 들어 있다
+        });
+
+        assertThat(store.reload()).as("세대가 바뀌어 완료 표시 안 함").isEqualTo(-1);
+        assertThat(redis.hasKey("bt:bl-loaded")).isFalse();
+        when(db.existsByTokenHash(new BlacklistFindQuery("h7"))).thenReturn(true);
+        assertThat(isBlacklisted("h7")).as("DB 로 거절").isTrue();
+
+        // 다음 재적재(contains() 가 뒤에서 띄운 것과 겹치면 -1 이라 끝날 때까지)
+        assertThat(eventually(() -> store.reload() == 1 || Boolean.TRUE.equals(store.contains("h7")))).as("다음 재적재").isTrue();
+        assertThat(store.contains("h7")).isTrue();
+        otherWas.shutdown();
+    }
+
+    @Test
+    @DisplayName("적재 도중 Redis 재시작(세대 키 유실) — 표시 키를 두지 않는다")
+    void dataLossDuringReloadDoesNotMark() {
+        given(db.findAllNotExpired(any())).willAnswer(inv -> {
+            redis.getConnectionFactory().getConnection().serverCommands().flushAll();
+            return List.of();
+        });
+        assertThat(store.reload()).isEqualTo(-1);
+        assertThat(redis.hasKey("bt:bl-loaded")).isFalse();
     }
 
     @Test
