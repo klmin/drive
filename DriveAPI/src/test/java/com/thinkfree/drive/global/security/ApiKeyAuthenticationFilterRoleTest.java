@@ -12,6 +12,7 @@ import com.thinkfree.drive.user.data.UserDetailData;
 import com.thinkfree.drive.user.enums.RoleType;
 import com.thinkfree.drive.user.exception.UserErrorCode;
 import com.thinkfree.drive.user.service.UserFindService;
+import com.thinkfree.drive.global.ratelimit.ApiClientRateLimitGuard;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +60,7 @@ class ApiKeyAuthenticationFilterRoleTest {
     @Mock private ApiKeyService apiKeyService;
     @Mock private UserFindService userFindService;
     @Mock private SuperAdminExternalProperty superAdminExternalProperty;
+    @Mock private ApiClientRateLimitGuard rateLimitGuard;
     @Mock private FilterChain chain;
 
     @InjectMocks
@@ -214,7 +216,7 @@ class ApiKeyAuthenticationFilterRoleTest {
 
     /** 내부 체인용 필터 — SUPER_ADMIN 역할 키 거부 */
     private ApiKeyAuthenticationFilter internalFilter() {
-        return ApiKeyAuthenticationFilter.rejectingSuperAdminKey(apiKeyFindService, apiKeyService, userFindService, superAdminExternalProperty);
+        return ApiKeyAuthenticationFilter.rejectingSuperAdminKey(apiKeyFindService, apiKeyService, userFindService, superAdminExternalProperty, rateLimitGuard);
     }
 
     @Test

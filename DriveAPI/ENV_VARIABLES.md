@@ -194,7 +194,7 @@ docker·k8s 는 같은 내용을 `KEY=value` 형식(따옴표·`export` 없음)�
 - 서버가 스스로 서명·검증(대칭)하므로 외부와 맞출 필요 없다. 같은 DB 를 쓰는 WAS 끼리만 같은 값이면 된다.
 - 기존 서버(운영·dev)는 지금까지 jar 내장값으로 돌았다 — SMTP AES 는 그 값을 계속 쓴다(`generate_secret_keys.sh --existing-db` 가 넣는 값, `LEGACY` 상수, 로컬 `.env.example` 과 같은 값).
 
-## 5. 선택 — 안 넣으면 기본값 (61개)
+## 5. 선택 — 안 넣으면 기본값 (62개)
 
 | 키 | 기본값 | 설명 |
 |---|---|---|
@@ -222,13 +222,14 @@ docker·k8s 는 같은 내용을 `KEY=value` 형식(따옴표·`export` 없음)�
 | `DRIVE_REDIS_TIMEOUT` | `500ms` | 명령 응답 대기. 짧게 둬야 Redis 가 느릴 때 요청이 붙잡히지 않고 장애 시 동작으로 넘어간다 |
 | `DRIVE_REDIS_CONNECT_TIMEOUT` | `1s` | 연결 대기 |
 | `DRIVE_REDIS_KEY_PREFIX` | `drive:` | 모든 키의 접두어. 여러 설치가 Redis 하나를 같이 쓰면 설치마다 다르게. Redis 는 `maxmemory-policy noeviction` 으로 둔다 — 아니면 기동 시 경고(키가 밀려나면 로그아웃 토큰이 통과할 수 있음) |
-| `DRIVE_RATE_LIMIT_ENABLED` | `true` | 로그인 전 화면(로그인·MFA·재설정 링크 요청) 요청 수 제한. 넘으면 429 + `Retry-After`. `DRIVE_REDIS_ENABLED=true` 면 WAS 끼리 합산, 아니면 WAS 마다(실제 한도 = 값 × WAS 대수) |
+| `DRIVE_RATE_LIMIT_ENABLED` | `true` | 로그인 전 화면(로그인·MFA·재설정 링크 요청)과 API Key·MCP 요청 수 제한. 넘으면 429 + `Retry-After`. `DRIVE_REDIS_ENABLED=true` 면 WAS 끼리 합산, 아니면 WAS 마다(실제 한도 = 값 × WAS 대수) |
 | `DRIVE_RATE_LIMIT_LOGIN_PER_ACCOUNT` | `10` | 로그인 — 같은 아이디 분당 횟수(테넌트·화면별). 관리자·슈퍼관리자 화면은 계정 잠금이 없어 이것이 무차별 대입을 막는다 |
 | `DRIVE_RATE_LIMIT_LOGIN_PER_IP` | `100` | 로그인 — 같은 IP 분당 횟수(테넌트별). 회사 NAT 뒤 사용자가 많으면 올린다. IP 는 신뢰 프록시 기준(§1-2) |
 | `DRIVE_RATE_LIMIT_ANONYMOUS_LOGIN_PER_IP` | `30` | 공유 링크 익명 로그인 — 같은 IP 분당 횟수(링크 토큰 추측 방지) |
 | `DRIVE_RATE_LIMIT_MFA_PER_USER` | `5` | MFA 코드 확인(로그인 2단계·첫 설정) — 같은 사용자 분당 횟수. 틀린 MFA 코드는 계정 잠금에 세지 않아 이것이 6자리 코드 추측을 막는다 |
 | `DRIVE_RATE_LIMIT_PASSWORD_RESET_LINK_PER_ACCOUNT` | `3` | 비밀번호 재설정 링크 메일 요청 — 같은 계정 **15분당** 횟수(남의 메일함 폭주 방지) |
 | `DRIVE_RATE_LIMIT_PASSWORD_RESET_LINK_PER_IP` | `20` | 비밀번호 재설정 링크 메일 요청 — 같은 IP 분당 횟수(테넌트별) |
+| `DRIVE_RATE_LIMIT_API_KEY_PER_KEY` | `600` | API Key 하나(MCP OAuth 연동은 사용자·클라이언트 하나) 분당 요청 수 — 순간 600, 평균 초당 10. 외부·내부·`/mcp` 경로가 한 한도를 나눠 쓴다. 대량 동기화 스크립트가 있으면 올린다 |
 | `DRIVE_REST_CLIENT_TRACE_ENABLED` | `false` | 외부 호출 요청·응답 본문까지 로그(본문 버퍼링). 운영은 `false`, dev·로컬은 `true` |
 | `DRIVE_SUPER_ADMIN_ALLOWED_IPS` | (빈 값 → 제한 없음) | 슈퍼어드민 접근 허용 IP·CIDR(쉼표 구분) |
 | `DRIVE_SUPER_ADMIN_EXTERNAL_API_KEY` | (빈 값) | 슈퍼어드민 외부 API 고정 키 |

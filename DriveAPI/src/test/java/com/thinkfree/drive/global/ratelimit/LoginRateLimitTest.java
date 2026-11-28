@@ -40,7 +40,7 @@ class LoginRateLimitTest {
     }
 
     private LoginRateLimitGuard guard(long perAccount, long perIp) {
-        return new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(true, perAccount, perIp, 3, 2, 2, 3), meters);
+        return new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(true, perAccount, perIp, 3, 2, 2, 3, 600), meters);
     }
 
     private static MockHttpServletRequest from(String ip) {
@@ -178,7 +178,7 @@ class LoginRateLimitTest {
     @DisplayName("꺼져 있으면 제한하지 않는다")
     void disabled() {
         TenantContext.set(1);
-        LoginRateLimitGuard guard = new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(false, 1, 1, 1, 1, 1, 1), meters);
+        LoginRateLimitGuard guard = new LoginRateLimitGuard(new LocalRateLimiter(), new RateLimitProperty(false, 1, 1, 1, 1, 1, 1, 1), meters);
         for (int i = 0; i < 5; i++) {
             guard.checkLogin(RoleType.USER, "kim", from("10.0.0.1"));
             guard.checkAnonymousLogin(from("10.0.0.1"));
