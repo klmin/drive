@@ -38,9 +38,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li><b>Redis 재시작으로 데이터 유실</b>: Lettuce 가 알아서 다시 붙어 앱은 모른다. 그래서 표시 키가 없으면 사본을 믿지 않고(null)
  *       뒤에서 DB 의 미만료 항목을 다시 싣는다. 키를 모두 실은 뒤에 표시 키를 둔다</li>
  *   <li><b>로그아웃 SET 한 번 실패</b>: 표시 키를 지워 다시 실을 때까지 DB 로 확인하게 한다(지우기도 실패하면 1분 주기 동기화가 메운다)</li>
- *   <li><b>재적재 도중 SET 실패</b>: 재적재가 DB 를 읽은 뒤의 로그아웃은 그 목록에 없다. 실패 시 세대 키 {@code <prefix>bl-epoch} 를
- *       새 값으로 바꾸고(표시 키 삭제와 한 스크립트), 재적재는 DB 를 읽기 전에 본 세대가 그대로일 때만 표시 키를 둔다(WAS 여러 대에서도).
+ *   <li><b>재적재 도중 SET 실패</b>: 재적재가 DB 를 읽은 뒤의 로그아웃은 그 목록에 없다. 실패 시 세대 키 {@code <prefix>bl-epoch} 와
+ *       표시 키를 한 번의 {@code DEL} 로 지우고, 재적재는 DB 를 읽기 전에 본 세대가 그대로 있을 때만 표시 키를 둔다(WAS 여러 대에서도).
  *       Redis 재시작으로 세대 키가 사라져도 표시 키를 두지 않는다</li>
+ *   <li><b>메모리 부족(noeviction OOM)</b>: SET 은 거절되지만 {@code DEL} 은 허용된다 — 그래서 무효화는 DEL 만 쓴다.
+ *       표시 키를 두는 스크립트는 쓰기라 OOM 동안 실패하고, 그동안은 DB 로 확인한다</li>
  *   <li>메모리가 차서 키가 밀려나지 않게 Redis 는 {@code maxmemory-policy noeviction}(기동 시 확인 — RedisConnectionMonitor)</li>
  * </ul>
  * 조회는 표시 키와 토큰 키를 {@code MGET} 한 번으로 읽는다.
@@ -57,10 +59,6 @@ public class RedisBlacklistStore implements BlacklistStore {
     /** 세대가 재적재 시작 때 본 값과 같을 때만 표시 키를 둔다. KEYS[1]=세대, KEYS[2]=표시, ARGV[1]=본 세대 */
     private static final RedisScript<Long> MARK_LOADED_IF_SAME_EPOCH = new DefaultRedisScript<>(
             "if redis.call('GET', KEYS[1]) == ARGV[1] then redis.call('SET', KEYS[2], '1') return 1 end return 0",
-            Long.class);
-    /** 쓰기 실패 — 세대를 바꾸고 표시 키를 지운다(한 번에). KEYS[1]=세대, KEYS[2]=표시, ARGV[1]=새 세대 */
-    private static final RedisScript<Long> INVALIDATE = new DefaultRedisScript<>(
-            "redis.call('SET', KEYS[1], ARGV[1]) redis.call('DEL', KEYS[2]) return 1",
             Long.class);
 
     private final StringRedisTemplate redis;
@@ -151,7 +149,8 @@ public class RedisBlacklistStore implements BlacklistStore {
             writeFailures.increment();
             log.warn("[Blacklist] Redis 사본 기록 실패 — 표시 키를 지워 다시 실을 때까지 DB 로 확인한다", e);
             try {
-                redis.execute(INVALIDATE, List.of(epochKey, loadedKey), UUID.randomUUID().toString());
+                // 여러 키 DEL 은 원자적이고 메모리 부족(noeviction)에서도 허용된다 — 세대가 사라지면 진행 중 재적재도 표시 키를 못 둔다
+                redis.delete(List.of(epochKey, loadedKey));
             } catch (Exception ignored) {
                 log.warn("[Blacklist] 표시 키 삭제도 실패 — 1분 주기 동기화까지 이 토큰이 Redis 사본에 없다");
             }

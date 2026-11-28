@@ -212,6 +212,29 @@ class RedisBlacklistStoreTest {
     }
 
     @Test
+    @DisplayName("메모리 부족(noeviction OOM) — SET 이 거절돼도 표시 키를 지워 DB 로 확인하고, OOM 동안 다시 표시하지 않는다")
+    void outOfMemoryDropsLoadedMarker() {
+        given(db.findAllNotExpired(any())).willReturn(List.of());
+        store.reload();
+        assertThat(redis.hasKey("bt:bl-loaded")).isTrue();
+
+        var server = redis.getConnectionFactory().getConnection().serverCommands();
+        server.setConfig("maxmemory-policy", "noeviction");
+        server.setConfig("maxmemory", "1");
+        try {
+            store.add("h8", IN_ONE_HOUR); // SET → OOM
+            assertThat(redis.hasKey("bt:bl-loaded")).as("DEL 은 OOM 에서도 허용").isFalse();
+
+            when(db.existsByTokenHash(new BlacklistFindQuery("h8"))).thenReturn(true);
+            assertThat(isBlacklisted("h8")).as("DB 로 거절").isTrue();
+            assertThat(store.reload()).as("OOM 동안 표시 키를 두지 못함").isEqualTo(-1);
+            assertThat(redis.hasKey("bt:bl-loaded")).isFalse();
+        } finally {
+            server.setConfig("maxmemory", "0");
+        }
+    }
+
+    @Test
     @DisplayName("Redis 정지 — 조회 오류를 DB 로 넘겨 거절한다, 예외 없음")
     void redisDownFallsBackToDb() {
         LettuceConnectionFactory dead = new LettuceConnectionFactory("127.0.0.1", 1);
