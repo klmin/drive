@@ -1,5 +1,6 @@
 package com.thinkfree.drive.common;
 
+import com.thinkfree.drive.auditlog.context.AuditLogContextHolder;
 import com.thinkfree.drive.auth.token.refresh.repository.RefreshTokenRepository;
 import com.thinkfree.drive.user.entity.User;
 import com.thinkfree.drive.user.enums.RoleType;
@@ -8,6 +9,7 @@ import com.thinkfree.drive.user.repository.UserRepository;
 import com.thinkfree.drive.user.role.entity.UserRole;
 import com.thinkfree.drive.user.role.repository.UserRoleRepository;
 import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +34,12 @@ public class ServiceTest {
 
     @Autowired
     protected UserRoleRepository userRoleRepository;
+
+    /** 서비스를 Aspect 없이 직접 불러 감사 로그 컨텍스트(ThreadLocal)가 쌓인다 — 같은 스레드의 다음 테스트로 새지 않게 */
+    @AfterEach
+    void clearAuditLogContext() {
+        AuditLogContextHolder.clear();
+    }
 
     /**
      * 테스트 계정 INSERT + 그 계정 역할(role) 1개 부여 — 로그인 조회·토큰 발급·필터가 tb_user_role 을 보므로(다중 role, 10-23)
