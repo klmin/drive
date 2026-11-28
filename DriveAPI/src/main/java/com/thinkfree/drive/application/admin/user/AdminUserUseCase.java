@@ -31,6 +31,7 @@ import com.thinkfree.drive.user.role.service.UserRoleFindService;
 import com.thinkfree.drive.user.role.service.UserRoleService;
 import com.thinkfree.drive.user.service.UserFindService;
 import com.thinkfree.drive.user.service.UserService;
+import com.thinkfree.drive.user.util.LoginLockPolicy;
 import com.thinkfree.drive.util.DateUtil;
 import com.thinkfree.drive.valid.DriveAssert;
 import jakarta.servlet.http.HttpServletRequest;
@@ -160,8 +161,8 @@ public class AdminUserUseCase {
     public void updatePasswordByAdmin(Integer userSeq, String newPwd, HttpServletRequest httpRequest) {
         UserAuthData user = userService.updatePasswordByAdmin(userSeq, newPwd, httpRequest);
 
-        // 5회 이상 로그인 실패로 잠긴 계정만 "잠금 해제"다 — 잠기지 않은 계정은 상태 전환이 없으므로 기록하지 않는다.
-        if (user.getLoginFailureCount() >= 5) {
+        // 지금 잠겨 있던 계정만 "잠금 해제"다 — 잠기지 않았거나 잠금 시간이 이미 지난 계정은 상태 전환이 없으므로 기록하지 않는다.
+        if (LoginLockPolicy.isLocked(user.getLoginFailureCount(), user.getLoginFailedAt(), Instant.now())) {
             loginAuditService.recordAccountUnlocked(user);
         }
 

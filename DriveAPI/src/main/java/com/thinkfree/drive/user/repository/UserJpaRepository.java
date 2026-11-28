@@ -43,10 +43,10 @@ interface UserJpaRepository extends JpaRepository<User, Integer> {
     /** 계정 값 DTO 선택 머리(비밀값 제외) */
     String SELECT_DETAIL = "select new com.thinkfree.drive.user.data.UserDetailData(u.userSeq, u.userId, u.userName, u.status, u.totalQuotaByte, u.useQuotaByte, "
             + "u.registerUserSeq, u.registerDate, u.updateUserSeq, u.updateDate, u.userLanguage, u.countryCode, u.phoneNumber, u.defaultLandingPage, u.profileImageKey, u.tenantSeq, u.mfaStatus) from User u ";
-    /** 인증 DTO 선택 머리 = 계정 값 + encPwd(Password 컨버터)·loginFailureCount·mfaMethod·mfaSecretKey */
+    /** 인증 DTO 선택 머리 = 계정 값 + encPwd(Password 컨버터)·loginFailureCount·loginFailedAt·mfaMethod·mfaSecretKey */
     String SELECT_AUTH = "select new com.thinkfree.drive.user.data.UserAuthData(u.userSeq, u.userId, u.userName, u.status, u.totalQuotaByte, u.useQuotaByte, "
             + "u.registerUserSeq, u.registerDate, u.updateUserSeq, u.updateDate, u.userLanguage, u.countryCode, u.phoneNumber, u.defaultLandingPage, u.profileImageKey, u.tenantSeq, u.mfaStatus, "
-            + "u.encPwd, u.loginFailureCount, u.mfaMethod, u.mfaSecretKey) from User u ";
+            + "u.encPwd, u.loginFailureCount, u.loginFailedAt, u.mfaMethod, u.mfaSecretKey) from User u ";
 
     @Transactional(readOnly = true)
     @Query(SELECT_DETAIL + "where u.userSeq = :userSeq")
@@ -143,13 +143,7 @@ interface UserJpaRepository extends JpaRepository<User, Integer> {
     @Query("update User u set u.useQuotaByte = u.useQuotaByte + :delta where u.userSeq = :userSeq")
     int addUseQuotaByte(@Param("userSeq") Integer userSeq, @Param("delta") Long delta);
 
-    /** 원자적 증감(로그인 실패 — 별도 트랜잭션) */
-    @Transactional
-    @Modifying
-    @Query("update User u set u.loginFailureCount = u.loginFailureCount + 1 where u.userSeq = :userSeq and u.status = :active")
-    int increaseLoginFailureCount(@Param("userSeq") Integer userSeq, @Param("active") UserStatus active);
-
-    /** 로드 없이 끝내는 빈번한 단일 컬럼(로그인 성공·재설정 링크 요청) — PK 라 1행(10-23 role ④: 로그인 실패 횟수는 user_seq 기준). 비밀번호 변경 경로는 {@link User#changePassword} */
+    /** 로드 없이 끝내는 빈번한 단일 컬럼(로그인 성공) — PK 라 1행(10-23 role ④: 로그인 실패 횟수는 user_seq 기준). 비밀번호 변경 경로는 {@link User#changePassword} */
     @Transactional
     @Modifying
     @Query("update User u set u.loginFailureCount = 0 where u.userSeq = :userSeq and u.status = :active")

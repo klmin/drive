@@ -39,6 +39,8 @@ public class UserAuthData implements UserIdentity {
     private MfaStatus mfaStatus;
     private Password encPwd;
     private Integer loginFailureCount;
+    /** 마지막 로그인 실패(시도) 시각 — 잠금 해제 판단(LoginLockPolicy). 쓰기는 DefaultUserRepository#countLoginAttempt */
+    private Instant loginFailedAt;
     private MfaMethod mfaMethod;
     private String mfaSecretKey;
 }

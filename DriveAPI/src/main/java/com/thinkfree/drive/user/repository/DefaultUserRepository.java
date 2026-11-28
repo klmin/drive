@@ -5,12 +5,14 @@ import com.thinkfree.drive.global.jdbc.JdbcAudit;
 import com.thinkfree.drive.global.jooq.JooqBatches;
 import com.thinkfree.drive.jooq.tables.records.TbUserRecord;
 import com.thinkfree.drive.global.jpa.audit.UpdateStamp;
+import com.thinkfree.drive.user.data.LoginAttempt;
 import com.thinkfree.drive.user.entity.User;
 import com.thinkfree.drive.user.enums.MfaMethod;
 import com.thinkfree.drive.user.enums.MfaStatus;
 import com.thinkfree.drive.user.enums.UserStatus;
 import com.thinkfree.drive.user.exception.UserErrorCode;
 import com.thinkfree.drive.user.query.*;
+import com.thinkfree.drive.user.util.LoginLockPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jooq.Condition;
@@ -161,9 +163,29 @@ public class DefaultUserRepository implements UserRepository {
         return jpaRepository.activate(userSeq, UserStatus.ACTIVE, stamp);
     }
 
+    /**
+     * 조건부 UPDATE … RETURNING 한 문장 — 행 잠금은 이 문장 동안만(bcrypt 비교 동안 잡지 않는다).
+     * 동시에 여러 요청이 와도 PostgreSQL 이 같은 행 UPDATE 를 줄 세우고 뒤 요청은 앞 요청이 커밋한 값으로 WHERE 를 다시 보므로,
+     * 잠금 전 시도는 정확히 {@link LoginLockPolicy#MAX_FAILURES} 번만 COUNTED 가 된다.
+     * 0행이면 잠김과 "행 없음"을 가르려고 한 번 더 본다(같은 트랜잭션).
+     */
     @Override
-    public void increaseLoginFailureCount(Integer userSeq) {
-        jpaRepository.increaseLoginFailureCount(userSeq, UserStatus.ACTIVE);
+    public LoginAttempt countLoginAttempt(Integer userSeq, Instant now) {
+        Condition expired = TB_USER.LOGIN_FAILED_AT.isNull().or(TB_USER.LOGIN_FAILED_AT.lt(LoginLockPolicy.windowStart(now)));
+        Integer count = dsl.update(TB_USER)
+                .set(TB_USER.LOGIN_FAILURE_COUNT, DSL.when(expired, DSL.inline(1)).otherwise(TB_USER.LOGIN_FAILURE_COUNT.plus(1)))
+                .set(TB_USER.LOGIN_FAILED_AT, now)
+                .where(TB_USER.USER_SEQ.eq(userSeq))
+                .and(TB_USER.STATUS.eq(UserStatus.ACTIVE))
+                .and(TB_USER.LOGIN_FAILURE_COUNT.lt(LoginLockPolicy.MAX_FAILURES).or(expired))
+                .returningResult(TB_USER.LOGIN_FAILURE_COUNT)
+                .fetchOptional(Record1::value1)
+                .orElse(null);
+        if (count != null) {
+            return LoginAttempt.counted(count);
+        }
+        boolean exists = dsl.fetchExists(TB_USER, TB_USER.USER_SEQ.eq(userSeq).and(TB_USER.STATUS.eq(UserStatus.ACTIVE)));
+        return exists ? LoginAttempt.locked() : LoginAttempt.notFound();
     }
 
     @Override

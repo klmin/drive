@@ -1,8 +1,10 @@
 package com.thinkfree.drive.user.repository;
 
+import com.thinkfree.drive.user.data.LoginAttempt;
 import com.thinkfree.drive.user.entity.User;
 import com.thinkfree.drive.user.query.*;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -31,7 +33,11 @@ public interface UserRepository {
 
     /** 원자적 증감(delta 음수 = 감소) */
     int addUseQuotaByte(int userSeq, Long delta);
-    void increaseLoginFailureCount(Integer userSeq);
+    /**
+     * 로그인 시도 1회를 비밀번호 비교 전에 원자적으로 센다(ACTIVE 만) — 잠겨 있으면 세지 않고 LOCKED.
+     * 마지막 실패가 {@link com.thinkfree.drive.user.util.LoginLockPolicy#LOCK_DURATION} 보다 오래면 1부터 다시 센다.
+     */
+    LoginAttempt countLoginAttempt(Integer userSeq, Instant now);
     void resetLoginFailureCount(Integer userSeq);
     int markUsersAsDeleted(UserDeleteMarkQuery query);
     /** 관리자 일괄 수정 배치 UPDATE(행마다 값이 다름) — 처리 건수 = 항목 수, 실패 시 UPDATE_FAIL */
