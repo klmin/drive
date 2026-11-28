@@ -63,4 +63,34 @@ class OAuth2ClientRegistrationRateLimiterTest {
         assertThat(limiter.tryAcquire(null)).isTrue();
         assertThat(limiter.tryAcquire(null)).isFalse();
     }
+
+    @Test
+    @DisplayName("같은 IP 의 동시 요청도 상한만큼만 허용한다(확인·증가가 원자적)")
+    void perIpLimitUnderConcurrency() throws Exception {
+        recentRegistrations(0);
+        OAuth2ClientRegistrationRateLimiter limiter = limiter(10, 500);
+        int threads = 50;
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(threads);
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicInteger allowed = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+        try {
+            for (int i = 0; i < threads; i++) {
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    if (limiter.tryAcquire("10.0.0.7")) {
+                        allowed.incrementAndGet();
+                    }
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (java.util.concurrent.Future<?> f : futures) {
+                f.get();
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+        assertThat(allowed.get()).isEqualTo(10);
+    }
 }

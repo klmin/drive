@@ -41,21 +41,22 @@ public class OAuth2ClientRegistrationRateLimiter {
                 .build();
     }
 
-    /** 등록 허용 여부 — 허용이면 IP 카운트를 1 올린다(거부면 올리지 않음) */
+    /** 등록 허용 여부 — 허용이면 IP 카운트를 1 올린다(거부면 올리지 않음). 동시 요청도 먼저 한 칸을 잡고 확인해 상한을 넘지 않는다 */
     public boolean tryAcquire(String clientIp) {
         String key = clientIp == null ? "unknown" : clientIp;
         AtomicInteger count = perIpCounts.get(key, k -> new AtomicInteger());
-        if (count.get() >= property.perIpLimit()) {
+        if (count.incrementAndGet() > property.perIpLimit()) {
+            count.decrementAndGet();
             log.warn("[OAuth2 DCR] per-IP registration limit exceeded. ip : {} limit : {}", key, property.perIpLimit());
             return false;
         }
         int recent = dsl.fetchCount(OAUTH2_REGISTERED_CLIENT,
                 OAUTH2_REGISTERED_CLIENT.CLIENT_ID_ISSUED_AT.gt(Instant.now().minus(property.window())));
         if (recent >= property.globalLimit()) {
+            count.decrementAndGet();
             log.warn("[OAuth2 DCR] global registration limit exceeded. recent : {} limit : {}", recent, property.globalLimit());
             return false;
         }
-        count.incrementAndGet();
         return true;
     }
 }
