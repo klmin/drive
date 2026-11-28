@@ -38,6 +38,8 @@ public class LoginRateLimitGuard {
     private final RateLimitRule mfaPerUser;
     private final RateLimitRule resetLinkPerAccount;
     private final RateLimitRule resetLinkPerIp;
+    private final RateLimitRule shareLinkPerIp;
+    private final RateLimitRule shareLinkPerUser;
 
     public LoginRateLimitGuard(RateLimiter rateLimiter, RateLimitProperty property, MeterRegistry meterRegistry) {
         this.rateLimiter = rateLimiter;
@@ -49,6 +51,8 @@ public class LoginRateLimitGuard {
         this.mfaPerUser = new RateLimitRule("mfa-user", property.mfaPerUser(), PERIOD);
         this.resetLinkPerAccount = new RateLimitRule("reset-link-account", property.passwordResetLinkPerAccount(), RESET_LINK_PERIOD);
         this.resetLinkPerIp = new RateLimitRule("reset-link-ip", property.passwordResetLinkPerIp(), PERIOD);
+        this.shareLinkPerIp = new RateLimitRule("share-link-ip", property.shareLinkAccess(), PERIOD);
+        this.shareLinkPerUser = new RateLimitRule("share-link-user", property.shareLinkAccess(), PERIOD);
     }
 
     /** 아이디·비밀번호 로그인(사용자·관리자·슈퍼관리자) — IP 먼저, 그다음 아이디 */
@@ -67,6 +71,22 @@ public class LoginRateLimitGuard {
             return;
         }
         consume(anonymousPerIp, scope(RoleType.ANONYMOUS) + ":" + IpUtil.extractClientIp(request));
+    }
+
+    /**
+     * 공유 링크 열기(인증 없이 받는 {@code GET /shares/link/{token}}) — 링크 토큰 추측·대량 조회 방지.
+     * 로그인한 요청은 사용자 기준(회사 NAT 뒤 사용자끼리 한도를 나눠 쓰지 않게), 아니면 IP 기준(테넌트별).
+     * 익명 로그인({@link #checkAnonymousLogin})과는 버킷이 따로다 — 링크 하나를 열면 둘 다 한 번씩 부른다.
+     */
+    public void checkShareLinkAccess(Integer userSeq, HttpServletRequest request) {
+        if (!property.enabled()) {
+            return;
+        }
+        if (userSeq != null) {
+            consume(shareLinkPerUser, String.valueOf(userSeq));
+        } else {
+            consume(shareLinkPerIp, scope(RoleType.ANONYMOUS) + ":" + IpUtil.extractClientIp(request));
+        }
     }
 
     /**

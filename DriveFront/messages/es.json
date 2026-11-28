@@ -504,7 +504,8 @@
         },
         "access": {
             "success": "Acceso al enlace compartido correcto.",
-            "fail": "Error al acceder al enlace compartido."
+            "fail": "Error al acceder al enlace compartido.",
+            "tooManyRequests": "Demasiadas solicitudes. Vuelva a intentarlo en unos momentos."
         },
         "update": {
             "success": "Uso compartido actualizado correctamente.",

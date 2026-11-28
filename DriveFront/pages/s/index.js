@@ -50,6 +50,10 @@ export default function SToken() {
             saveAuth('ANONYMOUS', data);
             return true;
         }
+        if (res?.errorCode === 'REQUEST_013') {
+            // 요청 수 제한(429) — 오류 페이지에서 "접근 실패" 대신 잠시 뒤 다시 시도 안내
+            saveShareLinkToast('TOO_MANY_REQUESTS');
+        }
         return false;
     };
 
@@ -137,6 +141,10 @@ export default function SToken() {
                 // 토큰 만료 또는 미인증
                 saveShareLinkToast('NEED_LOGIN');
                 await router.replace(`${ROUTES.LOGIN}?redirect=${encodeURIComponent(redirect)}`);
+            } else if (res?.errorCode === 'REQUEST_013') {
+                // 요청 수 제한(429) — api 공통 처리가 에러를 throw 하지 않고 본문을 돌려준다
+                saveShareLinkToast('TOO_MANY_REQUESTS');
+                await router.push(ROUTES.ERROR_PAGE_SHARE);
             } else {
                 // 링크 만료, 권한 없음 등 그 외 오류
                 saveShareLinkToast('ACCESS_FAIL');

@@ -23,6 +23,8 @@ export default function ErrorPage() {
         removeShareLinkToast();
         if (toastType === 'ACCESS_FAIL') {
             showSnackbar(t('share.access.fail'), 'error');
+        } else if (toastType === 'TOO_MANY_REQUESTS') {
+            showSnackbar(t('share.access.tooManyRequests'), 'error');
         }
     }, []);
 

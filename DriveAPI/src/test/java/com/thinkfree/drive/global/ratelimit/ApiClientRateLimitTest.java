@@ -48,7 +48,7 @@ class ApiClientRateLimitTest {
     final SuperAdminExternalProperty superAdminExternalProperty = mock(SuperAdminExternalProperty.class);
 
     private static RateLimitProperty property(boolean enabled, long perKey) {
-        return new RateLimitProperty(enabled, 10, 100, 30, 5, 3, 20, perKey);
+        return new RateLimitProperty(enabled, 10, 100, 30, 5, 3, 20, perKey, 60);
     }
 
     private ApiClientRateLimitGuard guard(boolean enabled, long perKey) {

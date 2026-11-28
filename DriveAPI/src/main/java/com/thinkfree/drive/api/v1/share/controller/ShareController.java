@@ -26,6 +26,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import com.thinkfree.drive.global.ratelimit.LoginRateLimitGuard;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
 @RestController
@@ -37,6 +39,7 @@ public class ShareController {
     private final ShareUseCase shareUseCase;
     private final ShareRequestConverter shareRequestConverter;
     private final ShareResponseConverter shareResponseConverter;
+    private final LoginRateLimitGuard loginRateLimitGuard;
 
     @ExternalApi
     @TenantRestriction(TenantFeature.SHARE)
@@ -116,7 +119,9 @@ public class ShareController {
             description = "Resolves the supplied link token and returns share information when the access rules allow it.")
     @AnonymousAccessible
     @GetMapping("/link/{token}")
-    public ResponseEntity<ApiResponse<ShareLinkAccessResponse>> accessLink(@ModelAttribute ShareLinkAccessRequest request, @AuthenticationPrincipal CustomUserDetails details) {
+    public ResponseEntity<ApiResponse<ShareLinkAccessResponse>> accessLink(@ModelAttribute ShareLinkAccessRequest request, @AuthenticationPrincipal CustomUserDetails details, HttpServletRequest httpRequest) {
+        // 익명 세션은 모두 같은 익명 계정(userSeq)이라 사용자 기준이면 방문자 전체가 한 버킷 — IP 기준으로 센다
+        loginRateLimitGuard.checkShareLinkAccess(details == null || details.isAnonymous() ? null : details.getUserSeq(), httpRequest);
         // 미인증(익명) 허용 경로 — details가 null일 수 있어 nullable 해체로 넘긴다
         var info = shareUseCase.accessShareLinkByToken(request.token(),
                 details == null ? null : details.getUserSeq(),
