@@ -186,7 +186,7 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
             throw new BadCredentialsException("Invalid API Key");
         }
 
-        apiKeyService.updateLastUsedDate(apiKey);
+        apiKeyService.updateLastUsedDate(apiKey, apiKeyData.getLastUsedDate());
 
         return new VerifiedToken(apiKeyData.getUserSeq(), parseRawScopes(apiKeyData.getScope()), null, AuthSource.EXTERNAL, apiKeyData.getRoleType());
     }

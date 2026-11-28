@@ -178,7 +178,7 @@ class ApiKeyAuthenticationFilterRoleTest {
         given(userFindService.findActiveDetailHoldingRole(USER_SEQ, RoleType.USER)).willReturn(account);
 
         assertThat(run("ADMIN")).isNull();
-        verify(apiKeyService, never()).updateLastUsedDate(anyString());
+        verify(apiKeyService, never()).updateLastUsedDate(anyString(), any());
     }
 
     @Test
@@ -209,7 +209,7 @@ class ApiKeyAuthenticationFilterRoleTest {
 
         assertThat(run()).isSameAs(cookieAuth);
         verify(apiKeyFindService, never()).findActiveByApiKey(anyString(), any());
-        verify(apiKeyService, never()).updateLastUsedDate(anyString());
+        verify(apiKeyService, never()).updateLastUsedDate(anyString(), any());
     }
 
     /** 내부 체인용 필터 — SUPER_ADMIN 역할 키 거부 */
@@ -234,7 +234,7 @@ class ApiKeyAuthenticationFilterRoleTest {
         given(userFindService.findActiveDetailHoldingRole(USER_SEQ, RoleType.SUPER_ADMIN)).willReturn(superAdmin);
 
         assertThat(run(internalFilter(), null)).isNull();
-        verify(apiKeyService, never()).updateLastUsedDate(anyString());
+        verify(apiKeyService, never()).updateLastUsedDate(anyString(), any());
     }
 
     @Test

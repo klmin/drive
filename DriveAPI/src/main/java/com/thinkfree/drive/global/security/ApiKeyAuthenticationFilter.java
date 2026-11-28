@@ -108,7 +108,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 }
                 verifyRoleHeader(request, apiKeyData.getRoleType());
                 
-                apiKeyService.updateLastUsedDate(apiKey);
+                apiKeyService.updateLastUsedDate(apiKey, apiKeyData.getLastUsedDate());
                 
                 UserDetailData actor = resolveActor(apiKeyData);
                 

@@ -84,12 +84,16 @@ interface ApiKeyJpaRepository extends JpaRepository<ApiKey, Integer> {
 
     /**
      * 인증 필터가 매 요청 부르는 단일 컬럼 갱신 — 로드 없이 1문이라 JPQL {@code @Modifying} 유지(변경 감지면 로드 SELECT 가 더해지고
-     * Auditing 이 update_* 를 덮어써 수정일이 마지막 사용일이 된다)
+     * Auditing 이 update_* 를 덮어써 수정일이 마지막 사용일이 된다).
+     * 마지막 사용일이 {@code staleBefore} 이후면 건드리지 않는다 — 같은 키로 연속 호출(MCP 등)해도 같은 행에 쓰기가 몰리지 않게.
+     * 조건이 문 안에 있어 동시 요청이 같은 순간 와도 간격 안에서는 한 요청만 쓴다.
      */
     @Transactional
     @Modifying
-    @Query("update ApiKey k set k.lastUsedDate = :lastUsedDate where k.apiKey = :apiKey")
-    int updateLastUsedDate(@Param("apiKey") String apiKey, @Param("lastUsedDate") Instant lastUsedDate);
+    @Query("update ApiKey k set k.lastUsedDate = :lastUsedDate where k.apiKey = :apiKey "
+            + "and (k.lastUsedDate is null or k.lastUsedDate < :staleBefore)")
+    int updateLastUsedDate(@Param("apiKey") String apiKey, @Param("lastUsedDate") Instant lastUsedDate,
+                           @Param("staleBefore") Instant staleBefore);
 
     /** 테넌트 삭제 — 이 테넌트의 행 전부(조건부 다건이라 JPQL @Modifying) */
     @Transactional

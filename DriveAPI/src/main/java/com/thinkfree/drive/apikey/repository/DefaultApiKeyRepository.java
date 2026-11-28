@@ -5,6 +5,7 @@ import com.thinkfree.drive.global.jdbc.JdbcAudit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -43,8 +44,8 @@ public class DefaultApiKeyRepository implements ApiKeyRepository {
     }
 
     @Override
-    public void updateLastUsedDate(String apiKey) {
-        apiKeyJpaRepository.updateLastUsedDate(apiKey, JdbcAudit.now());
+    public int updateLastUsedDate(String apiKey, Instant staleBefore) {
+        return apiKeyJpaRepository.updateLastUsedDate(apiKey, JdbcAudit.now(), staleBefore);
     }
 
     @Override
