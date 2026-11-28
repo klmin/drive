@@ -7,6 +7,7 @@ import com.thinkfree.drive.apikey.service.ApiKeyFindService;
 import com.thinkfree.drive.apikey.service.ApiKeyService;
 import com.thinkfree.drive.auth.token.blacklist.service.BlacklistTokenFindService;
 import com.thinkfree.drive.auth.utils.JwtProvider;
+import com.thinkfree.drive.global.ratelimit.ApiClientRateLimitGuard;
 import com.thinkfree.drive.global.security.*;
 import com.thinkfree.drive.global.security.properties.CorsProperty;
 import com.thinkfree.drive.superadmin.properties.SuperAdminExternalProperty;
@@ -55,6 +56,7 @@ public class SecurityConfig {
     private final ApiKeyService apiKeyService;
     private final UserFindService userFindService;
     private final SuperAdminExternalProperty superAdminExternalProperty;
+    private final ApiClientRateLimitGuard apiClientRateLimitGuard;
     private final ApiScopeAuthorizationManager apiScopeAuthorizationManager;
 
     private final SuperAdminIpGuard superAdminIpGuard;
@@ -105,7 +107,7 @@ public class SecurityConfig {
     @Bean
     @Order(1)
     public SecurityFilterChain externalApiFilterChain(HttpSecurity http) throws Exception {
-        ApiKeyAuthenticationFilter apiKeyAuthenticationFilter = new ApiKeyAuthenticationFilter(apiKeyFindService, apiKeyService, userFindService, superAdminExternalProperty);
+        ApiKeyAuthenticationFilter apiKeyAuthenticationFilter = new ApiKeyAuthenticationFilter(apiKeyFindService, apiKeyService, userFindService, superAdminExternalProperty, apiClientRateLimitGuard);
         TenantBoundaryFilter tenantBoundaryFilter = new TenantBoundaryFilter(objectMapper);
 
         http.securityMatcher("/api/public/**")
@@ -180,7 +182,7 @@ public class SecurityConfig {
             )
             // 내부 체인: JWT(쿠키) → API Key(쿠키 인증이 없을 때만, SUPER_ADMIN 역할 키 제외) → IP → 테넌트 경계
             .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, customUserDetailsService, blacklistTokenFindService), UsernamePasswordAuthenticationFilter.class)
-            .addFilterAfter(ApiKeyAuthenticationFilter.rejectingSuperAdminKey(apiKeyFindService, apiKeyService, userFindService, superAdminExternalProperty), JwtAuthenticationFilter.class)
+            .addFilterAfter(ApiKeyAuthenticationFilter.rejectingSuperAdminKey(apiKeyFindService, apiKeyService, userFindService, superAdminExternalProperty, apiClientRateLimitGuard), JwtAuthenticationFilter.class)
             .addFilterAfter(new IpAccessFilter(superAdminIpGuard, ipAccessControlService, objectMapper), ApiKeyAuthenticationFilter.class)
             .addFilterAfter(new TenantBoundaryFilter(objectMapper), IpAccessFilter.class);
 

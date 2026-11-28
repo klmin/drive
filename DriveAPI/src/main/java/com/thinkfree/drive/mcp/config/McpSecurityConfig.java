@@ -1,6 +1,7 @@
 package com.thinkfree.drive.mcp.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thinkfree.drive.global.ratelimit.ApiClientRateLimitGuard;
 import com.thinkfree.drive.apikey.service.ApiKeyFindService;
 import com.thinkfree.drive.apikey.service.ApiKeyService;
 import com.thinkfree.drive.global.security.CustomUserDetailsService;
@@ -45,6 +46,7 @@ public class McpSecurityConfig {
     private final OAuth2ClientConnectionService oauth2ClientConnectionService;
     private final ApiKeyFindService apiKeyFindService;
     private final ApiKeyService apiKeyService;
+    private final ApiClientRateLimitGuard apiClientRateLimitGuard;
     private final McpAuthenticationEntryPoint mcpAuthenticationEntryPoint;
     private final ObjectMapper objectMapper;
     private final RoleHierarchy roleHierarchy;
@@ -62,7 +64,7 @@ public class McpSecurityConfig {
         McpBearerTokenAuthenticationFilter mcpBearerTokenAuthenticationFilter =
                 new McpBearerTokenAuthenticationFilter(customUserDetailsService,
                         oauth2KeyManager, oauth2ClientConnectionService,
-                        apiKeyFindService, apiKeyService);
+                        apiKeyFindService, apiKeyService, apiClientRateLimitGuard);
 
         http.securityMatcher(McpConstants.MCP_ENDPOINT, McpConstants.MCP_ENDPOINT + "/**")
             .cors(Customizer.withDefaults())

@@ -19,6 +19,8 @@ import com.thinkfree.drive.oauth2.connection.service.OAuth2ClientConnectionServi
 import com.thinkfree.drive.oauth2.constants.OAuth2Constants;
 import com.thinkfree.drive.oauth2.jwk.OAuth2KeyManager;
 import com.thinkfree.drive.user.enums.RoleType;
+import com.thinkfree.drive.global.ratelimit.ApiClientRateLimitGuard;
+import com.thinkfree.drive.global.ratelimit.RateLimitExceededException;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -42,6 +44,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -51,6 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -80,6 +84,7 @@ class McpBearerTokenAuthenticationFilterRoleTest {
     @Mock private OAuth2ClientConnectionService oauth2ClientConnectionService;
     @Mock private ApiKeyFindService apiKeyFindService;
     @Mock private ApiKeyService apiKeyService;
+    @Mock private ApiClientRateLimitGuard rateLimitGuard;
     @Mock private FilterChain chain;
 
     @InjectMocks
@@ -305,5 +310,35 @@ class McpBearerTokenAuthenticationFilterRoleTest {
         given(oauth2ClientConnectionService.verifyAndTouch(USER_SEQ, CLIENT_ID)).willReturn(false);
 
         assertThat(run(request(oauthToken()))).isNull();
+    }
+    @Test
+    @DisplayName("OAuth — 요청 수 초과면 계정·연결 조회 없이 체인을 멈춘다(429 는 가드가 씀)")
+    void oauthRateLimited() throws Exception {
+        RateLimitExceededException rejected = new RateLimitExceededException("mcp-oauth", Duration.ofSeconds(3));
+        willThrow(rejected).given(rateLimitGuard).checkMcpOAuth(TENANT, USER_SEQ, CLIENT_ID);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request(oauthToken()), response, chain);
+
+        verify(rateLimitGuard).writeRejected(response, rejected);
+        verify(chain, never()).doFilter(any(), any());
+        verify(customUserDetailsService, never()).loadUserByUserSeq(anyInt(), any(), any());
+        verify(oauth2ClientConnectionService, never()).verifyAndTouch(anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("API Key — 요청 수 초과면 마지막 사용일 기록·계정 조회 없이 체인을 멈춘다")
+    void apiKeyRateLimited() throws Exception {
+        apiKey(RoleType.USER);
+        RateLimitExceededException rejected = new RateLimitExceededException("api-key", Duration.ofSeconds(3));
+        willThrow(rejected).given(rateLimitGuard).checkApiKey(TENANT, 1);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request(KEY), response, chain);
+
+        verify(rateLimitGuard).writeRejected(response, rejected);
+        verify(chain, never()).doFilter(any(), any());
+        verify(apiKeyService, never()).updateLastUsedDate(any(), any());
+        verify(customUserDetailsService, never()).loadUserByUserSeq(anyInt(), any(), any());
     }
 }

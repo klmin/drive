@@ -8,6 +8,8 @@ import com.thinkfree.drive.auth.cookie.AuthCookieManager;
 import com.thinkfree.drive.auth.utils.AuthorizationExtractor;
 import com.thinkfree.drive.global.enums.AuthSource;
 import com.thinkfree.drive.global.exception.ApiRuntimeException;
+import com.thinkfree.drive.global.ratelimit.ApiClientRateLimitGuard;
+import com.thinkfree.drive.global.ratelimit.RateLimitExceededException;
 import com.thinkfree.drive.superadmin.properties.SuperAdminExternalProperty;
 import com.thinkfree.drive.user.data.UserDetailData;
 import com.thinkfree.drive.user.enums.RoleType;
@@ -38,14 +40,16 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private final ApiKeyService apiKeyService;
     private final UserFindService userFindService;
     private final SuperAdminExternalProperty superAdminExternalProperty;
+    private final ApiClientRateLimitGuard rateLimitGuard;
 
     /** SUPER_ADMIN 역할 키(고정·DB) 허용 여부 — 외부 체인만 허용, 내부 체인은 {@link #rejectingSuperAdminKey} 로 생성 */
     private boolean superAdminKeyAllowed = true;
 
     /** 내부 체인용 — SUPER_ADMIN 역할 키는 인증하지 않는다(슈퍼관리자는 쿠키 로그인만) */
     public static ApiKeyAuthenticationFilter rejectingSuperAdminKey(ApiKeyFindService apiKeyFindService, ApiKeyService apiKeyService,
-                                                                   UserFindService userFindService, SuperAdminExternalProperty superAdminExternalProperty) {
-        ApiKeyAuthenticationFilter filter = new ApiKeyAuthenticationFilter(apiKeyFindService, apiKeyService, userFindService, superAdminExternalProperty);
+                                                                   UserFindService userFindService, SuperAdminExternalProperty superAdminExternalProperty,
+                                                                   ApiClientRateLimitGuard rateLimitGuard) {
+        ApiKeyAuthenticationFilter filter = new ApiKeyAuthenticationFilter(apiKeyFindService, apiKeyService, userFindService, superAdminExternalProperty, rateLimitGuard);
         filter.superAdminKeyAllowed = false;
         return filter;
     }
@@ -80,6 +84,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             if(superAdminExternalProperty.matches(apiKey)){
                 verifySuperAdminKeyAllowed();
                 verifyRoleHeader(request, RoleType.SUPER_ADMIN);
+                rateLimitGuard.checkStaticSuperAdminKey();
                 // SUPER_ADMIN 보유 계정 중 가장 오래된 1명(tb_user_role 기준) — 역할은 그 조회 조건 그대로
                 var superAdmin = userFindService.findEarliestActiveSuperAdmin();
                 authentication = createAuthentication(ApiKeyScope.join(EnumSet.allOf(ApiKeyScope.class)), RoleType.SUPER_ADMIN.getAuthority(), null, superAdmin.getUserSeq(), superAdmin.getUserId(), superAdmin.getUserName());
@@ -107,6 +112,9 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                     verifySuperAdminKeyAllowed();
                 }
                 verifyRoleHeader(request, apiKeyData.getRoleType());
+
+                // 요청 수 제한 — 키를 확인한 뒤, 계정 조회·마지막 사용일 기록 전에(넘은 요청은 DB 를 더 쓰지 않음)
+                rateLimitGuard.checkApiKey(apiKeyData.getTenantSeq(), apiKeyData.getApiKeySeq());
                 
                 apiKeyService.updateLastUsedDate(apiKey, apiKeyData.getLastUsedDate());
                 
@@ -119,6 +127,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         } catch (AuthenticationException ex) {
             log.error("{ ApiKeyAuthenticationFilter } : 인증 오류 - {}", ex.getMessage());
+        } catch (RateLimitExceededException ex) {
+            // 필터라 전역 예외 처리기를 거치지 않는다 — 429 를 직접 쓰고 체인을 멈춘다
+            rateLimitGuard.writeRejected(response, ex);
+            return;
         }
 
         filterChain.doFilter(request, response);

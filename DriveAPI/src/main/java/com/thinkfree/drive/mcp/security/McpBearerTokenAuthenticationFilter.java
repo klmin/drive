@@ -5,6 +5,8 @@ import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.thinkfree.drive.global.ratelimit.ApiClientRateLimitGuard;
+import com.thinkfree.drive.global.ratelimit.RateLimitExceededException;
 import com.thinkfree.drive.apikey.data.ApiKeyData;
 import com.thinkfree.drive.apikey.service.ApiKeyFindService;
 import com.thinkfree.drive.apikey.service.ApiKeyService;
@@ -78,6 +80,7 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
     private final OAuth2ClientConnectionService oauth2ClientConnectionService;
     private final ApiKeyFindService apiKeyFindService;
     private final ApiKeyService apiKeyService;
+    private final ApiClientRateLimitGuard rateLimitGuard;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -92,6 +95,12 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
             }
 
             VerifiedToken verified = resolveToken(token, request);
+
+            // 요청 수 제한 — OAuth 토큰은 서명 검증한 사용자·클라이언트(연동 하나) 기준, 계정·연결 조회 전에.
+            // API Key 는 verifyApiKey 에서 키 조회 직후 센다(외부·내부 체인과 같은 버킷)
+            if (verified.clientId() != null) {
+                rateLimitGuard.checkMcpOAuth(TenantContext.get(), verified.userSeq(), verified.clientId());
+            }
 
             // API Key = 키 역할 / OAuth = 토큰 role 클레임(브리지가 정함, 지금은 USER) — 둘 다 역할 1개의 보유를 확인, 회수 시 401
             // (툴 단위 검사는 McpToolRoleAspect). ACTIVE 계정만 조회한다 — 없음·비활성·삭제는 여기서 UsernameNotFoundException(별도 활성 확인 없음).
@@ -127,6 +136,10 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
                 request.setAttribute(McpConstants.AUTH_FAILURE_API_KEY_ATTR, Boolean.TRUE);
             }
             log.info("{ McpBearerTokenAuthenticationFilter } : 인증 실패 - {}", ex.getMessage());
+        } catch (RateLimitExceededException ex) {
+            // 필터라 전역 예외 처리기를 거치지 않는다 — 429 를 직접 쓰고 체인을 멈춘다
+            rateLimitGuard.writeRejected(response, ex);
+            return;
         }
 
         filterChain.doFilter(request, response);
@@ -185,6 +198,8 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
         if (apiKeyData == null) {
             throw new BadCredentialsException("Invalid API Key");
         }
+
+        rateLimitGuard.checkApiKey(apiKeyData.getTenantSeq(), apiKeyData.getApiKeySeq());
 
         apiKeyService.updateLastUsedDate(apiKey, apiKeyData.getLastUsedDate());
 
