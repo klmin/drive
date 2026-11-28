@@ -300,7 +300,7 @@ oauth2:
     refresh-token-ttl: 30d
   # 익명 DCR(/connect/register) 남용 방지 (OAuth2RegistrationProperty). 초과 시 429
   registration:
-    per-ip-limit: ${DRIVE_OAUTH2_REGISTRATION_PER_IP_LIMIT:10}    # IP 하나가 window 안에 등록할 수 있는 수(WAS 인스턴스별)
+    per-ip-limit: ${DRIVE_OAUTH2_REGISTRATION_PER_IP_LIMIT:10}    # IP 하나가 window 안에 등록할 수 있는 수(Redis 켜면 WAS 합산, 끄면 WAS 별)
     global-limit: ${DRIVE_OAUTH2_REGISTRATION_GLOBAL_LIMIT:500}   # window 안 전체 등록 수(DB 기준)
     window: 1h
     unused-ttl: 7d   # 인가·연결 이력이 없는 등록 클라이언트를 정리하기까지의 유예
