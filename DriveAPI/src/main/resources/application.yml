@@ -282,6 +282,12 @@ oauth2:
   token:
     access-token-ttl: 1h
     refresh-token-ttl: 30d
+  # 익명 DCR(/connect/register) 남용 방지 (OAuth2RegistrationProperty). 초과 시 429
+  registration:
+    per-ip-limit: ${DRIVE_OAUTH2_REGISTRATION_PER_IP_LIMIT:10}    # IP 하나가 window 안에 등록할 수 있는 수(WAS 인스턴스별)
+    global-limit: ${DRIVE_OAUTH2_REGISTRATION_GLOBAL_LIMIT:500}   # window 안 전체 등록 수(DB 기준)
+    window: 1h
+    unused-ttl: 7d   # 인가·연결 이력이 없는 등록 클라이언트를 정리하기까지의 유예
 
 # SMTP 비밀번호 DB 암호화 키(SmtpPasswordEncryptor). 바꾸면 저장된 SMTP 비밀번호를 못 푼다 — 기존 설치처는 원래 값 유지
 smtp:

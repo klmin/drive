@@ -344,7 +344,9 @@
             "title": "<b>{appName}</b> 에서",
             "desc": "{serviceName} 계정 연결을 요청합니다.",
             "allow": "허용",
-            "deny": "거부"
+            "deny": "거부",
+            "redirectLabel": "허용하면 이곳으로 연결됩니다",
+            "redirectNotice": "앱 이름은 앱이 직접 정한 값입니다. 연결될 곳이 사용 중인 앱과 맞는지 확인하세요."
         }
     },
     "filePreviewDialog": {

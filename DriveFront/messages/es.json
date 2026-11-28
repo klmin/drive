@@ -344,7 +344,9 @@
             "title": "<b>{appName}</b>",
             "desc": "Solicitando acceso a su cuenta de {serviceName}.",
             "allow": "Permitir",
-            "deny": "Denegar"
+            "deny": "Denegar",
+            "redirectLabel": "Si permite, será redirigido a",
+            "redirectNotice": "El nombre de la aplicación lo elige la propia aplicación. Verifique que el destino coincida con la aplicación que está usando."
         }
     },
     "filePreviewDialog": {

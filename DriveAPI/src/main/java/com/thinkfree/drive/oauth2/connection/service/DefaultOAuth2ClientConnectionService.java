@@ -62,6 +62,19 @@ public class DefaultOAuth2ClientConnectionService implements OAuth2ClientConnect
     }
 
     @Override
+    @Transactional
+    public boolean revokeOnTokenInvalidation(int userSeq, String clientId) {
+        OAuth2ClientConnection connection = connectionRepository.findByUserSeqAndClientId(userSeq, clientId);
+        if (connection == null) {
+            return false;
+        }
+        connectionRepository.delete(connection);
+        log.warn("[OAuth2ClientConnection revokeOnTokenInvalidation] access token invalidated, connection revoked - userSeq : {}, clientId : {}",
+                userSeq, clientId);
+        return true;
+    }
+
+    @Override
     public List<OAuth2ClientConnectionData> findConnections(int userSeq) {
         return connectionQueryRepository.findAllWithClientNameByUserSeq(userSeq);
     }

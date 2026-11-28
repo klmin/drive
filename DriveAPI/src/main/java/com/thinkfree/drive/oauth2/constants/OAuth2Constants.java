@@ -36,6 +36,12 @@ public final class OAuth2Constants {
      */
     public static final String CLAIMS_ROLE = "role";
 
+    /**
+     * access 토큰 클레임: 발급 클라이언트 (RFC 9068 §2.2) — 토큰 커스터마이저가 넣고, RS 필터가 연결 상태
+     * (tb_oauth2_client_connection) 조회 키로 읽는다. aud 는 리소스(RFC 8707) 용도로 쓰므로 클라이언트 식별을 분리했다.
+     */
+    public static final String CLAIMS_CLIENT_ID = "client_id";
+
     /** access 토큰 클레임: 승인 scope — SAS가 자동으로 넣고 RS Bearer 필터가 권한으로 매핑한다 */
     public static final String CLAIMS_SCOPE = "scope";
 

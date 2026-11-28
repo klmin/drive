@@ -20,7 +20,8 @@ import { ROUTES } from '@/constants/routes';
  * → 이 라우트로 302 (쿼리: client_id, scope(공백 구분), state).
  *
  * 이 페이지가 하는 일:
- * 1. GET /oauth2/consent-info?client_id=… 로 클라이언트 표시명 조회
+ * 1. GET /oauth2/consent-info?client_id=… 로 클라이언트 표시명과 redirect 목적지 조회
+ *    (익명 DCR 이라 표시명은 사칭 가능 — 코드가 갈 목적지를 함께 보여준다)
  * 2. 허용 → 요청 scope 전부, 거부 → scope 없이 POST /oauth2/authorize
  *    (form POST여야 백엔드 302 → MCP 콜백을 브라우저가 따라간다 — XHR 금지.
  *    세션 쿠키 동반을 위해 같은 오리진 전제 — oauth2-login과 동일)
@@ -37,6 +38,8 @@ export default function OAuth2Consent() {
     const t = useTranslations();
 
     const [clientName, setClientName] = useState('');
+    // 인가 코드가 전달될 redirect 목적지 — 표시명은 등록자가 아무 값으로 정할 수 있어 목적지를 함께 보여준다
+    const [redirectHosts, setRedirectHosts] = useState([]);
     const [bridging, setBridging] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
@@ -65,6 +68,9 @@ export default function OAuth2Consent() {
                     params: { client_id: clientId },
                 });
                 setClientName(res.data.clientName || String(clientId));
+                setRedirectHosts(
+                    Array.isArray(res.data.redirectHosts) ? res.data.redirectHosts : []
+                );
             } catch {
                 // 이름 조회 실패는 치명적이지 않음 — client_id로 대체 표기
                 setClientName(String(clientId));
@@ -223,6 +229,55 @@ export default function OAuth2Consent() {
                                     </Typography>
                                 </Box>
                             </Box>
+
+                            {/* redirect 목적지 — 표시명 사칭 대비. 사용자가 이름과 목적지를 비교해 판단한다 */}
+                            {redirectHosts.length > 0 && (
+                                <Box
+                                    sx={{
+                                        alignSelf: 'stretch',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '8px',
+                                        p: '12px 16px',
+                                        borderRadius: '8px',
+                                        backgroundColor: palette.bg_gray,
+                                    }}
+                                >
+                                    <Typography
+                                        sx={{
+                                            ...typography.body5,
+                                            fontFamily: typography.fontFamily,
+                                            color: palette.text_100,
+                                        }}
+                                    >
+                                        {t('user.mcpOauth.redirectLabel')}
+                                    </Typography>
+                                    {redirectHosts.map(host => (
+                                        <Typography
+                                            key={host}
+                                            data-testid="oauth2-consent-redirect-host"
+                                            sx={{
+                                                ...typography.h5,
+                                                fontFamily: typography.fontFamily,
+                                                color: palette.text_100,
+                                                wordBreak: 'break-all',
+                                            }}
+                                        >
+                                            {host}
+                                        </Typography>
+                                    ))}
+                                    <Typography
+                                        sx={{
+                                            ...typography.body5,
+                                            fontFamily: typography.fontFamily,
+                                            color: palette.text_100,
+                                            opacity: 0.7,
+                                        }}
+                                    >
+                                        {t('user.mcpOauth.redirectNotice')}
+                                    </Typography>
+                                </Box>
+                            )}
 
                             {/* 버튼 — 허용(위, Solid) / 거부(아래, Outlined) */}
                             <Box

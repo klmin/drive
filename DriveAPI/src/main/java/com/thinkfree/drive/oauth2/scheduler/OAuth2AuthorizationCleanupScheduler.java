@@ -5,6 +5,8 @@ import com.thinkfree.drive.scheduler.constants.SchedulerConstant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import com.thinkfree.drive.oauth2.properties.OAuth2RegistrationProperty;
+import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -12,9 +14,14 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 
 import static com.thinkfree.drive.jooq.Tables.OAUTH2_AUTHORIZATION;
+import static com.thinkfree.drive.jooq.Tables.OAUTH2_AUTHORIZATION_CONSENT;
+import static com.thinkfree.drive.jooq.Tables.OAUTH2_REGISTERED_CLIENT;
+import static com.thinkfree.drive.jooq.Tables.TB_OAUTH2_CLIENT_CONNECTION;
+import static org.jooq.impl.DSL.select;
+import static org.jooq.impl.DSL.selectOne;
 
 /**
- * oauth2_authorization 만료 행 청소 스케줄러.
+ * oauth2_authorization 만료 행 + 쓰이지 않은 DCR 클라이언트 청소 스케줄러.
  *
  * SAS(JdbcOAuth2AuthorizationService)는 만료 행을 절대 삭제하지 않아 인가 건마다 행이
  * 영구 누적된다 — authorize 방치 건(코드 미교환) + refresh(30d) 만료 건이 대상.
@@ -37,6 +44,7 @@ import static com.thinkfree.drive.jooq.Tables.OAUTH2_AUTHORIZATION;
 public class OAuth2AuthorizationCleanupScheduler {
 
     private final DSLContext dsl;
+    private final OAuth2RegistrationProperty registrationProperty;
 
     @Scheduled(cron = SchedulerConstant.CRON_CLEANUP_OAUTH2_AUTHORIZATIONS)
     @SchedulerLock(name = SchedulerConstant.LOCK_CLEANUP_OAUTH2_AUTHORIZATIONS)
@@ -55,6 +63,31 @@ public class OAuth2AuthorizationCleanupScheduler {
                 .execute();
         if (deleted > 0) {
             log.info("[OAuth2AuthorizationCleanupScheduler cleanupExpiredAuthorizations count : {}]", deleted);
+        }
+        // 인가 행 정리 뒤에 실행 — 만료 인가가 지워져야 그 클라이언트가 "이력 없음"으로 판정된다
+        cleanupUnusedRegisteredClients(now);
+    }
+
+    /**
+     * 쓰이지 않은 DCR 클라이언트 정리 — 익명 등록이라 등록만 하고 버려진 행이 계속 쌓인다.
+     * 삭제 조건(모두 충족): 발급 후 unusedTtl 경과, oauth2_authorization 행 없음(진행 중 인가·유효 토큰 없음),
+     * tb_oauth2_client_connection 행 없음(사용자 연결 없음). 해당 클라이언트의 동의(consent) 행도 함께 지운다.
+     * 지워진 클라이언트가 다시 오면 invalid_client 를 받고 재등록한다(MCP 클라이언트 표준 동작).
+     */
+    void cleanupUnusedRegisteredClients(Instant now) {
+        Condition unused = OAUTH2_REGISTERED_CLIENT.CLIENT_ID_ISSUED_AT.lt(now.minus(registrationProperty.unusedTtl()))
+                .andNotExists(selectOne().from(OAUTH2_AUTHORIZATION)
+                        .where(OAUTH2_AUTHORIZATION.REGISTERED_CLIENT_ID.eq(OAUTH2_REGISTERED_CLIENT.ID)))
+                .andNotExists(selectOne().from(TB_OAUTH2_CLIENT_CONNECTION)
+                        .where(TB_OAUTH2_CLIENT_CONNECTION.CLIENT_ID.eq(OAUTH2_REGISTERED_CLIENT.CLIENT_ID)));
+
+        int consents = dsl.deleteFrom(OAUTH2_AUTHORIZATION_CONSENT)
+                .where(OAUTH2_AUTHORIZATION_CONSENT.REGISTERED_CLIENT_ID.in(
+                        select(OAUTH2_REGISTERED_CLIENT.ID).from(OAUTH2_REGISTERED_CLIENT).where(unused)))
+                .execute();
+        int clients = dsl.deleteFrom(OAUTH2_REGISTERED_CLIENT).where(unused).execute();
+        if (clients > 0 || consents > 0) {
+            log.info("[OAuth2AuthorizationCleanupScheduler cleanupUnusedRegisteredClients clients : {} consents : {}]", clients, consents);
         }
     }
 }

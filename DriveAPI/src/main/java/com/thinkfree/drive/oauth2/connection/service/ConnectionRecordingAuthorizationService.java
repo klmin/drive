@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * OAuth2AuthorizationService 데코레이터 — 저장은 JdbcOAuth2AuthorizationService에 전부 위임하고,
  * access 토큰이 포함된 save(= 최초 발급·refresh rotation)에서만 연결 upsert를 얹는다.
+ * access 토큰이 무효화된 save(인가 코드 재사용 탐지·revoke)는 반대로 연결 행을 지워 기발급 토큰을 즉시 막는다.
  * SAS에 "토큰 발급됨" 이벤트 API가 없어 저장 경로를 훅 지점으로 쓴다
  * (인가 코드 단계의 save는 access 토큰이 없어 자연히 스킵된다).
  *
@@ -52,6 +53,14 @@ public class ConnectionRecordingAuthorizationService implements OAuth2Authorizat
         RegisteredClient client = registeredClientRepository.findById(authorization.getRegisteredClientId());
         if (client == null) {
             log.error("[ConnectionRecordingAuthorizationService save] registered client not found - id : {}", authorization.getRegisteredClientId());
+            return;
+        }
+
+        // SAS 가 access 토큰을 무효화한 저장(인가 코드 재사용 탐지, /oauth2/revoke) — 발급이 아니라 폐기다.
+        // /mcp 는 JWT 를 로컬 검증하므로 연결 행을 지워야 기발급 access 토큰이 즉시 막힌다 (RFC 9700 §4.14: 재사용 탐지 시 토큰 폐기).
+        // 일반 발급에서도 인가 코드는 무효화되지만 access 토큰은 새것이라 여기 걸리지 않는다.
+        if (authorization.getAccessToken().isInvalidated()) {
+            connectionService.revokeOnTokenInvalidation(userSeq, client.getClientId());
             return;
         }
 

@@ -344,7 +344,9 @@
             "title": "<b>{appName}</b>",
             "desc": "Requesting access to your {serviceName} account.",
             "allow": "Allow",
-            "deny": "Deny"
+            "deny": "Deny",
+            "redirectLabel": "If you allow, you will be sent to",
+            "redirectNotice": "The app name is chosen by the app itself. Make sure the destination matches the app you are using."
         }
     },
     "filePreviewDialog": {

@@ -13,6 +13,7 @@ import com.thinkfree.drive.global.enums.AuthSource;
 import com.thinkfree.drive.global.security.CustomUserDetailsService;
 import com.thinkfree.drive.global.security.TenantContext;
 import com.thinkfree.drive.mcp.constants.McpConstants;
+import com.thinkfree.drive.mcp.util.McpUrls;
 import com.thinkfree.drive.oauth2.connection.service.OAuth2ClientConnectionService;
 import com.thinkfree.drive.oauth2.constants.OAuth2Constants;
 import com.thinkfree.drive.oauth2.enums.OAuth2Scope;
@@ -90,7 +91,7 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
                 throw new AuthenticationException("Token Missing") {};
             }
 
-            VerifiedToken verified = resolveToken(token);
+            VerifiedToken verified = resolveToken(token, request);
 
             // API Key = 키 역할 / OAuth = 토큰 role 클레임(브리지가 정함, 지금은 USER) — 둘 다 역할 1개의 보유를 확인, 회수 시 401
             // (툴 단위 검사는 McpToolRoleAspect). ACTIVE 계정만 조회한다 — 없음·비활성·삭제는 여기서 UsernameNotFoundException(별도 활성 확인 없음).
@@ -139,7 +140,7 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
      * JWT가 tb_api_key에 있을 수 없고 API Key는 JWT로 파싱될 수 없다).
      * RS256이 아닌 JWT(기존 Drive 로그인 HS256 포함)는 /mcp에서 받지 않는다.
      */
-    private VerifiedToken resolveToken(String token) {
+    private VerifiedToken resolveToken(String token, HttpServletRequest request) {
         SignedJWT signedJwt = parseJwt(token);
         if (signedJwt == null) {
             return verifyApiKey(token);
@@ -147,7 +148,8 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
         if (!JWSAlgorithm.RS256.equals(signedJwt.getHeader().getAlgorithm())) {
             throw new BadCredentialsException("Unsupported token algorithm: only RS256 OAuth2 tokens are accepted on /mcp");
         }
-        return verifyOAuth2Token(signedJwt);
+        String baseUrl = McpUrls.baseUrl(request);
+        return verifyOAuth2Token(signedJwt, baseUrl, baseUrl + McpConstants.MCP_ENDPOINT);
     }
 
     /** JWT(서명 JWS) 형태면 파싱 결과, 아니면 null — API Key(불투명 문자열) 판별 겸용. */
@@ -207,8 +209,14 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
     private record VerifiedToken(int userSeq, List<String> scopes, String clientId, AuthSource authSource, RoleType role) {
     }
 
-    /** MCP OAuth 토큰(RS256, resolveToken에서 파싱·alg 확인 완료) — 헤더의 kid로 키를 선택해 서명·만료 검증 후 subject(userSeq)·scope·role 반환. */
-    private VerifiedToken verifyOAuth2Token(SignedJWT signedJwt) {
+    /**
+     * MCP OAuth 토큰(RS256, resolveToken에서 파싱·alg 확인 완료) — 헤더의 kid로 키를 선택해 서명·만료·audience 검증 후
+     * subject(userSeq)·scope·role 반환.
+     *
+     * @param expectedIssuer   이 요청의 인가 서버 issuer(McpUrls.baseUrl) — 보호 리소스 메타데이터의 authorization_servers 와 같은 값
+     * @param expectedResource 이 요청의 MCP 리소스 URI(McpUrls.baseUrl + /mcp) — 보호 리소스 메타데이터의 resource 와 같은 값
+     */
+    private VerifiedToken verifyOAuth2Token(SignedJWT signedJwt, String expectedIssuer, String expectedResource) {
         try {
             String kid = signedJwt.getHeader().getKeyID();
             if (kid == null) {
@@ -236,14 +244,27 @@ public class McpBearerTokenAuthenticationFilter extends OncePerRequestFilter {
             }
             int userSeq = Integer.parseInt(subject);
 
-            // SAS JwtGenerator는 aud에 client_id를 넣는다 — 연결 상태 검증(tb_oauth2_client_connection)의 키.
-            // 없으면 연결을 특정할 수 없어 거부 (SAS 발급분엔 항상 존재 — 방어적 검증)
-            List<String> audience = claims.getAudience();
-            if (audience == null || audience.isEmpty()) {
-                throw new BadCredentialsException("MCP OAuth token has no audience");
+            // 이 테넌트(Host)의 issuer 가 발급한 토큰만 — 서명 키는 테넌트 공용이라 서명만으로는 발급 테넌트를 구분할 수 없다.
+            // 다른 테넌트 토큰은 aud(리소스)·TenantBoundaryFilter 로도 막히지만 발급자 자체를 확인하는 심층 방어
+            if (!expectedIssuer.equals(claims.getIssuer())) {
+                throw new BadCredentialsException("MCP OAuth token issuer does not match this authorization server");
             }
 
-            return new VerifiedToken(userSeq, extractScopes(claims), audience.get(0), AuthSource.EXTERNAL, parseRole(claims));
+            // RFC 8707 / MCP Token Audience Binding — 이 리소스(테넌트별 /mcp)를 대상으로 발급된 토큰만 받는다.
+            // 커스터마이저가 aud 에 issuer + /mcp 를 고정으로 싣는다. 이 규칙 도입 전 발급분(aud = client_id 뿐)은
+            // 여기서 401 → 클라이언트가 refresh 로 새 토큰을 받으면 통과한다(access TTL 이내 일시적).
+            List<String> audience = claims.getAudience();
+            if (audience == null || !audience.contains(expectedResource)) {
+                throw new BadCredentialsException("MCP OAuth token audience does not include this resource");
+            }
+
+            // 연결 상태 검증(tb_oauth2_client_connection)의 키 — client_id 클레임 (커스터마이저가 항상 싣는다)
+            String clientId = claims.getStringClaim(OAuth2Constants.CLAIMS_CLIENT_ID);
+            if (clientId == null) {
+                throw new BadCredentialsException("MCP OAuth token has no client_id");
+            }
+
+            return new VerifiedToken(userSeq, extractScopes(claims), clientId, AuthSource.EXTERNAL, parseRole(claims));
         } catch (ParseException | JOSEException | NumberFormatException e) {
             throw new BadCredentialsException("Invalid MCP OAuth token", e);
         }
